@@ -75,7 +75,7 @@ def make_basedark( input_dark_list, refdark_name='basedark.fits', bias_file=None
     # hotpixel stuff
     iter_count,median,sigma,npx,med,mod,min,max = functions.iterate( norm_filename )
     five_sigma = median + 5*sigma
-    norm_hdu = pyfits.open( norm_hdu,mode='update' )
+    norm_hdu = pyfits.open( norm_filename,mode='update' )
     index = np.where( norm_hdu[ ('SCI',1) ].data >= five_sigma + .1)[0]
     norm_hdu[ ('DQ',1) ].data[index] = 16
     norm_hdu.flush()

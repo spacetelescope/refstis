@@ -247,7 +247,10 @@ def translate_date_string(input_string):
 #-------------------------------------------------------------------------------
 
 def iterate(thefile, maxiter=30, verbose=0):
-
+  from pyraf import iraf
+  from iraf import stsdas,toolbox,imgtools,mstools  
+  from pyraf.irafglobals import *
+  import os
   mnval = -1.0
   sig = -1.0 
   npx = -1
@@ -255,12 +258,16 @@ def iterate(thefile, maxiter=30, verbose=0):
   mod = -1.0
   min = -1.0
   max = -1.0
-  lower = 'INDEF'
-  upper = 'INDEF'
+  lower = INDEF
+  upper = INDEF
+  thefile += '[1]' # imstat wants just the extension
+  
   Pipe1 = iraf.imstat(thefile,
                       fields = 'mean,stddev,npix,midpt,mode,min,max', lower = lower,
                       upper = upper, PYfor=no, Stdout=1)
   parts = Pipe1[0].split()
+  print Pipe1
+  print parts
   mnval = float( parts[0] )
   sig   = float( parts[1] )
   npx   = float( parts[2] )

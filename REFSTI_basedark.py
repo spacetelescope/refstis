@@ -1,4 +1,4 @@
-import REFSTI_functions
+import REFSTI_functions as functions
 import numpy as np
 import pyfits
 import glob
@@ -21,7 +21,7 @@ def update_header( filename,xbin,ybin ):
     pyfits.setval( filename, 'NEXTEND', value=3 )
     pyfits.setval( filename, 'COMMENT', value='Reference file created by the STIS DARK reference file pipeline')
 
-def make_basedark( input_dark_list, bias_file=None, refdark_name='basedark.fits'):
+def make_basedark( input_dark_list, refdark_name='basedark.fits', bias_file=None):
     """
     1- split all raw images into their imsets
     2- join imsets together into a single file
@@ -35,14 +35,15 @@ def make_basedark( input_dark_list, bias_file=None, refdark_name='basedark.fits'
     from iraf import stsdas,toolbox,imgtools,mstools
     import os
 
+    os.environ['oref']='/grp/hst/cdbs/oref/' 
+    refdark_name = refdark_name.replace('.fits','')
+
     print 'Splitting images'
     imset_count = functions.split_images( input_dark_list )
 
     print 'Joining images'
     msjoin_list = ','.join( [ item for item in glob.glob('*raw??.fits') ] )# if item[:9] in bias_list] )
-    print msjoin_list
-    joined_out = refdark_name+ '_joined' +'.fits' 
-    print joined_out
+    joined_out = refdark_name+ '_joined.fits' 
     
     msjoin_file = open('msjoin.txt','w')
     msjoin_file.write( '\n'.join(msjoin_list.split(',')) )
@@ -51,16 +52,18 @@ def make_basedark( input_dark_list, bias_file=None, refdark_name='basedark.fits'
     iraf.msjoin( inimg='@msjoin.txt', outimg=joined_out, Stderr='dev$null')
     
     # ocrreject
+    print 'CRREJECT'
     crdone = functions.bd_crreject( joined_out )
     if (not crdone):
-        functions.bd_calstis( joinedfile, bias_file )
+        functions.bd_calstis( joined_out, bias_file )
 
     # divide cr-rejected
-    crj_filename = refdark_name + '_crj.fits'
+    print 'Dividing'
+    crj_filename = joined_out.replace('.fits','_crj.fits')
     exptime = pyfits.getval( crj_filename, 'TEXPTIME', ext=0 )
     gain = pyfits.getval( crj_filename, 'ATODGAIN', ext=0 )
-    xbin = pyfits.getval( crj_filename, 'XBIN', ext=0 )
-    ybin = pyfits.getval( crj_filename, 'YBIN', ext=0 )
+    xbin = pyfits.getval( crj_filename, 'BINAXIS1', ext=0 )
+    ybin = pyfits.getval( crj_filename, 'BINAXIS2', ext=0 )
     
     normalize_factor = float(exptime)/gain # ensure floating point
 

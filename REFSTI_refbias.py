@@ -7,6 +7,9 @@ import glob
 import shutil
 import os
 
+def update_header( filename ):
+    pass
+
 def make_refbias( bias_list, refbias_name ):
     """ Basic premise for making a refbias:
     1- split all raw images into their raw imsets

@@ -95,11 +95,16 @@ def crreject( input_file, workdir=None) :
 def split_images( imglist,outname='' ):
     from pyraf import iraf
     from iraf import stsdas,toolbox,imgtools,mstools
+    import glob
     print 'Splitting images'
     for dataset in imglist:
         print dataset
         iraf.mssplit(inimg=dataset, outimg=outname, extension = '*', retain='no', 
-                     Stderr='dev$null'
+                     Stderr='dev$null')
+    nimsets = len( glob.glob('*raw??.fits') )
+    return nimsets
+
+                     
 #------------------------------------------------------------------------------
 
 def figure_number_of_periods(number_of_days, mode) :
@@ -240,3 +245,144 @@ def translate_date_string(input_string):
     return MJD
 
 #-------------------------------------------------------------------------------
+
+def iterate(thefile, maxiter, verbose=0):
+
+  mnval = -1.0
+  sig = -1.0 
+  npx = -1
+  med = -1.0
+  mod = -1.0
+  min = -1.0
+  max = -1.0
+  lower = INDEF
+  upper = INDEF
+  Pipe1 = iraf.imstat(thefile,
+                      fields = 'mean,stddev,npix,midpt,mode,min,max', lower = lower,
+                      upper = upper, PYfor=no, Stdout=1)
+  parts = Pipe1[0].split()
+  mnval = float( parts[0] )
+  sig   = float( parts[1] )
+  npx   = float( parts[2] )
+  med   = float( parts[3] )
+  mod   = float( parts[4] )
+  min   = float( parts[5] )
+  max   = float( parts[6] )
+  del Pipe1
+  iter_count = 1
+  while (iter_count <= maxiter):
+      if (verbose):
+          print(str(iter_count)+' '+thefile+ ': mean='+str(mnval)+' rms='+str(sig ))
+          print('   npix='+str(npx)+' median='+str(med)+' mode='+str(mod ))
+          print('   min='+str(min)+' max='+str(max ))
+
+      ll = float(mnval) - (5.0 * float(sig))
+      ul = float(mnval) + (5.0 * float(sig))
+      if (lower != INDEF and ll < lower):
+          ll = lower
+      if (upper != INDEF and ul > upper):
+          ul = upper
+      nx = -1
+      Pipe1 = iraf.imstat(thefile,
+                          fields = 'mean,stddev,npix,midpt,mode,min,max', 
+                          lower = ll, upper = ul, PYfor=no, Stdout=1)
+      parts = Pipe1[0].split()
+      mnval = float( parts[0] )
+      sig   = float( parts[1] )
+      nx    = float( parts[2] )
+      med   = float( parts[3] )
+      mod   = float( parts[4] )
+      min   = float( parts[5] )
+      max   = float( parts[6] )
+      del Pipe1
+      if (nx == npx):
+          break
+      npx = nx
+      iter_count = iter_count + 1
+
+  return iter_count,mnval,sig,npx,med,mod,min,max
+  # End iterate()
+
+
+#-------------------------------------------------------------------------------
+
+#---------------------------------------------------------------------------
+def bd_crreject(joinedfile) :
+   #
+   # if cosmic-ray rejection has already been done on the input bias image,
+   # skip all calstis-related calibration steps
+   #
+
+   fd = pyfits.open(joinedfile)
+   nimset   = fd[0].header['nextend'] / 3
+   nrptexp  = fd[0].header['nrptexp']
+   crcorr   = fd[0].header['crcorr']
+   crdone = 0
+   if (crcorr == "COMPLETE") :
+      crdone = 1
+      print('OK, CR rejection already done')
+      os.rename(joinedfile, joinedfile.replace('_joined.fits', '_crj.fits') )
+   else:
+      print('crcorr found = '+ crcorr)
+  
+   if (nimset <= 1 and not crdone):
+      print("Sorry, your input image seems to have only 1 imset, but it isn't cr-rejected.")
+      print("This task can only handle 'raw' or 'flt images with the NEXTEND keyword equal to 3*N (N > 1).")
+      print("Bye now... better luck next time!")
+  
+   if not crdone:
+      print('FYI: CR rejection not done')
+      print('Keyword NRPTEXP = '+str(nrptexp)+' while nr. of imsets = '+str(nimset))
+      if (nrptexp != nimset):
+          pyfits.setval( joinedfile,'NRPTEXP',value=nimset)
+          pyfits.setval( joinedfile,'CRSPLIT',value=1)
+  
+          print('>>>> Updated keyword NRPTEXP to '+str(nimset) )
+          print('    (and set keyword CRSPLIT to 1)' )
+          print('     in ' + joinedfile )
+
+   return crdone
+
+#--------------------------------------------------------------------------
+def bd_calstis(joinedfile, thebiasfile=None ) :
+ 
+   print('Set CRCORR to PERFORM in joinedfile ' + joinedfile)
+   # set CRCORR calibration switch for cosmic-ray rejection
+   pyfits.setval( joinedfile,'CRCORR',value='PERFORM' )
+   #
+   # Change APERTURE to '50CCD' and APER_FOV to '50x50' for ocrreject to work
+   # correctly (i.e., so that it doesn't flag regions outside the original
+   # APERTURE)
+   pyfits.setval(joinedfile,'APERTURE',value='50CCD')
+   pyfits.setval(joinedfile,'APER_FOV',value='50x50')
+   pyfits.setval(joinedfile,'DARKCORR',value='OMIT')
+   pyfits.setval(joinedfile,'FLATCORR',value='OMIT')
+
+   #
+   # If parameter "biasfile" is specified, use it as BIASFILE in calstis
+   #
+   print('Input workdir is ' + workdir +'.')
+   print('Input thebiasfile is ' + thebiasfile +'.')
+   if thebiasfile:
+      thebiasfile = shortenFilePath( thebiasfile )
+      print('Set BIASFILE to thebiasfile ' + thebiasfile)
+      print('              in joinedfile ' + joinedfile)
+      pyfits.setval(joinedfile, 'BIASFILE', value=thebiasfile)
+
+   crj_file = joinedfile.replace('_joined.fits','_crj.fits')
+
+   print("Running CALSTIS on joined CRJ input file ...") 
+   print "## ...joinedfile", joinedfile
+   print("Cosmic-ray-rejected file will be called "+crj_file)
+   print('...by calstis which creates it')
+
+   logname = 'dev$null'
+   print '## iraf.calstis(joinedfile('+joinedfile+'.fits),'
+   print '##              wavecal="",outroot="",'
+   print '##    savetmp=no,verbose=no, Stderr=logname('+logname+')'
+   iraf.calstis(joinedfile,wavecal="",outroot="",
+                savetmp=no,verbose=no, Stderr=logname)
+
+   pyfits.setval(crj_file, 'FILENAME', value=crj_file)
+
+

@@ -87,6 +87,8 @@ def crreject( input_file, workdir=None) :
     out_div = output_crj.replace('.fits','_div.fits')
     iraf.msarith( output_crj, '/', ncombine, out_div, verbose = 0)
     
+    os.remove( output_blev )
+
     return out_div
     #return tmpsuper, xbin, ybin, ccdgain, gain, xsize, ysize, ncombine
 

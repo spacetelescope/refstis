@@ -42,7 +42,7 @@
 #--------------------------------------------------------------------------
 #
 from pyraf import iraf
-from iraf import stsdas,hst_calib,nicmos,stis,imgtools,ttools
+from iraf import stsdas,hst_calib,nicmos,stis,imgtools,mstools,ttools
 from pyraf.irafglobals import *
 import os
 import sys
@@ -93,7 +93,7 @@ def average_biases( bias_list ):
 
   os.remove( sum_file )
 
-  return mean_out
+  return mean_file,totalweight
 
 #---------------------------------------------------------------------------
 
@@ -157,6 +157,8 @@ def calibrate( input_file ):
     pyfits.setval(output_crj, 'FILENAME',
                   value=output_crj)
 
+    os.remove( output_blev )
+
     return output_crj
 
 #---------------------------------------------------------------------------
@@ -171,55 +173,51 @@ def make_basebias ( bias_list, refbias_name ):
 
   crj_list = [ calibrate(item) for item in bias_list ]
 
-  mean_bias = average_biases( crj_list )
+  mean_bias,totalweight = average_biases( crj_list )
   bias_median = os.path.join( bias_path, 'median.fits')
   #
   #***************************************************************************
   # Median filter resulting superbias by a window of 15 x 3 pixels, and
   # subtract it from the superbias to produce a "residual" image containing
   # hot columns and such
-  
+  opusutil.RemoveIfThere( bias_median )
   iraf.median( mean_bias + '[1]', bias_median, xwindow = 15, ywindow = 3, verb=yes)
 
-  iraf.iterstat( mean_bias + '[1]', nsigrej = 3., maxiter = 40, PYprint=no, verbose=yes)
-
-  iraf.iterstat(bias_median + '[1]', nsigrej = 3., maxiter = 40, PYprint=no, verbose=yes)
+  iraf.iterstat( mean_bias + '[1]', nsigrej = 3., maxiter = 40, PYprint=no, verbose=no)
+  iraf.iterstat( bias_median + '[0]', nsigrej = 3., maxiter = 40, PYprint=no, verbose=no)
 
   diffmean = float(iraf.iterstat.mean) - float(iraf.iterstat.mean)
   med_hdu = pyfits.open( bias_median,mode='update' )
-  med_hdu[ ('sci',1) ].data += diffmean
+  med_hdu[0].data += diffmean
   med_hdu.flush()
   med_hdu.close()
   del med_hdu
 
-  median_image = pyfits.getdata( bias_median, ext=('sci',1) )
-  mean_image = pyfits.getdata( mean_bias, ext=('sci',1) )
+  #median_image = pyfits.getdata( bias_median, ext=0 )
+  #mean_image = pyfits.getdata( mean_bias, ext=('sci',1) )
+  #bias_residual = mean_image - median_image
 
-  bias_residual = mean_image - median_image
+  bias_residual = os.path.join( bias_path, 'residual.fits' )
+  opusutil.RemoveIfThere( bias_residual )
+  iraf.imarith( mean_bias + '[1]', '-', bias_median + '[0]', bias_residual, verb=no)
 
-  #
-  #***************************************************************************
   # FIRST STEP TO REMOVE HOT COLUMNS:
   # Average all rows together and stretch resulting image to match input image
-  #
-  resi_cols = bias_path + os.sep + "resi_cols.fits"
+ 
+  resi_cols = os.path.join( bias_path, "resi_cols.fits")
   opusutil.RemoveIfThere(resi_cols)
-  resi_cols2d = bias_path + os.sep + "resi_cols2d.fits"
+  resi_cols2d = os.path.join( bias_path, "resi_cols2d.fits" )
   opusutil.RemoveIfThere(resi_cols2d)
   
-  fd = pyfits.open( mean_image )
+  fd = pyfits.open( mean_bias )
   xsize   = fd[1].header['naxis1']
   ysize   = fd[1].header['naxis2']
   xbin    = fd[0].header['binaxis1']
   ybin    = fd[0].header['binaxis2']
   gain    = fd[0].header['ccdgain']
   del fd
-  iraf.blkavg(bias_resi, resi_cols, 1, ysize)
+  iraf.blkavg(bias_residual, resi_cols, 1, ysize)
   iraf.blkrep(resi_cols, resi_cols2d, 1, ysize)
-  
-  print 'here'
-  sys.exit()
-  ####### Just about here
 
   #
   #***************************************************************************
@@ -231,8 +229,9 @@ def make_basebias ( bias_list, refbias_name ):
   iraf.iterstat(resi_cols, nsigrej = 3., maxiter = 40, PYprint=no, verbose=no)
   print 'thresh mean,sigma = ',iraf.iterstat.mean,' ',iraf.iterstat.sigma
   replval = float(iraf.iterstat.mean) + 3.0 * (float(iraf.iterstat.sigma))
-  iraf.imcalc(tmpsuper + '_sci.fits[0],'+bias_median+'[0],'+resi_cols2d+'[0]',
-              tmpbias + '_tmp_col.fits',
+  tmp_bias = os.path.join( bias_path, 'tmp_col.fits' )
+  opusutil.RemoveIfThere( tmp_bias )
+  iraf.imcalc(mean_bias + '[1],'+bias_median+'[0],'+resi_cols2d+'[0]', tmp_bias,
               'if im3 .ge. ' + str(replval) + ' then im2 else im1', verb=no)
   
   #
@@ -240,8 +239,7 @@ def make_basebias ( bias_list, refbias_name ):
   # SECOND STEP TO REMOVE HOT COLUMNS:
   # Average only the lower 20% of all rows together and stretch resulting
   # image to match input image.
-  #
-  opusutil.RemoveIfThere(tmpsuper + '_sci.fits')
+  
   opusutil.RemoveIfThere(resi_cols)
   opusutil.RemoveIfThere(resi_cols2d)
   
@@ -250,8 +248,8 @@ def make_basebias ( bias_list, refbias_name ):
   #
   hotrange = int(math.floor(float(ysize) * 0.2 + 0.5))
   print 'hotrange =',hotrange
-  iraf.blkavg(bias_resi+'[*,1:' + str(hotrange) + ']',
-  		resi_cols, 1, hotrange)
+  iraf.blkavg(bias_residual+'[*,1:' + str(hotrange) + ']',
+              resi_cols, 1, hotrange)
   iraf.blkrep(resi_cols, resi_cols2d, 1, ysize)
   
   #
@@ -262,12 +260,14 @@ def make_basebias ( bias_list, refbias_name ):
   #
   #   replval = 0.08 / (gain*xbin)
   iraf.iterstat(resi_cols, nsigrej = 3., maxiter = 40, PYprint=no, verbose=no)
-  opusutil.PrintMsg('I','iraf.iterstat.mean,sigma = '+str(iraf.iterstat.mean)+' '+str(iraf.iterstat.sigma))
+  print('iraf.iterstat.mean,sigma = '+str(iraf.iterstat.mean)+' '+str(iraf.iterstat.sigma))
   replval = float(iraf.iterstat.mean) + 3.0 * (float(iraf.iterstat.sigma))
 
-  iraf.imcalc(tmpbias + '_tmp_col.fits[0],'+bias_median+'[0],'+resi_cols2d+'[0]',
-  		tmpbias + '_tmp2_col.fits', 
-                'if im3 .ge. ' + str(replval) + ' then im2 else im1', verb=no)
+  tmp_bias2 = os.path.join( bias_path, 'tmp_col2.fits' )
+  opusutil.RemoveIfThere( tmp_bias2 )
+
+  iraf.imcalc(tmp_bias+'[1],'+bias_median+'[0],'+resi_cols2d+'[0]', tmp_bias2, 
+              'if im3 .ge. ' + str(replval) + ' then im2 else im1', verb=yes)
 
   print('Columns hotter than '+str(replval)+' replaced by median value')
   #
@@ -277,9 +277,12 @@ def make_basebias ( bias_list, refbias_name ):
   # median-filtered bias image. This represents the science extension of the
   # final output reference superbias.
   #
-  iraf.imarith(tmpbias + '_tmp2_col.fits[0]', '-', bias_median,
-  		bias_resi2, verb=no)
-  
+  bias_residual_2 = os.path.join( bias_path, 'residual2.fits' )
+  opusutil.RemoveIfThere( bias_residual_2 )
+  print 'Imarith',tmp_bias2 + '[1]', '-', bias_median+'[0]'
+  iraf.imarith(tmp_bias2 + '[1]', '-', bias_median+'[0]',
+  		bias_residual_2, verb=yes)
+
   mn = -1.0
   sig = -1.0
   npx = -1
@@ -287,7 +290,7 @@ def make_basebias ( bias_list, refbias_name ):
   mod = -1.0
   min = -1.0
   max = -1.0
-  img = bias_resi2
+  img = bias_residual_2
   Pipe1 = iraf.imstat(img, fields = 'mean,stddev,npix,midpt,mode,min,max', 
                       lower = lower, upper = upper, PYfor=no, Stdout=1)
   parts = Pipe1[0].split( )
@@ -302,9 +305,9 @@ def make_basebias ( bias_list, refbias_name ):
   m = 1
   while (m <= maxiter):
       if (verbose):
-  	opusutil.PrintMsg('I',str(m)+' '+img+': mean='+str(mn)+' rms='+str(sig))
-  	opusutil.PrintMsg('I','   npix='+str(npx)+' median='+str(med)+' mode='+str(mod))
-  	opusutil.PrintMsg('I','   min='+str(min)+'max='+str(max)) 
+  	print(str(m)+' '+img+': mean='+str(mn)+' rms='+str(sig))
+  	print('   npix='+str(npx)+' median='+str(med)+' mode='+str(mod))
+  	print('   min='+str(min)+'max='+str(max)) 
       ll = float(mn) - (5.0 * float(sig))
       ul = float(mn) + (5.0 * float(sig))
       if (lower != INDEF and ll < lower):
@@ -330,12 +333,11 @@ def make_basebias ( bias_list, refbias_name ):
       m = m + 1
 
   if (PYprint and not verbose):
-  	opusutil.PrintMsg('I','Median-subtracted bias: mean='+str(mn)+' rms='+str(sig))
-  	opusutil.PrintMsg('I','   npix='+str(npx)+' median='+str(med)+' min='+str(min)+'max='+str(max))
+  	print('Median-subtracted bias: mean='+str(mn)+' rms='+str(sig))
+  	ptin('   npix='+str(npx)+' median='+str(med)+' min='+str(min)+'max='+str(max))
   
   fivesig = float(mn) + (5.0 * float(sig))
-  iraf.imcalc(tmpbias + '_tmp2_col.fits[0],'+bias_median+'[0],'+bias_resi2+'[0]',
-  		tmpbias + '.fits',
+  iraf.imcalc(tmp_bias + '[1],'+bias_median+'[0],'+bias_residual_2+'[0]',tmp_bias,
   		'if im3 .ge. ' + str(fivesig) + ' then im2 else im1', verb=no)
   
   #
@@ -346,26 +348,30 @@ def make_basebias ( bias_list, refbias_name ):
   #  the x- and y-binning (xsize and ysize) (the "NULL" ref. bias is one
   #  without a HISTORY keyword)
   #
-  ref_template = os.path.expandvars('$oref/ref_null_bia' + str(xbin) + 'x' + str(ybin) +
-                                    '.fits')
-  shutil.copyfile(ref_template, thebasefile + '.fits')
+  #ref_template = os.path.expandvars('$oref/ref_null_bia' + str(xbin) + 'x' + str(ybin) + '.fits')
+  #print ref_template
+  #shutil.copyfile(ref_template, thebasefile + '.fits')
  
-  iraf.imcopy(tmpbias + '.fits[0]', thebasefile + '[sci,1][*,*]', verb=no)
-  iraf.imcopy(tmpsuper + '.fits[err,1]', thebasefile + '[err,1][*,*]', verb=no)
-  iraf.imcopy(tmpsuper + '.fits[dq,1]', thebasefile + '[dq,1][*,*]', verb=no)
+  out_ref = os.path.join( bias_path, refbias_name+'.fits' )
+  shutil.copy( mean_bias, out_ref )
+  ref_hdu = pyfits.open( out_ref,mode='update')
+  ref_hdu[1].data = pyfits.getdata( tmp_bias, ext=0 )
+  ref_hdu.flush()
+  ref_hdu.close()
+  del ref_hdu
 
-  pyfits.setval(thebasefile, 'FILENAME', value=thebasefile + '.fits')
-  pyfits.setval(thebasefile, 'FILETYPE', value='CCD BIAS IMAGE')
-  pyfits.setval(thebasefile, 'CCDGAIN', value=gain)
-  pyfits.setval(thebasefile, 'BINAXIS1', value=xbin)
-  pyfits.setval(thebasefile, 'BINAXIS2', value=ybin)
-  pyfits.setval(thebasefile, 'USEAFTER', value=' ')
-  pyfits.setval(thebasefile, 'PEDIGREE', 'INFLIGHT')
-  pyfits.setval(thebasefile, 'DESCRIP', value='Superbias created by R. de los Santos from proposals 7948/7949/8409/8439')
-  pyfits.setval(thebasefile, 'NEXTEND', value='3')
-  pyfits.setval(thebasefile, 'COMMENT', value='Reference file created by the STIS BIAS file pipeline')
+  pyfits.setval(out_ref, 'FILENAME', value=out_ref)
+  pyfits.setval(out_ref, 'FILETYPE', value='CCD BIAS IMAGE')
+  pyfits.setval(out_ref, 'CCDGAIN', value=gain)
+  pyfits.setval(out_ref, 'BINAXIS1', value=xbin)
+  pyfits.setval(out_ref, 'BINAXIS2', value=ybin)
+  pyfits.setval(out_ref, 'USEAFTER', value=' ')
+  pyfits.setval(out_ref, 'PEDIGREE', value='INFLIGHT')
+  pyfits.setval(out_ref, 'DESCRIP', value='Superbias created by R. de los Santos from proposals 7948/7949/8409/8439')
+  pyfits.setval(out_ref, 'NEXTEND', value='3')
+  pyfits.setval(out_ref, 'COMMENT', value='Reference file created by the STIS BIAS file pipeline')
 
-  pyfits.setval(thebasefile, 'NCOMBINE', value=totweight, ext=1)
+  pyfits.setval(out_ref, 'NCOMBINE', value=totalweight, ext=1)
   
 
 #------------------------------------------------------------------------------------

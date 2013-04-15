@@ -98,20 +98,20 @@ def average_biases( bias_list ):
 #---------------------------------------------------------------------------
 
 def calibrate( input_file ):
-  
     os.environ['oref'] = '/grp/hst/cdbs/oref/'
 
     output_blev = input_file.replace('.fits','_blev.fits')
+    opusutil.RemoveIfThere( output_blev )
     output_crj = input_file.replace('.fits','_crj.fits')
-    # 
+    opusutil.RemoveIfThere( output_crj )
+
     # between the long file paths and not being able to find EPC files, 
     # need IRAF to run in the work dir
     # 
     #os.chdir( workdir )
     #
     # if cosmic-ray rejection has already been done on the input bias image,
-    # skip all calstis-related calibration steps
-    #
+
 
     fd = pyfits.open( input_file )
     nimset   = fd[0].header['nextend'] / 3
@@ -283,54 +283,7 @@ def make_basebias ( bias_list, refbias_name ):
   iraf.imarith(tmp_bias2 + '[1]', '-', bias_median+'[0]',
   		bias_residual_2, verb=yes)
 
-  mn = -1.0
-  sig = -1.0
-  npx = -1
-  med = -1.0
-  mod = -1.0
-  min = -1.0
-  max = -1.0
-  img = bias_residual_2
-  Pipe1 = iraf.imstat(img, fields = 'mean,stddev,npix,midpt,mode,min,max', 
-                      lower = lower, upper = upper, PYfor=no, Stdout=1)
-  parts = Pipe1[0].split( )
-  mn    = float ( parts[0] )     ## string to float
-  sig   = float ( parts[1] )     ## string to float
-  npx   = int   ( parts[2] )     ## string to int
-  med   = float ( parts[3] )     ## string to float
-  mod   = float ( parts[4] )     ## string to float
-  min   = float ( parts[5] )     ## string to float
-  max   = float ( parts[6] )     ## string to float
-  del Pipe1
-  m = 1
-  while (m <= maxiter):
-      if (verbose):
-  	print(str(m)+' '+img+': mean='+str(mn)+' rms='+str(sig))
-  	print('   npix='+str(npx)+' median='+str(med)+' mode='+str(mod))
-  	print('   min='+str(min)+'max='+str(max)) 
-      ll = float(mn) - (5.0 * float(sig))
-      ul = float(mn) + (5.0 * float(sig))
-      if (lower != INDEF and ll < lower):
-  	ll = lower
-      if (upper != INDEF and ul > upper):
-  	ul = upper
-      nx = -1
-      Pipe1 = iraf.imstat(img, fields = 'mean,stddev,npix,midpt,mode,min,max',
-  				lower = ll, upper = ul, PYfor=no, Stdout=1)
-      parts = Pipe1[0].split()
-      mn    = float ( parts[0] )
-      sig   = float ( parts[1] )
-      nx    = int   ( parts[2] )
-      med   = float ( parts[3] )
-      mod   = float ( parts[4] )
-      min   = float ( parts[5] )
-      max   = float ( parts[6] )
-
-      del Pipe1
-      if (nx == npx):
-  	break
-      npx = nx
-      m = m + 1
+  iter_count,mn,sig,npx,med,mod,min,max = REFSTI_functions.iterate( bias_residual_2+'[0]' )
 
   if (PYprint and not verbose):
   	print('Median-subtracted bias: mean='+str(mn)+' rms='+str(sig))
@@ -360,18 +313,17 @@ def make_basebias ( bias_list, refbias_name ):
   ref_hdu.close()
   del ref_hdu
 
-  pyfits.setval(out_ref, 'FILENAME', value=out_ref)
-  pyfits.setval(out_ref, 'FILETYPE', value='CCD BIAS IMAGE')
-  pyfits.setval(out_ref, 'CCDGAIN', value=gain)
-  pyfits.setval(out_ref, 'BINAXIS1', value=xbin)
-  pyfits.setval(out_ref, 'BINAXIS2', value=ybin)
-  pyfits.setval(out_ref, 'USEAFTER', value=' ')
-  pyfits.setval(out_ref, 'PEDIGREE', value='INFLIGHT')
-  pyfits.setval(out_ref, 'DESCRIP', value='Superbias created by R. de los Santos from proposals 7948/7949/8409/8439')
-  pyfits.setval(out_ref, 'NEXTEND', value='3')
-  pyfits.setval(out_ref, 'COMMENT', value='Reference file created by the STIS BIAS file pipeline')
-
-  pyfits.setval(out_ref, 'NCOMBINE', value=totalweight, ext=1)
+  pyfits.setval( out_ref, 'FILENAME', value=out_ref)
+  pyfits.setval( out_ref, 'FILETYPE', value='CCD BIAS IMAGE')
+  pyfits.setval( out_ref, 'CCDGAIN', value=gain)
+  pyfits.setval( out_ref, 'BINAXIS1', value=xbin)
+  pyfits.setval( out_ref, 'BINAXIS2', value=ybin)
+  pyfits.setval( out_ref, 'USEAFTER', value=' ')
+  pyfits.setval( out_ref, 'PEDIGREE', value='INFLIGHT')
+  pyfits.setval( out_ref, 'DESCRIP', value='Superbias created by R. de los Santos from proposals 7948/7949/8409/8439')
+  pyfits.setval( out_ref, 'NEXTEND', value='3')
+  pyfits.setval( out_ref, 'COMMENT', value='Reference file created by the STIS BIAS file pipeline')
+  pyfits.setval( out_ref, 'NCOMBINE', value=totalweight, ext=1)
   
 
 #------------------------------------------------------------------------------------

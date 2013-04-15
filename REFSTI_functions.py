@@ -1,4 +1,9 @@
 
+def calibrate():
+    pass
+
+#------------------------------------------------------------------------------------
+
 def crreject( input_file, workdir=None) :
     import pyfits
     import os
@@ -248,7 +253,7 @@ def translate_date_string(input_string):
 
 #-------------------------------------------------------------------------------
 
-def iterate(thefile, maxiter=30, verbose=0):
+def iterate(thefile, extension=1, maxiter=30, verbose=0):
   from pyraf import iraf
   from iraf import stsdas,toolbox,imgtools,mstools  
   from pyraf.irafglobals import *
@@ -262,8 +267,9 @@ def iterate(thefile, maxiter=30, verbose=0):
   max = -1.0
   lower = INDEF
   upper = INDEF
-  thefile += '[1]' # imstat wants just the extension
-  
+  string_extension = '[%d]'%(extension) # imstat wants just the extension
+  if not thefile.endswith(']'): thefile += string_extension
+
   Pipe1 = iraf.imstat(thefile,
                       fields = 'mean,stddev,npix,midpt,mode,min,max', lower = lower,
                       upper = upper, PYfor=no, Stdout=1)
@@ -311,9 +317,6 @@ def iterate(thefile, maxiter=30, verbose=0):
 
   return iter_count,mnval,sig,npx,med,mod,min,max
   # End iterate()
-
-
-#-------------------------------------------------------------------------------
 
 #---------------------------------------------------------------------------
 def bd_crreject(joinedfile) :

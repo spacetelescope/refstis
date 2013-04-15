@@ -242,7 +242,7 @@ def make_basebias ( bias_list, refbias_name ):
   
   opusutil.RemoveIfThere(resi_cols)
   opusutil.RemoveIfThere(resi_cols2d)
-  
+
   #
   # Now only use lower 20% of the Y range to check for hot columns
   #

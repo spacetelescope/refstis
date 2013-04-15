@@ -28,9 +28,9 @@ def crreject( input_file, workdir=None) :
     del fd
 
     if (nimset <= 1 and crcorr != "COMPLETE"):
-        print('E',"Sorry, your input image seems to have only 1 imset, but it isn't cr-rejected.")
-        print('E',"This task can only handle 'raw' or 'flt images with the NEXTEND keyword equal to 3*N (N > 1).")
-        print('E',"Bye now... better luck next time!")
+        print("Sorry, your input image seems to have only 1 imset, but it isn't cr-rejected.")
+        print("This task can only handle 'raw' or 'flt images with the NEXTEND keyword equal to 3*N (N > 1).")
+        print("Bye now... better luck next time!")
 
 
     if (crcorr != "COMPLETE"):

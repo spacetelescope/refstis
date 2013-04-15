@@ -4,19 +4,43 @@ import os
 import sys
 import glob
 import shutil
-import tempfile
 import pyfits
 import stiref
-import opusutil
+from scipy.signal import medfilt
 
-nm = os.path.basename(sys.argv[0])
+def split_and_join( input_list, refname ):
+  # not done with this...tired.
+  '''Split imsets and join them back together. 
+  
+  return the joined file name
+  '''
+  refname = refname.replace('.fits','')
+  joined_out = refname + '_joined.fits'
 
-# bound "method" expected to be frequently used
-MakeNameSafe = stiref.makeNameSafe
+  print 'Splitting images'
+  rootname_list = [ os.path.split(item)[1][:9] for item in input_list ]
+  imset_count = functions.split_images( input_list ) 
+  
+  print 'Joining images'
+  msjoin_list = ','.join( [ item for item in glob.glob('*raw??.fits') if item[:9] in rootname_list] )
 
-#---------------------------------------------------------------------------
-def make_weekdark(infiles, basedark, biasfile, weekoutfile, outfile, reffile):
-  do_cal = yes            # Perform bias subtraction and cr-reject?
+  print msjoin_list
+  msjoin_file = open('msjoin_%s.txt'%(refname),'w')
+  msjoin_file.write( '\n'.join(msjoin_list.split(',')) )
+  msjoin_file.close()
+  
+  iraf.msjoin( inimg='@msjoin.txt', outimg=joined_out, Stderr='dev$null')
+
+  return joined_out,imset_count
+
+def make_weekdark(infiles, basedark_name=None, bias_file=None, weekoutfile, outfile, reffile):
+  """
+  1- split all raw images into their imsets
+  2- join imsets together into a single file
+  3- combine and cr-reject
+  4- normalize to e/s by dividing by (exptime/gain)
+  5- do hot pixel things
+  """
   maxiter = 40            # Maximum number of iterations for imstat'))
   lower = INDEF           # Initial lower limit for imstat'))
   upper = INDEF           # Initial upper limit for imstat'))
@@ -33,16 +57,6 @@ def make_weekdark(infiles, basedark, biasfile, weekoutfile, outfile, reffile):
   iraf.hst_calib()
   iraf.stis()
   
-  #
-  #*********************************************************************
-  # Expand input file list into temporary files
-  #
-  (dummy, tmp) = tempfile.mkstemp(suffix='_weekdark', dir=workdir)
-  inlist = MakeNameSafe(tmp)
-  iraf.sections(c_infiles, option = 'fullname', Stdout=inlist)
-  nfiles = int(iraf.sections.nimages)
-  imglist = inlist
-
   print 'Splitting images'
   imset_count = functions.split_images( imglist ) 
   
@@ -98,45 +112,27 @@ def make_weekdark(infiles, basedark, biasfile, weekoutfile, outfile, reffile):
   # Perform iterative statistics on the baseline superdark
   #   (i.e., neglecting hot pixels in the process)
   #
+  # 1- norm_file - median = zerodark
+  # 2- only_hotpix = 
   print "## Perform iterative statistics on the baseline superdark (thebasedark)"
-  iter_count,base_median,base_sigma,npx,med,mod,min,max = functions.iterate( norm_filename )
+  iter_count,base_median,base_sigma,npx,basemed,mod,min,max = functions.iterate( norm_filename )
   five_sigma = base_median + 5*base_sigma
 
-  print "## Create zeodark", zerodark, "by subtct'g basemedian", basemed
-  print "##           from", theoutfile+"_sci.fits"
-  iraf.imarith(theoutfile+"_sci.fits", "-", basemed, zerodark)
-  print "## imcalc theoutfile(+?):", theoutfile+"_sci.fits[0],"+zerodark+"[0]", ", only_hotpix:", only_hotpix
-  iraf.imcalc (theoutfile+"_sci.fits[0],"+zerodark+"[0]", only_hotpix,
-        "if im1 .ge. "+str(p_fivesig)+" then im2 else 0.0",
-        pixtype="old", nullval=0., verbose=no)
-  #
-  #***************************************************************************
-  # Create median-filtered version of super-de-buper dark
-  #
   print "## Create median-filtered version of super-de-buper dark "
-  print "## run iraf.median on thebasedark", thebasedark+".fits[sci]", "using:", basedrk_med
-  iraf.median (thebasedark+".fits[sci]", basedrk_med, xwindow=5,
-               ywindow=5, verbose=no)
+  basedark_med = medfilt( pyfits.getdata(thebasedark,ext=('sci',1),(5,5)) )
 
-  #
-  #***************************************************************************
-  # Create "only baseline dark current" image from these two
-  #
+  norm_hdu = pyfits.open( norm_filename )
+
+  zerodark = norm_hdu[ ('sci',1) ] - basemed
+  only_hot = np.where( theoutfile >= five_sigma, zerodark, 0 )
+
   print "## Create 'only baseline dark current' image from these two "
-  iraf.imcalc (thebasedark+"_sci.fits[0],"+basedrk_med+"[0]",only_dark,
-        "if im1 .ge. "+str(p_fivesig)+" then im2 else im1",
-        pixtype="old", nullval=0., verbose=no)
-  #
-  #***************************************************************************
-  # Add "only baseline dark current" image to "only hot pixels" image.
-  # This creates the science portion of the forthcoming reference dark.
-  #
+  only_dark = np.where( thebasedark >= five_sigma, basedark_med, thebasedark )
+ 
   print "## Add 'only baseline dark current' image to 'only hot pixels' image. "
   print "## This creates the science portion of the forthcoming reference dark. "
-  print "## imarith(only_dark", only_dark+"[0]"
-  print "##     + only_hotpix", only_hotpix+"[0]"
-  print "##     =   superdark", superdark, ")"
-  iraf.imarith(only_dark+"[0]","+",only_hotpix+"[0]",superdark)
+  superdark = only_dark + only_hotpix
+  norm_hdu[ ('sci',1) ].data = superdark
 
   #
   #***************************************************************************
@@ -144,10 +140,9 @@ def make_weekdark(infiles, basedark, biasfile, weekoutfile, outfile, reffile):
   # hot pixels, and put the result in temporary image.
   #
   print "## Use imcalc to update DQ  extension of normalized dark"
-  print "## imcalc input theoutfile", theoutfile+"_dq.fits[0],"+only_hotpix+"[0]", "by equation to output", refDQ
-  iraf.imcalc (theoutfile+"_dq.fits[0],"+only_hotpix+"[0]", refDQ,
-        "if im2 .ge. "+str(p_fivesig)+" then 16 else im1", 
-        pixtype="old", nullval=0., verbose=no)
+  index = np.where( only_hotpix >= p_fivesig )[0]
+  norm_hdu[ ('dq',1) ].data[index] = 16
+
   #***************************************************************************
   # Update ERR extension of new superdark by assigning the ERR values of the
   # basedark except for the new hot pixels that are updated from the weekly
@@ -155,11 +150,10 @@ def make_weekdark(infiles, basedark, biasfile, weekoutfile, outfile, reffile):
   # Put the result in temporary ERR image.
   #
   print "## Use imcalc to update ERR extension of new superdark "
-  print "## imcalc input thebasedark", thebasedark+"_err.fits[0],"+only_hotpix+"[0],"+theoutfile+"_err.fits[0]", 
-  print "## by equation to output ERR_new", ERR_new
-  iraf.imcalc(thebasedark+"_err.fits[0],"+only_hotpix+"[0],"+theoutfile+"_err.fits[0]",
-        ERR_new, "if im2 .eq. 0.0 then im1 else im3", 
-        pixtype="old", nullval=0., verbose=no)
+  index = np.where( only_hotpix == 0 )[0]
+  norm_hdu[ ('err',1) ].data[index] = thebasedark_error[index]
+  index = np.where( only_hotpix != 0 )[0]
+  norm_hdu[ ('err',1) ].data[index] = theoutfile_error[index]
 
 
   pyfits.setval(thereffile+".fits[0]", "FILENAME", thereffile)
@@ -176,25 +170,6 @@ def make_weekdark(infiles, basedark, biasfile, weekoutfile, outfile, reffile):
   pyfits.setval(thereffile+".fits[0]", "COMMENT", 
                 "created by the STIS weekdark task in the reference file pipeline")
 
-  #
-  #***************************************************************************
-  # Copy new superdark into image extension of reference dark; copy ERR
-  # extension from normalized weekly superdark, and DQ extension from
-  # temporary file created previously.
-  #
-  print "## Copy new superdark into image extension of reference dark; "
-  print "## copy ERR extension from normalized weekly superdark, "
-  print "## and DQ extension from temporary file created previously. "
-  print "## iraf.imcopy (superdark", superdark,    "to thereffile", thereffile+".fits[sci,1][*,*]", ", verbose=no)"
-  print "## iraf.imcopy (ERR_new",  ERR_new+"[0]"
-  print "##        to thereffile", thereffile+".fits[err,1][*,*]", ", verbose=no)"
-  print "## iraf.imcopy (refDQ",    refDQ+"[0]",   
-  print "##      to thereffile", thereffile+".fits[dq,1][*,*]",  ", verbose=no)"
-  iraf.imcopy (superdark, thereffile+".fits[sci,1][*,*]", verbose=no)
-  iraf.imcopy (ERR_new+"[0]", thereffile+".fits[err,1][*,*]", verbose=no)
-  iraf.imcopy (refDQ+"[0]",  thereffile+".fits[dq,1][*,*]", verbose=no)
-
-
 
 if __name__ == "__main__":
-    
+    make_

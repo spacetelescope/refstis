@@ -167,7 +167,7 @@ def figure_number_of_periods(number_of_days, mode) :
                 break
 
     # BIWK mode
-    else : 
+    elif ( mode == 'BIWK') : 
         for n in xrange( 2, number_of_days) :
             if number_of_days < MAX_DAYS_IN_BIWK :
                 # raises an ERROR if < MIN_DAYS_IN_BIWK1
@@ -188,7 +188,8 @@ def figure_number_of_periods(number_of_days, mode) :
                     msg += "number_of_periods = 0, but why?  "
                     PrintMsg("W", msg, nm)
                 break
-
+    else:
+	sys.exit('what mode did you put in?')
 
     # return value
     #print "return number_of_periods =",  number_of_periods
@@ -222,7 +223,7 @@ def figure_days_in_period(N_periods, N_days):
 #-------------------------------------------------------------------------------
 
 def translate_date_string(input_string):
-    month_dict = {'Jan':0, 'Feb':1, 'Mar':3, 'Apr':4, 'May':5, 'Jun':6,
+    month_dict = {'Jan':1, 'Feb':2, 'Mar':3, 'Apr':4, 'May':5, 'Jun':6,
                   'Jul':7, 'Aug':8, 'Sep':9, 'Oct':10, 'Nov':11, 'Dec':12}
 
 
@@ -238,8 +239,9 @@ def translate_date_string(input_string):
     second = int( time_list[2] )
 
     if time_list[3].endswith('PM'): hour += 12
-
-    #print 'Converting %d/%d/%d %d:%d:%d to MJD'%(month,day,year,hour,minute,second)
+ 
+    print input_string
+    print 'Converting %d/%d/%d %d:%d:%d to MJD'%(month,day,year,hour,minute,second)
 
     a = (14-month)/12
     y = year + 4800 - a

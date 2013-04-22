@@ -104,14 +104,14 @@ def get_new_periods():
             print 'Found new observations for this period'
             print obs_to_get
 
-        raw_input('#------  continue on?  --------#')
+        #raw_input('#------  continue on?  --------#')
         response = collect_new( obs_to_get )
         print response
         move_obs( obs_to_get, products_folder) 
 
         separate_obs( products_folder, ref_begin, ref_end )
         #make_ref_files(products_folder, proposal, visit)
-        sys.exit('done')
+        #sys.exit('done')
         '''
         if not os.path.exists(products_folder):
             print 'Making files for:'
@@ -168,19 +168,13 @@ def get_new_obs(file_type, start, end):
     #start_times = new_dict[new_dict.keys()[0]][2:]  #remove non-obs entries in dictionary
     
     obs_names = np.array( new_dict['sci_data_set_name'] )
-    #obs_names = np.array( obs_names )
     
-    start_times = new_dict['sci_start_time']
-    start_times.sort()
     start_times_MJD = np.array( map(translate_date_string,new_dict['sci_start_time'] ) )
     #start_times_MJD = np.array( [ translate_date_string(item) for item in start_times ] )
     
     index = np.where( (start_times_MJD > start) & (start_times_MJD < end) )[0]
     print start,end
     print start_times_MJD[index].min(),start_times_MJD[index].max()
-    #pylab.plot( np.ones( len(start_times_MJD) ),np.sort(start_times_MJD),'o' )
-    #raw_input()
-    #sys.exit()
 
     datasets_to_retrieve = obs_names[index]
     dataset_times = start_times_MJD[index]
@@ -225,6 +219,9 @@ def separate_obs( base_dir, month_begin, month_end  ):
     print 'Separating',base_dir
     print
     print 'Period runs from',month_begin,' to ', month_end
+
+    mjd_times = np.array( [ pyfits.getval(item,'EXPSTART',ext=1) for item in all_files ] )
+    print 'Data goes from',mjd_times.min(), ' to ', mjd_times.max()
 
     print 'Making Lists'
     bias_111_list = [item for item in all_files if ( pyfits.getval(item,'TARGNAME',ext=0)=='BIAS') & ( pyfits.getval(item,'CCDGAIN',ext=0) == 1) ]

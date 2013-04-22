@@ -240,9 +240,6 @@ def translate_date_string(input_string):
 
     if time_list[3].endswith('PM'): hour += 12
  
-    print input_string
-    print 'Converting %d/%d/%d %d:%d:%d to MJD'%(month,day,year,hour,minute,second)
-
     a = (14-month)/12
     y = year + 4800 - a
     m = month + 12*a - 3
@@ -250,7 +247,6 @@ def translate_date_string(input_string):
     JDN = day + (153*m + 2)//5 + 365*y + y//4 - y//100 + y//400 - 32045
     JD = JDN + (hour-12)/24.0 + minute/1440.0 + second/86400.0
     MJD = JD - 2400000.5
-
     return MJD
 
 #-------------------------------------------------------------------------------

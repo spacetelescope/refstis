@@ -51,8 +51,7 @@ import glob
 import shutil
 import tempfile
 import pyfits
-import opusutil
-
+import numpy as np
 import REFSTI_functions
 
 #---------------------------------------------------------------------------
@@ -98,11 +97,12 @@ def average_biases( bias_list ):
 
 def calibrate( input_file ):
     os.environ['oref'] = '/grp/hst/cdbs/oref/'
-
+    print 'Calibrating %s'%(input_file)
     output_blev = input_file.replace('.fits','_blev.fits')
-    opusutil.RemoveIfThere( output_blev )
+    REFSTI_functions.RemoveIfThere( output_blev )
     output_crj = input_file.replace('.fits','_crj.fits')
-    opusutil.RemoveIfThere( output_crj )
+    if os.path.exists( output_crj): return output_crj### testing
+    REFSTI_functions.RemoveIfThere( output_crj )
 
     # between the long file paths and not being able to find EPC files, 
     # need IRAF to run in the work dir
@@ -123,6 +123,7 @@ def calibrate( input_file ):
         print("Sorry, your input image seems to have only 1 imset, but it isn't cr-rejected.")
         print("This task can only handle 'raw' or 'flt images with the NEXTEND keyword equal to 3*N (N > 1).")
         print("Bye now... better luck next time!")
+        return None
 
     if (crcorr != "COMPLETE"):
        
@@ -141,13 +142,13 @@ def calibrate( input_file ):
                         blevcorr = 'perform', doppcorr = 'omit', lorscorr = 'omit',
                         glincorr = 'omit', lflgcorr = 'omit', biascorr = 'omit',
                         darkcorr = 'omit', flatcorr = 'omit', shadcorr = 'omit',
-                        photcorr = 'omit', statflag = no, verb=no)
+                        photcorr = 'omit', statflag = no, verb=no, Stdout='dev$null')
        else:
            print('Blevcorr alread Performed')
            shutil.copy(input_file,output_blev)
 
        print('Performing OCRREJECT')
-       iraf.ocrreject(input=output_blev, output=output_crj, verb=no)
+       iraf.ocrreject(input=output_blev, output=output_crj, verb=no, Stdout='dev$null')
 
     elif (crcorr == "COMPLETE"):
         print "CR rejection already done"
@@ -170,7 +171,9 @@ def make_basebias ( bias_list, refbias_name ):
   PYprint = 0             # Print final results of imstat iterations?'))
   bias_path = os.path.split( bias_list[0] )[0]
 
+  print 'Processing individual files'
   crj_list = [ calibrate(item) for item in bias_list ]
+  crj_list = [ item for item in crj_list if item != None ]
 
   mean_bias,totalweight = average_biases( crj_list )
   bias_median = os.path.join( bias_path, 'median.fits')
@@ -179,7 +182,8 @@ def make_basebias ( bias_list, refbias_name ):
   # Median filter resulting superbias by a window of 15 x 3 pixels, and
   # subtract it from the superbias to produce a "residual" image containing
   # hot columns and such
-  opusutil.RemoveIfThere( bias_median )
+  print 'Median filtering'
+  REFSTI_functions.RemoveIfThere( bias_median )
   iraf.median( mean_bias + '[1]', bias_median, xwindow = 15, ywindow = 3, verb=yes)
 
   iraf.iterstat( mean_bias + '[1]', nsigrej = 3., maxiter = 40, PYprint=no, verbose=no)
@@ -197,16 +201,16 @@ def make_basebias ( bias_list, refbias_name ):
   #bias_residual = mean_image - median_image
 
   bias_residual = os.path.join( bias_path, 'residual.fits' )
-  opusutil.RemoveIfThere( bias_residual )
+  REFSTI_functions.RemoveIfThere( bias_residual )
   iraf.imarith( mean_bias + '[1]', '-', bias_median + '[0]', bias_residual, verb=no)
 
   # FIRST STEP TO REMOVE HOT COLUMNS:
   # Average all rows together and stretch resulting image to match input image
  
   resi_cols = os.path.join( bias_path, "resi_cols.fits")
-  opusutil.RemoveIfThere(resi_cols)
+  REFSTI_functions.RemoveIfThere(resi_cols)
   resi_cols2d = os.path.join( bias_path, "resi_cols2d.fits" )
-  opusutil.RemoveIfThere(resi_cols2d)
+  REFSTI_functions.RemoveIfThere(resi_cols2d)
   
   fd = pyfits.open( mean_bias )
   xsize   = fd[1].header['naxis1']
@@ -229,9 +233,14 @@ def make_basebias ( bias_list, refbias_name ):
   print 'thresh mean,sigma = ',iraf.iterstat.mean,' ',iraf.iterstat.sigma
   replval = float(iraf.iterstat.mean) + 3.0 * (float(iraf.iterstat.sigma))
   tmp_bias = os.path.join( bias_path, 'tmp_col.fits' )
-  opusutil.RemoveIfThere( tmp_bias )
-  iraf.imcalc(mean_bias + '[1],'+bias_median+'[0],'+resi_cols2d+'[0]', tmp_bias,
-              'if im3 .ge. ' + str(replval) + ' then im2 else im1', verb=no)
+  REFSTI_functions.RemoveIfThere( tmp_bias )
+  #iraf.imcalc(mean_bias + '[1],'+bias_median+'[0],'+resi_cols2d+'[0]', tmp_bias,
+  #            'if im3 .ge. ' + str(replval) + ' then im2 else im1', verb=no)
+
+  hdu = pyfits.open( mean_bias )
+  index = np.where( pyfits.getdata( resi_cols2d,ext=0 ) >= replval )
+  hdu[ ('sci',1) ].data[index] = pyfits.getdata( bias_median, ext=0)[index]
+  hdu.writeto(tmp_bias)
   
   #
   #***************************************************************************
@@ -239,8 +248,8 @@ def make_basebias ( bias_list, refbias_name ):
   # Average only the lower 20% of all rows together and stretch resulting
   # image to match input image.
   
-  opusutil.RemoveIfThere(resi_cols)
-  opusutil.RemoveIfThere(resi_cols2d)
+  REFSTI_functions.RemoveIfThere(resi_cols)
+  REFSTI_functions.RemoveIfThere(resi_cols2d)
 
   #
   # Now only use lower 20% of the Y range to check for hot columns
@@ -263,10 +272,15 @@ def make_basebias ( bias_list, refbias_name ):
   replval = float(iraf.iterstat.mean) + 3.0 * (float(iraf.iterstat.sigma))
 
   tmp_bias2 = os.path.join( bias_path, 'tmp_col2.fits' )
-  opusutil.RemoveIfThere( tmp_bias2 )
+  REFSTI_functions.RemoveIfThere( tmp_bias2 )
 
-  iraf.imcalc(tmp_bias+'[1],'+bias_median+'[0],'+resi_cols2d+'[0]', tmp_bias2, 
-              'if im3 .ge. ' + str(replval) + ' then im2 else im1', verb=yes)
+  #iraf.imcalc(tmp_bias+'[1],'+bias_median+'[0],'+resi_cols2d+'[0]', tmp_bias2, 
+  #            'if im3 .ge. ' + str(replval) + ' then im2 else im1', verb=yes)
+
+  hdu = pyfits.open( tmp_bias )
+  index = np.where( pyfits.getdata( resi_cols2d,ext=0 ) >= replval )
+  hdu[ ('sci',1) ].data[index] = pyfits.getdata( bias_median, ext=0)[index]
+  hdu.writeto(tmp_bias2)
 
   print('Columns hotter than '+str(replval)+' replaced by median value')
   #
@@ -277,7 +291,7 @@ def make_basebias ( bias_list, refbias_name ):
   # final output reference superbias.
   #
   bias_residual_2 = os.path.join( bias_path, 'residual2.fits' )
-  opusutil.RemoveIfThere( bias_residual_2 )
+  REFSTI_functions.RemoveIfThere( bias_residual_2 )
   print 'Imarith',tmp_bias2 + '[1]', '-', bias_median+'[0]'
   iraf.imarith(tmp_bias2 + '[1]', '-', bias_median+'[0]',
   		bias_residual_2, verb=yes)
@@ -289,9 +303,16 @@ def make_basebias ( bias_list, refbias_name ):
   	ptin('   npix='+str(npx)+' median='+str(med)+' min='+str(min)+'max='+str(max))
   
   fivesig = float(mn) + (5.0 * float(sig))
-  iraf.imcalc(tmp_bias + '[1],'+bias_median+'[0],'+bias_residual_2+'[0]',tmp_bias,
-  		'if im3 .ge. ' + str(fivesig) + ' then im2 else im1', verb=no)
   
+  #iraf.imcalc(tmp_bias + '[1],'+bias_median+'[0],'+bias_residual_2+'[0]',tmp_bias,
+  # 		'if im3 .ge. ' + str(fivesig) + ' then im2 else im1', verb=no)
+  
+  hdu = pyfits.open( tmp_bias )
+  index = np.where( pyfits.getdata( bias_residual_2,ext=0 ) >= replval )
+  hdu[ ('sci',1) ].data[index] = pyfits.getdata( bias_median, ext=0)[index]
+  hdu.writeto(tmp_bias,clobber=True)
+
+
   #
   #***************************************************************************
   # Build reference superbias file
@@ -304,7 +325,7 @@ def make_basebias ( bias_list, refbias_name ):
   #print ref_template
   #shutil.copyfile(ref_template, thebasefile + '.fits')
  
-  out_ref = os.path.join( bias_path, refbias_name+'.fits' )
+  out_ref = os.path.join( bias_path, refbias_name)
   shutil.copy( mean_bias, out_ref )
   ref_hdu = pyfits.open( out_ref,mode='update')
   ref_hdu[1].data = pyfits.getdata( tmp_bias, ext=0 )

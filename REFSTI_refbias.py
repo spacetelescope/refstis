@@ -6,7 +6,6 @@ import sys
 import glob
 import shutil
 import os
-import opusutil
 
 def update_header( filename ):
     pass
@@ -54,7 +53,7 @@ def make_refbias( bias_list, refbias_name ):
     #pdb.set_trace()
     crj_filename = REFSTI_functions.crreject( joined_out )
     out_name = refbias_name + '.fits' 
-    opusutil.RemoveIfThere( out_name )
+    REFSTI_functions.RemoveIfThere( out_name )
     shutil.copy( crj_filename, out_name)
 
     pyfits.setval( out_name, 'FILENAME', value=out_name )
@@ -64,7 +63,7 @@ def make_refbias( bias_list, refbias_name ):
     pyfits.setval( out_name, 'BINAXIS2', value= ybin ) 
     pyfits.setval( out_name, 'USEAFTER', value= ' ' ) ### FIX
     pyfits.setval( out_name, 'PEDIGREE', value='INFLIGHT' ) 
-    pyfits.setval( out_name, 'DESCRIP', value= 'Superbias created by J. Ely') ### FIX
+    pyfits.setval( out_name, 'DESCRIP', value= 'refbias created by J. Ely') ### FIX
     pyfits.setval( out_name, 'NEXTEND', value= 3 ) 
     pyfits.setval( out_name, 'COMMENT', value='Replace this sometime' ) 
 
@@ -72,9 +71,9 @@ def make_refbias( bias_list, refbias_name ):
     for item in msjoin_list.split(','):
         os.remove(item)
         
-    opusutil.RemoveIfThere( msjoin_list_name )
-    opusutil.RemoveIfThere( crj_filename )
-    opusutil.RemoveIfThere( joined_out )
+    REFSTI_functions.RemoveIfThere( msjoin_list_name )
+    REFSTI_functions.RemoveIfThere( crj_filename )
+    REFSTI_functions.RemoveIfThere( joined_out )
     
     
 #------------------------------------------------------------------------------------

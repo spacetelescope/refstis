@@ -29,16 +29,10 @@ import math
 import shutil
 import tempfile
 import pyfits
-import opusutil
 import traceback
 
-from REFSTI_functions import split_images,crreject
+import REFSTI_functions
 
-#-----------------------------------------------------------------------------
-#
-# 07/01/11 68438  Sherbert   shorten path names, use more secure tmp file
-#
-#-----------------------------------------------------------------------------
 def make_weekbias( bias_list, basebias, refbias_name ):
 
   from pyraf import iraf
@@ -50,23 +44,23 @@ def make_weekbias( bias_list, basebias, refbias_name ):
  
   for item in bias_list:
     for imset in glob.glob( item.replace('.fits','??.fits') ):
-      opusutil.RemoveIfThere( imset )
+      REFSTI_functions.RemoveIfThere( imset )
  
   bias_path = os.path.split( bias_list[0] )[0]
 
   refbias_name.replace('.fits','') # ensure its just a rootname
   out_ref = os.path.join( bias_path, refbias_name+'.fits' )
-  opusutil.RemoveIfThere( out_ref )
+  REFSTI_functions.RemoveIfThere( out_ref )
 
 
   print 'Splitting images'
-  nimsets = split_images( bias_list )
+  nimsets = REFSTI_functions.split_images( bias_list )
   
   print 'Joining images'
   msjoin_list = ','.join( [ item for item in glob.glob('*raw??.fits') ] )# if item[:9] in bias_list] )
   print msjoin_list
   joined_out = refbias_name+ '_joined' +'.fits' 
-  opusutil.RemoveIfThere( joined_out )
+  REFSTI_functions.RemoveIfThere( joined_out )
   print joined_out
 
   msjoin_file = open('msjoin.txt','w')
@@ -75,10 +69,10 @@ def make_weekbias( bias_list, basebias, refbias_name ):
     
   iraf.msjoin( inimg='@msjoin.txt', outimg=joined_out, Stderr='dev$null')
     
-  crj_filename = crreject( joined_out )
+  crj_filename = REFSTI_functions.crreject( joined_out )
   mean_bias = crj_filename
   bias_median = os.path.join( bias_path, 'median.fits')
-  opusutil.RemoveIfThere( bias_median )
+  REFSTI_functions.RemoveIfThere( bias_median )
 
   iraf.median( mean_bias + '[1]', bias_median, xwindow = 15, ywindow = 2, verb=yes)
 
@@ -87,7 +81,7 @@ def make_weekbias( bias_list, basebias, refbias_name ):
   diffmean = float(iraf.iterstat.mean) - float(iraf.iterstat.mean)
 
   bias_residual = os.path.join( bias_path, 'residual.fits' )
-  opusutil.RemoveIfThere( bias_residual )
+  REFSTI_functions.RemoveIfThere( bias_residual )
   iraf.imarith( mean_bias + '[1]', '-', bias_median + '[0]', bias_residual, verb=no)
 
 #
@@ -96,9 +90,9 @@ def make_weekbias( bias_list, basebias, refbias_name ):
 # image to match input image.
 #
   resi_cols = os.path.join( bias_path, "resi_cols.fits")
-  opusutil.RemoveIfThere(resi_cols)
+  REFSTI_functions.RemoveIfThere(resi_cols)
   resi_cols2d = os.path.join( bias_path, "resi_cols2d.fits" )
-  opusutil.RemoveIfThere(resi_cols2d)
+  REFSTI_functions.RemoveIfThere(resi_cols2d)
   ysize = pyfits.getval( mean_bias, 'NAXIS2',ext=1)
 
 #
@@ -116,7 +110,7 @@ def make_weekbias( bias_list, basebias, refbias_name ):
 #
   '''
   hotcolfile = workdir + os.sep + 'hotcols.dat'
-  opusutil.RemoveIfThere(hotcolfile)
+  REFSTI_functions.RemoveIfThere(hotcolfile)
   iraf.iterstat(resi_cols, nsigrej = 3., maxiter = 20, PYprint=no, verbose=no)
   replval = float(iraf.iterstat.mean) + 5 * (float(iraf.iterstat.sigma))
 
@@ -137,7 +131,7 @@ def make_weekbias( bias_list, basebias, refbias_name ):
   replval = float(iraf.iterstat.mean) + 5 * (float(iraf.iterstat.sigma))
   
   only_hotcols = os.path.join( bias_path, 'only_hotcols.fits' )
-  opusutil.RemoveIfThere(only_hotcols)
+  REFSTI_functions.RemoveIfThere(only_hotcols)
   iraf.imcalc (resi_cols2d+"[0],"+bias_residual+"[0]", only_hotcols, 
            "if im1 .ge. "+str(replval)+" then im2 else 0.0", verb=no)
 #

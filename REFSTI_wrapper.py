@@ -85,7 +85,7 @@ def get_new_periods():
         if i == len(table_id_all)-1: continue
         ref_begin = anneal_end_all[i]
         ref_end = anneal_start_all[i+1]
-        proposal = proposal_id_all[i]
+        proposal = proposal_id_all[i]  ### make this i+1 # defined as the next poposal
         visit = visit_id_all[i+1]
         year,month,day,dec_year = support.mjd_to_greg(ref_begin)
         end_year,end_month,end_day,dec_year = support.mjd_to_greg(ref_end)       
@@ -133,18 +133,53 @@ def get_new_periods():
 #-------------------------------------------------------------------------------
 
 def make_ref_files( root_folder ):
+    print 'Working on ',root_folder
 
     bias_threshold = { (1,1,1):98, (1,1,2):25, (1,2,1):25, (1,2,2):7,
                        (1,4,1):7, (1,4,2):4, (4,1,1):1 }
 
-
-    sub_folders = []
+    gain_folders = []
+    week_folders = []
     for root,dirs,files in os.walk( root_folder ):
-       if 'wk' in os.path.split( root )[-1]:     
-           sub_folders.append( root )
-           
-           
-    for folder in sub_folders:
+        tail = os.path.split( root )[-1]
+        if 'wk' in tail:     
+            week_folders.append( root )
+        if re.search('([0-4]-[0-4]x[0-4])',tail):
+            gain_folders.append( root )
+        
+
+    ####################
+    # make the base biases
+    ####################
+
+    for folder in gain_folders:
+        all_dir = os.path.join( folder,'all' )
+        if not os.path.exists( all_dir ):  os.mkdir( all_dir )
+
+        for root,dirs,files in os.walk( folder ):
+            if root.endswith('all'): continue
+            for filename in files:
+                if filename.endswith('_raw.fits'):
+                    shutil.copy( os.path.join( root, filename), all_dir )
+
+        all_files = glob.glob( os.path.join( all_dir, '*_raw.fits') )
+        bb_name = os.path.join( all_dir,'bb.fits' )
+        print 'Running basejoint '
+        print all_dir
+        REFSTI_basejoint.make_basebias( all_files ,bb_name )
+
+
+    ####################
+    # make the week biases
+    ####################
+
+    for folder in week_folders:
+        REFBIAS = False
+        BASEJOIN = False
+        WEEKBIAS = False
+ 
+        BASEDARK = False
+        WEEKDARK = False
         print 'Processing %s'%(folder)
 
         proposal = re.search('(_[0-9]{5}_)',folder).group().strip('_')
@@ -165,16 +200,13 @@ def make_ref_files( root_folder ):
             REFBIAS = True
 
             if n_imsets < bias_threshold[ (gain,xbin,ybin) ]:
-                WEEKBIAS = True
                 BASEJOIN = True
-            else:
-                WEEKBIAS = False
-                BASEJOIN = False
+                WEEKBIAS = True
 
         elif re.search('/darks/',folder):
             filetype = 'dark'
             BASEDARK = True
-            WEEKDARK = False
+            WEEKDARK = True
 
         else:
             print 'ERROR',folder
@@ -186,8 +218,11 @@ def make_ref_files( root_folder ):
 
         if REFBIAS: 
             refbias_name = os.path.join( folder, 'refbias_%s_%s'%(proposal,wk) )
-            REFSTI_refbias.make_refbias( raw_files, os.path.join( folder,ref_base_name ) )
-        if WEEKBIAS: pass
+            REFSTI_refbias.make_refbias( raw_files, refbias_name )
+
+        if WEEKBIAS:
+            sys.ext('I needed to run weekbias')
+            pass
         if BASEJOIN: pass
 
         if BASEDARK: pass

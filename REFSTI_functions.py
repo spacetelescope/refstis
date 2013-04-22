@@ -55,13 +55,13 @@ def crreject( input_file, workdir=None) :
                         blevcorr = 'perform', doppcorr = 'omit', lorscorr = 'omit',
                         glincorr = 'omit', lflgcorr = 'omit', biascorr = 'omit',
                         darkcorr = 'omit', flatcorr = 'omit', shadcorr = 'omit',
-                        photcorr = 'omit', statflag = no, verb=no)
+                        photcorr = 'omit', statflag = no, verb=no, Stdout='dev$null')
        else:
            print('Blevcorr alread Performed')
            shutil.copy(input_file,output_blev)
 
        print('Performing OCRREJECT')
-       iraf.ocrreject(input=output_blev, output=output_crj, verb=no)
+       iraf.ocrreject(input=output_blev, output=output_crj, verb=no, Stdout='dev$null')
 
     elif (crcorr == "COMPLETE"):
         print "CR rejection already done"
@@ -90,7 +90,8 @@ def crreject( input_file, workdir=None) :
     print('             BINAXIS2 : '+str(ybin ) )
     print('Dividing cosmic-ray-rejected image by '+str(ncombine)+'...')
     out_div = output_crj.replace('.fits','_div.fits')
-    iraf.msarith( output_crj, '/', ncombine, out_div, verbose = 0)
+    print out_div, output_crj, ncombine
+    iraf.msarith( output_crj, '/', ncombine, out_div, verbose = yes)
     
     os.remove( output_blev )
     os.remove( output_crj )
@@ -372,6 +373,7 @@ def bd_crreject(joinedfile) :
    return crdone
 
 #--------------------------------------------------------------------------
+
 def bd_calstis(joinedfile, thebiasfile=None ) :
    import pyfits
    from pyraf import iraf 
@@ -415,4 +417,9 @@ def bd_calstis(joinedfile, thebiasfile=None ) :
 
    pyfits.setval(crj_file, 'FILENAME', value=crj_file)
    
+#--------------------------------------------------------------------------
 
+def RemoveIfThere(item):
+    import os
+    if os.path.exists(item):
+        os.remove(item)

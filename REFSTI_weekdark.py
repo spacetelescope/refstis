@@ -5,7 +5,6 @@ import sys
 import glob
 import shutil
 import pyfits
-import stiref
 from scipy.signal import medfilt
 
 def split_and_join( input_list, refname ):
@@ -33,7 +32,6 @@ def split_and_join( input_list, refname ):
 
   return joined_out,imset_count
 
-def make_weekdark(infiles, basedark_name=None, bias_file=None, weekoutfile, outfile, reffile):
   """
   1- split all raw images into their imsets
   2- join imsets together into a single file
@@ -119,7 +117,7 @@ def make_weekdark(infiles, basedark_name=None, bias_file=None, weekoutfile, outf
   five_sigma = base_median + 5*base_sigma
 
   print "## Create median-filtered version of super-de-buper dark "
-  basedark_med = medfilt( pyfits.getdata(thebasedark,ext=('sci',1),(5,5)) )
+  basedark_med = medfilt( pyfits.getdata(thebasedark,ext=('sci',1)),(5,5) )
 
   norm_hdu = pyfits.open( norm_filename )
 

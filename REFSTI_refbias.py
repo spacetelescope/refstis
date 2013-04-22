@@ -1,11 +1,12 @@
 from pyraf import iraf
 from pyraf.irafglobals import *
-from REFSTI_functions import split_images,crreject
+import REFSTI_functions
 import pyfits
 import sys
 import glob
 import shutil
 import os
+import opusutil
 
 def update_header( filename ):
     pass
@@ -21,38 +22,60 @@ def make_refbias( bias_list, refbias_name ):
     from pyraf import iraf
     from iraf import stsdas,toolbox,imgtools,mstools
     import os
+    print 'Making refbias %s'%(refbias_name)
+    print '\nInput Biases:'
+    print bias_list
+    print '\n\n'
 
     refbias_name.replace('.fits','') # ensure its just a rootname
+    refbias_path = os.path.split( refbias_name )[0]
 
-    print 'Splitting images'
-    split_images( bias_list )
+    gain = REFSTI_functions.get_keyword( bias_list, 'CCDGAIN', 0)
+    xbin = REFSTI_functions.get_keyword( bias_list, 'BINAXIS1', 0)
+    ybin = REFSTI_functions.get_keyword( bias_list, 'BINAXIS2', 0)
+
+    REFSTI_functions.split_images( bias_list )
     
     print 'Joining images'
-    msjoin_list = ','.join( [ item for item in glob.glob('*raw??.fits') ] )# if item[:9] in bias_list] )
-    print msjoin_list
-    joined_out = refbias_name+ '_joined' +'.fits' 
+    msjoin_list = ','.join( [ item for item in 
+                              glob.glob( os.path.join(refbias_path,'*raw??.fits') ) ] )# if item[:9] in bias_list] )
+    n_imsets = len(msjoin_list)
+    joined_out = refbias_name+ '_joined.fits' 
     print joined_out
     
-    msjoin_file = open('msjoin.txt','w')
+    msjoin_list_name = os.path.join( refbias_path,'msjoin.txt')
+    msjoin_file = open( msjoin_list_name,'w')
     msjoin_file.write( '\n'.join(msjoin_list.split(',')) )
     msjoin_file.close()
-    
-    iraf.msjoin( inimg='@msjoin.txt', outimg=joined_out, Stderr='dev$null')
-    
-    crj_filename = crreject( joined_out )
+
+    iraf.chdir( refbias_path )
+    iraf.msjoin( inimg='@%s'%(msjoin_list_name), outimg=joined_out)#, Stderr='dev$null')
+
+    #pdb.set_trace()
+    crj_filename = REFSTI_functions.crreject( joined_out )
     out_name = refbias_name + '.fits' 
+    opusutil.RemoveIfThere( out_name )
     shutil.copy( crj_filename, out_name)
 
     pyfits.setval( out_name, 'FILENAME', value=out_name )
     pyfits.setval( out_name, 'FILETYPE', value='CCD BIAS IMAGE')
-    pyfits.setval( out_name, 'CCDGAIN', value= 1 ) ### FIX
-    pyfits.setval( out_name, 'BINAXIS1', value= 1 ) ### FIX
-    pyfits.setval( out_name, 'BINAXIS2', value= 1 ) ### FIX
+    pyfits.setval( out_name, 'CCDGAIN', value= gain )
+    pyfits.setval( out_name, 'BINAXIS1', value= xbin )
+    pyfits.setval( out_name, 'BINAXIS2', value= ybin ) 
     pyfits.setval( out_name, 'USEAFTER', value= ' ' ) ### FIX
     pyfits.setval( out_name, 'PEDIGREE', value='INFLIGHT' ) 
     pyfits.setval( out_name, 'DESCRIP', value= 'Superbias created by J. Ely') ### FIX
-    pyfits.setval( out_name, 'NEXTEND', value=3 ) 
+    pyfits.setval( out_name, 'NEXTEND', value= 3 ) 
     pyfits.setval( out_name, 'COMMENT', value='Replace this sometime' ) 
+
+
+    for item in msjoin_list.split(','):
+        os.remove(item)
+        
+    opusutil.RemoveIfThere( msjoin_list_name )
+    opusutil.RemoveIfThere( crj_filename )
+    opusutil.RemoveIfThere( joined_out )
+    
     
 #------------------------------------------------------------------------------------
     

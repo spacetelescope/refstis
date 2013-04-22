@@ -29,7 +29,6 @@ import math
 import shutil
 import tempfile
 import pyfits
-import stiref
 import opusutil
 import traceback
 

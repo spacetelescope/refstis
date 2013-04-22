@@ -51,7 +51,6 @@ import glob
 import shutil
 import tempfile
 import pyfits
-import stiref
 import opusutil
 
 import REFSTI_functions

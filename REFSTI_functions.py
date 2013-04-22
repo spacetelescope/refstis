@@ -93,6 +93,7 @@ def crreject( input_file, workdir=None) :
     iraf.msarith( output_crj, '/', ncombine, out_div, verbose = 0)
     
     os.remove( output_blev )
+    os.remove( output_crj )
 
     return out_div
     #return tmpsuper, xbin, ybin, ccdgain, gain, xsize, ysize, ncombine
@@ -111,7 +112,23 @@ def split_images( imglist,outname='' ):
     nimsets = len( glob.glob('*raw??.fits') )
     return nimsets
 
+#------------------------------------------------------------------------------------
                      
+def count_imsets( file_list ):
+    import pyfits
+    total = 0
+    for item in file_list:
+        total += pyfits.getval(item,'NEXTEND',ext=0) / 3
+    return total
+
+#------------------------------------------------------------------------------------
+
+def get_keyword( file_list,keyword,ext=0):
+    import pyfits
+    kw_set = set( [pyfits.getval(item,keyword,ext=ext) for item in file_list] )
+    assert len(kw_set) == 1,'multiple values found for kw: %s'%(keyword)
+    return list(kw_set)[0]
+
 #------------------------------------------------------------------------------
 
 def figure_number_of_periods(number_of_days, mode) :

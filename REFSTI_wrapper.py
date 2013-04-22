@@ -16,11 +16,23 @@ import shutil
 from datetime import datetime
 import pylab
 import pdb
+import re
 import numpy as np
 from support import SybaseInterface
 from support import createXmlFile, submitXmlFile
 from REFSTI_functions import figure_days_in_period,figure_number_of_periods,translate_date_string
+
 import REFSTI_pop_db
+
+import REFSTI_basedark
+import REFSTI_weekdark
+
+import REFSTI_refbias
+import REFSTI_weekbias
+
+import REFSTI_basejoint
+
+import REFSTI_functions
 
 
 #### Needs 
@@ -50,8 +62,9 @@ def list_retreieved_files( folder ):
 #-------------------------------------------------------------------------------
 
 def get_new_periods():
+    print '#-------------------#'
     print 'Reading from database'
-    print '#-------------------#\n'
+    print '#-------------------#\n\n'
     db = sqlite3.connect("/user/ely/STIS/refstis_mark2/my_scripts/anneal_info")
     c = db.cursor()
     table = 'anneals'
@@ -65,6 +78,8 @@ def get_new_periods():
     visit_id_all = [ int(row[2]) for row in all_info ]
     anneal_start_all = [row[3] for row in all_info]
     anneal_end_all = [row[4] for row in all_info]
+
+    dirs_to_process = []
 
     for i in range( len(table_id_all) )[::-1]:
         if i == len(table_id_all)-1: continue
@@ -80,11 +95,14 @@ def get_new_periods():
         else:
             visit = str(visit)
 
-        print '\n%d_%d_%s  MJD %5.5f : %5.5f'%(year,proposal,visit,ref_begin,ref_end)
+        print '\n\n#--------------------#'
+        print '%d_%d_%s  MJD %5.5f : %5.5f'%(year,proposal,visit,ref_begin,ref_end)
         print month,day,year,' : ',end_month,end_day,end_year
-        print '#----------#'
+        print '#--------------------#'
 
         products_folder = os.path.join( products_directory,'%d_%d_%s'%(year,proposal,visit) )
+        dirs_to_process.append( products_folder )
+
         if not os.path.exists( products_folder ): 
             os.mkdir( products_folder )
         
@@ -105,31 +123,76 @@ def get_new_periods():
             print obs_to_get
 
         #raw_input('#------  continue on?  --------#')
-        response = collect_new( obs_to_get )
-        print response
-        move_obs( obs_to_get, products_folder) 
+        ## response = collect_new( obs_to_get )
+        ## move_obs( obs_to_get, products_folder) 
 
-        separate_obs( products_folder, ref_begin, ref_end )
-        #make_ref_files(products_folder, proposal, visit)
-        #sys.exit('done')
-        '''
-        if not os.path.exists(products_folder):
-            print 'Making files for:'
-            print products_folder
-            print
-            make_ref_files(products_folder, proposal, visit, ref_begin, ref_end)
-        else:
-            print 'Folders already exists for '
-            print products_folder
-            print 'I assume ref_files have already been created for this period.'
-            print 'Skipping'
-            print
-         '''
+        ## separate_obs( products_folder, ref_begin, ref_end )
+
+    return dirs_to_process
+
 #-------------------------------------------------------------------------------
 
-def make_ref_files(output_folder, proposal, visit):
-    pass
-    #print new_obs
+def make_ref_files( root_folder ):
+
+    bias_threshold = { (1,1,1):98, (1,1,2):25, (1,2,1):25, (1,2,2):7,
+                       (1,4,1):7, (1,4,2):4, (4,1,1):1 }
+
+
+    sub_folders = []
+    for root,dirs,files in os.walk( root_folder ):
+       if 'wk' in os.path.split( root )[-1]:     
+           sub_folders.append( root )
+           
+           
+    for folder in sub_folders:
+        print 'Processing %s'%(folder)
+
+        proposal = re.search('(_[0-9]{5}_)',folder).group().strip('_')
+        wk = re.search('([bi]*wk0[0-9])',folder).group()
+
+        raw_files = glob.glob( os.path.join( folder, '*raw.fits') )
+        n_imsets = REFSTI_functions.count_imsets( raw_files )
+
+        if n_imsets > 200: 
+            sys.exit('error, too many imsets fonud: %d'%(n_imsets) )
+        
+        gain = REFSTI_functions.get_keyword( raw_files, 'CCDGAIN', 0)
+        xbin = REFSTI_functions.get_keyword( raw_files, 'BINAXIS1', 0)
+        ybin = REFSTI_functions.get_keyword( raw_files, 'BINAXIS2', 0)
+        
+        if re.search('/biases/',folder):
+            filetype = 'bias'
+            REFBIAS = True
+
+            if n_imsets < bias_threshold[ (gain,xbin,ybin) ]:
+                WEEKBIAS = True
+                BASEJOIN = True
+            else:
+                WEEKBIAS = False
+                BASEJOIN = False
+
+        elif re.search('/darks/',folder):
+            filetype = 'dark'
+            BASEDARK = True
+            WEEKDARK = False
+
+        else:
+            print 'ERROR',folder
+            sys.exit()
+
+        ref_base_name = os.path.join( folder, '%s_%s_%s'%(filetype,proposal,wk) )
+        print folder, filetype
+        print '%d files found with %d imsets'%(len(raw_files),n_imsets)
+
+        if REFBIAS: 
+            refbias_name = os.path.join( folder, 'refbias_%s_%s'%(proposal,wk) )
+            REFSTI_refbias.make_refbias( raw_files, os.path.join( folder,ref_base_name ) )
+        if WEEKBIAS: pass
+        if BASEJOIN: pass
+
+        if BASEDARK: pass
+        if WEEKDARK: pass
+                                                                  
 
 #-------------------------------------------------------------------------------
 
@@ -153,11 +216,9 @@ def get_new_obs(file_type, start, end):
     #obs_name_query = "SELECT science.sci_data_set_name FROM science WHERE ( " + OR_part + " ) AND  science.sci_targname ='%s' AND science.sci_actual_duration BETWEEN %d AND %d "%(file_type,MIN_EXPTIME,MAX_EXPTIME)
     #start_time_query = "SELECT science.sci_start_time FROM science WHERE ( " + OR_part + " ) AND  science.sci_targname ='%s' AND science.sci_actual_duration BETWEEN %d AND %d "%(file_type,MIN_EXPTIME,MAX_EXPTIME)
 
-    print 'Quering'    
     data_query = "SELECT science.sci_start_time,science.sci_data_set_name FROM science WHERE ( " + OR_part + " ) AND  science.sci_targname ='%s' AND science.sci_actual_duration BETWEEN %d AND %d "%(file_type,MIN_EXPTIME,MAX_EXPTIME)
     query.doQuery(query=data_query)
     new_dict = query.resultAsDict()
-    print 'Query done'
  
     #query.doQuery(query=obs_name_query)
     #new_dict = query.resultAsDict()
@@ -173,8 +234,9 @@ def get_new_obs(file_type, start, end):
     #start_times_MJD = np.array( [ translate_date_string(item) for item in start_times ] )
     
     index = np.where( (start_times_MJD > start) & (start_times_MJD < end) )[0]
-    print start,end
-    print start_times_MJD[index].min(),start_times_MJD[index].max()
+
+    assert start_times_MJD[index].min() > start, 'Data has mjd before period start'
+    assert start_times_MJD[index].max() < end, 'Data has mjd after period end'
 
     datasets_to_retrieve = obs_names[index]
     dataset_times = start_times_MJD[index]
@@ -200,7 +262,6 @@ def collect_new(observations_to_get):
                       ftp_user='ely', ftp_pwd='5correctmonkeys')
 
     response = submitXmlFile(xml,'dmsops1.stsci.edu')
-    print response
     if ('SUCCESS' in response):
         success=True
     else:
@@ -314,7 +375,10 @@ def move_obs(new_obs, base_output_dir):
 def main():
     REFSTI_pop_db.main()
 
-    get_new_periods()
+    all_folders = get_new_periods()
+
+    for folder in all_folders:
+        make_ref_files( folder )
 
 if __name__ == "__main__":
     main()

@@ -67,7 +67,6 @@ def make_refbias( bias_list, refbias_name ):
     pyfits.setval( out_name, 'NEXTEND', value= 3 ) 
     pyfits.setval( out_name, 'COMMENT', value='Replace this sometime' ) 
 
-
     for item in msjoin_list.split(','):
         os.remove(item)
         

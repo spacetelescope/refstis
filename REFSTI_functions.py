@@ -91,8 +91,21 @@ def crreject( input_file, workdir=None) :
     print('Dividing cosmic-ray-rejected image by '+str(ncombine)+'...')
     out_div = output_crj.replace('.fits','_div.fits')
     print out_div, output_crj, ncombine
-    iraf.msarith( output_crj, '/', ncombine, out_div, verbose = yes)
+
+
+    iraf.unlearn(iraf.msarith)
+    current_path = os.getcwd()
+    file_path = os.path.split( output_crj )[0]
     
+    os.chdir( file_path )
+    iraf.chdir( file_path )
+
+
+    iraf.msarith( operand1=os.path.split(output_crj)[-1], op='/', operand2=ncombine,
+                  result= os.path.split(out_div)[-1], verbose = yes)
+    os.chdir( current_path )
+    iraf.chdir( current_path )
+
     os.remove( output_blev )
     os.remove( output_crj )
 

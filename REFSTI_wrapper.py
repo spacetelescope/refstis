@@ -85,7 +85,7 @@ def get_new_periods():
         if i == len(table_id_all)-1: continue
         ref_begin = anneal_end_all[i]
         ref_end = anneal_start_all[i+1]
-        proposal = proposal_id_all[i]  ### make this i+1 # defined as the next poposal
+        proposal = proposal_id_all[i+1]  # defined from proposal of the next anneal
         visit = visit_id_all[i+1]
         year,month,day,dec_year = support.mjd_to_greg(ref_begin)
         end_year,end_month,end_day,dec_year = support.mjd_to_greg(ref_end)       
@@ -122,11 +122,11 @@ def get_new_periods():
             print 'Found new observations for this period'
             print obs_to_get
 
-        #raw_input('#------  continue on?  --------#')
-        ## response = collect_new( obs_to_get )
-        ## move_obs( obs_to_get, products_folder) 
+        response = collect_new( obs_to_get )
 
-        ## separate_obs( products_folder, ref_begin, ref_end )
+        move_obs( obs_to_get, products_folder) 
+        
+        separate_obs( products_folder, ref_begin, ref_end )
 
     return dirs_to_process
 
@@ -163,10 +163,33 @@ def make_ref_files( root_folder ):
                     shutil.copy( os.path.join( root, filename), all_dir )
 
         all_files = glob.glob( os.path.join( all_dir, '*_raw.fits') )
-        bb_name = os.path.join( all_dir,'bb.fits' )
+        basebias_name = os.path.join( all_dir,'basedark.fits' )
         print 'Running basejoint '
         print all_dir
-        REFSTI_basejoint.make_basebias( all_files ,bb_name )
+        REFSTI_basejoint.make_basebias( all_files ,basebias_name )
+
+    ####################
+    # make the base dark
+    ####################
+
+    dark_folder = os.path.join( root_folder, 'darks' )
+    all_dir = os.path.join( folder,'all' )
+    if not os.path.exists( all_dir ):  os.mkdir( all_dir )
+
+    for root,dirs,files in os.walk( dark_folder ):
+        if root.endswith('all'): continue
+        for filename in files:
+            if filename.endswith('_raw.fits'):
+                shutil.copy( os.path.join( root, filename), all_dir )
+
+    all_files = glob.glob( os.path.join( all_dir, '*_raw.fits') )
+
+    basebias = os.path.join( root_folder,'biases/1-1x1/all/','basedark.fits' )
+    basedark_name = os.path.join( all_dir,'basedark.fits' )
+    print 'Running basedark'
+    print all_dir
+    REFSTI_basedark.make_basedark( all_files ,basedarkname, basebias )
+
 
 
     ####################

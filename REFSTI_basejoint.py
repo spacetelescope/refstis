@@ -101,7 +101,6 @@ def calibrate( input_file ):
     output_blev = input_file.replace('.fits','_blev.fits')
     REFSTI_functions.RemoveIfThere( output_blev )
     output_crj = input_file.replace('.fits','_crj.fits')
-    if os.path.exists( output_crj): return output_crj### testing
     REFSTI_functions.RemoveIfThere( output_crj )
 
     # between the long file paths and not being able to find EPC files, 

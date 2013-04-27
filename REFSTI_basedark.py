@@ -1,8 +1,9 @@
-import REFSTI_functions as functions
+import REFSTI_functions
 import numpy as np
 import pyfits
 import glob
 import sys
+import shutil
 
 def hotpix( filename ):
     pass
@@ -29,33 +30,41 @@ def make_basedark( input_dark_list, refdark_name='basedark.fits', bias_file=None
     4- normalize to e/s by dividing by (exptime/gain)
     5- do hot pixel things
     """
-    print input_dark_list
+    print '#-------------------------------#'
+    print '#        Running basedark       #'
+    print '#-------------------------------#'
 
     from pyraf import iraf
     from iraf import stsdas,toolbox,imgtools,mstools
     import os
+    import shutil
 
     os.environ['oref']='/grp/hst/cdbs/oref/' 
     refdark_name = refdark_name.replace('.fits','')
+    refdark_path = os.path.split( refdark_name )[0]
 
-    print 'Splitting images'
-    imset_count = functions.split_images( input_dark_list )
+    imset_count = REFSTI_functions.split_images( input_dark_list )
 
     print 'Joining images'
-    msjoin_list = ','.join( [ item for item in glob.glob('*raw??.fits') ] )# if item[:9] in bias_list] )
+    msjoin_list = ','.join( [ item for item in 
+                              glob.glob( os.path.join(refdark_path,'*raw??.fits') ) ] )# if item[:9] in bias_list] )
     joined_out = refdark_name+ '_joined.fits' 
-    
-    msjoin_file = open('msjoin.txt','w')
+
+    msjoin_list_name = os.path.join( refdark_path,'msjoin.txt')
+    msjoin_file = open( msjoin_list_name,'w')
     msjoin_file.write( '\n'.join(msjoin_list.split(',')) )
     msjoin_file.close()
-    
-    iraf.msjoin( inimg='@msjoin.txt', outimg=joined_out, Stderr='dev$null')
-    
+
+    iraf.chdir( refdark_path )
+    iraf.msjoin( inimg='@%s'%(msjoin_list_name), outimg=joined_out, Stderr='dev$null')
+
+
+
     # ocrreject
     print 'CRREJECT'
-    crdone = functions.bd_crreject( joined_out )
+    crdone = REFSTI_functions.bd_crreject( joined_out )
     if (not crdone):
-        functions.bd_calstis( joined_out, bias_file )
+        REFSTI_functions.bd_calstis( joined_out, bias_file )
 
     # divide cr-rejected
     print 'Dividing'
@@ -73,13 +82,23 @@ def make_basedark( input_dark_list, refdark_name='basedark.fits', bias_file=None
     pyfits.setval( norm_filename, 'TEXPTIME', value=1 )
 
     # hotpixel stuff
-    iter_count,median,sigma,npx,med,mod,min,max = functions.iterate( norm_filename )
+    iter_count,median,sigma,npx,med,mod,min,max = REFSTI_functions.iterate( norm_filename )
     five_sigma = median + 5*sigma
+    
+    shutil.copy( norm_filename, refdark_name+'.fits' )
+
     norm_hdu = pyfits.open( norm_filename,mode='update' )
     index = np.where( norm_hdu[ ('SCI',1) ].data >= five_sigma + .1)[0]
     norm_hdu[ ('DQ',1) ].data[index] = 16
     norm_hdu.flush()
     norm_hdu.close()
+
+    REFSTI_functions.RemoveIfThere( msjoin_list_name )
+    REFSTI_functions.RemoveIfThere( crj_filename )
+    REFSTI_functions.RemoveIfThere( norm_filename )
+    REFSTI_functions.RemoveIfThere( joined_out )
+    for item in msjoin_list.split(','):
+        REFSTI_functions.RemoveIfThere( item )
 
     ### Do i need any of this?
     #hot_data = pyfits.getdata( norm_filename,ext=1 )

@@ -61,7 +61,7 @@ def crreject( input_file, workdir=None) :
            shutil.copy(input_file,output_blev)
 
        print('Performing OCRREJECT')
-       iraf.ocrreject(input=output_blev, output=output_crj, verb=no, Stdout='dev$null')
+       iraf.ocrreject(input=output_blev, output=output_crj, verb=no)#, Stdout='dev$null')
 
     elif (crcorr == "COMPLETE"):
         print "CR rejection already done"
@@ -392,6 +392,19 @@ def bd_calstis(joinedfile, thebiasfile=None ) :
    from pyraf import iraf 
    from iraf import stsdas,hst_calib,stis
    from pyraf.irafglobals import *
+   import os
+   import shutil
+
+   initial_dir = os.getcwd()
+   working_dir= os.path.split( joinedfile )[0]
+
+   shutil.copy( thebiasfile, working_dir )
+   os.chdir( working_dir )
+   iraf.chdir( working_dir )
+
+   thebiasfile = os.path.split( thebiasfile )[-1]
+   joinedfile = os.path.split( joinedfile )[-1]
+   
    
    print('Set CRCORR to PERFORM in joinedfile ' + joinedfile)
    # set CRCORR calibration switch for cosmic-ray rejection
@@ -426,9 +439,12 @@ def bd_calstis(joinedfile, thebiasfile=None ) :
    print '##              wavecal="",outroot="",'
    print '##    savetmp=no,verbose=no, Stderr=logname('+logname+')'
    iraf.calstis(joinedfile,wavecal="",outroot="",
-                savetmp=no,verbose=no)#, Stderr=logname)
+                savetmp=no,verbose=no, Stderr=logname)
 
    pyfits.setval(crj_file, 'FILENAME', value=crj_file)
+
+   os.chdir( initial_dir )
+   iraf.chdir( initial_dir )
    
 #--------------------------------------------------------------------------
 
@@ -436,3 +452,10 @@ def RemoveIfThere(item):
     import os
     if os.path.exists(item):
         os.remove(item)
+
+#--------------------------------------------------------------------------
+
+def move_to( directory ):
+    import os
+    os.chdir( directory )
+    iraf.chdir( directory )

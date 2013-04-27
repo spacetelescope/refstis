@@ -95,21 +95,27 @@ def get_new_periods():
         else:
             visit = str(visit)
 
-        print '\n\n#--------------------#'
-        print '%d_%d_%s  MJD %5.5f : %5.5f'%(year,proposal,visit,ref_begin,ref_end)
-        print month,day,year,' : ',end_month,end_day,end_year
-        print '#--------------------#'
+        print
+        print '#--------------------------------#'
+        print 'Searching for new observations for'
+        print '%d_%d_%s'%(year,proposal,visit)  
+        print 'MJD %5.5f %5.5f'%(ref_begin,ref_end)
+        print month,day,year,' to ',end_month,end_day,end_year
+        print '#--------------------------------#'
 
         products_folder = os.path.join( products_directory,'%d_%d_%s'%(year,proposal,visit) )
         dirs_to_process.append( products_folder )
+
+        # break ### testing
 
         if not os.path.exists( products_folder ): 
             os.mkdir( products_folder )
         
         already_retrieved = []
         for root,dirs,files in os.walk( products_folder ):
-            for item in glob.glob( os.path.join(root,'?????????_raw.fits') ):
-                already_retrieved.append( os.path.split(item)[-1][:9].upper() )
+            for filename in files:
+                if filename.endswith('_raw.fits'):
+                    already_retrieved.append( filename[:9].upper() )
         #already_retrieved = [ os.path.split(item)[1][:9] for item in glob.glob( os.path.join(products_folder,'?????????_raw.fits') ) ]
 
         new_obs = get_new_obs('DARK',ref_begin,ref_end) + get_new_obs('BIAS',ref_begin,ref_end)  ###Grab both darks and biases before moving on to collect and move.
@@ -122,18 +128,21 @@ def get_new_periods():
             print 'Found new observations for this period'
             print obs_to_get
 
-        response = collect_new( obs_to_get )
+        #response = collect_new( obs_to_get )
 
-        move_obs( obs_to_get, products_folder) 
+        #move_obs( obs_to_get, products_folder) 
         
-        separate_obs( products_folder, ref_begin, ref_end )
+        #separate_obs( products_folder, ref_begin, ref_end )
 
     return dirs_to_process
 
 #-------------------------------------------------------------------------------
 
 def make_ref_files( root_folder ):
-    print 'Working on ',root_folder
+    print '#-----------------------------#'
+    print '#  Making all ref files for   #'
+    print  root_folder
+    print '#-----------------------------#'
 
     bias_threshold = { (1,1,1):98, (1,1,2):25, (1,2,1):25, (1,2,2):7,
                        (1,4,1):7, (1,4,2):4, (4,1,1):1 }
@@ -148,9 +157,9 @@ def make_ref_files( root_folder ):
             gain_folders.append( root )
         
 
-    ####################
+    ######################
     # make the base biases
-    ####################
+    ######################
 
     for folder in gain_folders:
         all_dir = os.path.join( folder,'all' )
@@ -163,17 +172,18 @@ def make_ref_files( root_folder ):
                     shutil.copy( os.path.join( root, filename), all_dir )
 
         all_files = glob.glob( os.path.join( all_dir, '*_raw.fits') )
-        basebias_name = os.path.join( all_dir,'basedark.fits' )
-        print 'Running basejoint '
-        print all_dir
-        REFSTI_basejoint.make_basebias( all_files ,basebias_name )
+        basebias_name = os.path.join( all_dir,'basebias.fits' )
+        if not os.path.exists( basebias_name ):
+            REFSTI_basejoint.make_basebias( all_files ,basebias_name )
+        else:
+            print 'Basebias already created, skipping'
 
-    ####################
-    # make the base dark
-    ####################
+    ######################
+    # make the base darks
+    ######################
 
     dark_folder = os.path.join( root_folder, 'darks' )
-    all_dir = os.path.join( folder,'all' )
+    all_dir = os.path.join( dark_folder,'all' )
     if not os.path.exists( all_dir ):  os.mkdir( all_dir )
 
     for root,dirs,files in os.walk( dark_folder ):
@@ -184,21 +194,20 @@ def make_ref_files( root_folder ):
 
     all_files = glob.glob( os.path.join( all_dir, '*_raw.fits') )
 
-    basebias = os.path.join( root_folder,'biases/1-1x1/all/','basedark.fits' )
+    basebias_name = os.path.join( root_folder,'biases/1-1x1/all/','basebias.fits' )
     basedark_name = os.path.join( all_dir,'basedark.fits' )
-    print 'Running basedark'
-    print all_dir
-    REFSTI_basedark.make_basedark( all_files ,basedarkname, basebias )
+    if not os.path.exists( basedark_name ):
+        REFSTI_basedark.make_basedark( all_files ,basedark_name, basebias_name )
+    else:
+        print 'Basedark already created, skipping'
 
-
-
+    '''
     ####################
-    # make the week biases
+    # make the weekly biases and darks
     ####################
 
     for folder in week_folders:
         REFBIAS = False
-        BASEJOIN = False
         WEEKBIAS = False
  
         BASEDARK = False
@@ -223,7 +232,6 @@ def make_ref_files( root_folder ):
             REFBIAS = True
 
             if n_imsets < bias_threshold[ (gain,xbin,ybin) ]:
-                BASEJOIN = True
                 WEEKBIAS = True
 
         elif re.search('/darks/',folder):
@@ -235,6 +243,8 @@ def make_ref_files( root_folder ):
             print 'ERROR',folder
             sys.exit()
 
+
+
         ref_base_name = os.path.join( folder, '%s_%s_%s'%(filetype,proposal,wk) )
         print folder, filetype
         print '%d files found with %d imsets'%(len(raw_files),n_imsets)
@@ -244,13 +254,14 @@ def make_ref_files( root_folder ):
             REFSTI_refbias.make_refbias( raw_files, refbias_name )
 
         if WEEKBIAS:
-            sys.ext('I needed to run weekbias')
-            pass
-        if BASEJOIN: pass
-
-        if BASEDARK: pass
-        if WEEKDARK: pass
-                                                                  
+            weekbias_name = os.path.join( folder, 'weekbias_%s_%s'%(proposal,wk) )
+            REFSTI_refbias.make_refbias( raw_files, weekbias_name, basebias_name )
+ 
+        if WEEKDARK:
+            weekdark_name = os.path.join( folder, 'weekdark_%s_%s'%(proposal,wk) )
+            weekbias_name = os.path.join( root_folder, '/biases/1-1x1/',wk,'weekbias_%s_%s'%(proposal,wk) )
+            REFSI_weekdark.make_weekdark( raw_files, weekdark_name, weekbias_name )
+    '''
 
 #-------------------------------------------------------------------------------
 
@@ -331,7 +342,8 @@ def collect_new(observations_to_get):
 #-----------------------------------------------------------------------
 
 def separate_obs( base_dir, month_begin, month_end  ):
-    all_files = glob.glob( os.path.join(base_dir,'*raw.fits') )
+    all_files = glob.glob( os.path.join( base_dir,'*raw.fits') )
+    #all_files = glob.glob( os.path.join( retrieve_directory,'*raw.fits') )
     N_days_total = int(month_end - month_begin)
     N_days_remainder = (month_end - month_begin) - N_days_total
 
@@ -351,7 +363,12 @@ def separate_obs( base_dir, month_begin, month_end  ):
     for obs_list,file_type,mode in zip( [bias_111_list,dark_111_list,bias_411_list],
                                         ['BIAS','DARK','BIAS'],
                                         ['WK','WK','BIWK'] ):
+
+        if len(obs_list) == 0:
+            print '%s No obs to move.  Skipping'%(mode)
+            continue
         gain = list( set( [ pyfits.getval(item,'CCDGAIN',ext=0) for item in obs_list ] ) )
+        print obs_list, 'gain = ',gain
         assert len(gain) == 1, 'ERROR: Not everything has the same gain'
         gain = gain[0]
 
@@ -361,8 +378,7 @@ def separate_obs( base_dir, month_begin, month_end  ):
         N_days_per_period[-1] += N_days_remainder
 
         print
-        print file_type, mode, 'will be broken up into %d periods as follows:'%(N_periods)
-        print N_days_per_period
+        print file_type, mode, 'will be broken up into %d periods as follows:'%(N_periods), N_days_per_period
         print
 
         for period in range(N_periods):

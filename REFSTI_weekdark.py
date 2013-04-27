@@ -32,6 +32,8 @@ def split_and_join( input_list, refname ):
 
   return joined_out,imset_count
 
+
+def make_weekdark( imglist, refdark_name, thebiasfile ):
   """
   1- split all raw images into their imsets
   2- join imsets together into a single file
@@ -61,6 +63,7 @@ def split_and_join( input_list, refname ):
   print 'Joining images'
   msjoin_list = ','.join( [ item for item in glob.glob('*raw??.fits') ] )# if item[:9] in bias_list] )
   print msjoin_list
+  refdark_name.replace('.fits','')
   joined_out = refdark_name+ '_joined' +'.fits' 
   print joined_out
   

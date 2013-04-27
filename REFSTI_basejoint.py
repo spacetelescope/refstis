@@ -64,12 +64,12 @@ def average_biases( bias_list ):
   returns the filename of the averaged file
   '''
 
-  totalweight = 0
   file_path,file_name = os.path.split( bias_list[0] )
   sum_file_tmp = os.path.join( file_path, 'sum_tmp.fits' )
   sum_file = os.path.join( file_path, 'sum.fits' )
   mean_file = os.path.join( file_path, 'mean.fits' )
 
+  totalweight = 0
   for iteration,item in enumerate(bias_list):
     nimset = pyfits.getval(item,'nextend') // 3
     ncombine = pyfits.getval(item,'ncombine',ext=1)
@@ -79,10 +79,10 @@ def average_biases( bias_list ):
       print('NIMSET: %d  NCOMBINE: %d'%(nimset,ncombine) )
       sys.exit(3)
 
-    if (iteration==0):
+    if (iteration == 0):
       shutil.copy(item, sum_file )
     else:
-      iraf.msarith( sum_file, '+', item, sum_file_tmp, verbose=0 )
+      iraf.msarith( sum_file, '+', item, sum_file_tmp, verbose=1 )
       shutil.move( sum_file_tmp, sum_file )
       totalweight += ncombine
 
@@ -134,7 +134,7 @@ def calibrate( input_file ):
        pyfits.setval(input_file, 'APERTURE', value='50CCD')
        pyfits.setval(input_file, 'APER_FOV', value='50x50')
        if (blevcorr != 'COMPLETE') :
-           print('Performing BLEVCORR')
+           #print('Performing BLEVCORR')
            pyfits.setval(input_file, 'BLEVCORR', value='PERFORM')
            iraf.basic2d(input_file, output_blev,
                         outblev = '', dqicorr = 'perform', atodcorr = 'omit',
@@ -146,7 +146,7 @@ def calibrate( input_file ):
            print('Blevcorr alread Performed')
            shutil.copy(input_file,output_blev)
 
-       print('Performing OCRREJECT')
+       #print('Performing OCRREJECT')
        iraf.ocrreject(input=output_blev, output=output_crj, verb=no, Stdout='dev$null')
 
     elif (crcorr == "COMPLETE"):
@@ -169,6 +169,10 @@ def make_basebias ( bias_list, refbias_name ):
   verbose = 0             # Show results of imstat iterations?'))
   PYprint = 0             # Print final results of imstat iterations?'))
   bias_path = os.path.split( bias_list[0] )[0]
+
+  print '#-------------------------------#'
+  print '#        Running basejoint      #'
+  print '#-------------------------------#'
 
   print 'Processing individual files'
   crj_list = [ calibrate(item) for item in bias_list ]
@@ -344,6 +348,17 @@ def make_basebias ( bias_list, refbias_name ):
   pyfits.setval( out_ref, 'COMMENT', value='Reference file created by the STIS BIAS file pipeline')
   pyfits.setval( out_ref, 'NCOMBINE', value=totalweight, ext=1)
   
+  ### clean up temporary files
+  REFSTI_functions.RemoveIfThere( bias_residual )
+  REFSTI_functions.RemoveIfThere( bias_residual_2 )
+  REFSTI_functions.RemoveIfThere( resi_cols )
+  REFSTI_functions.RemoveIfThere( resi_cols2d)
+  REFSTI_functions.RemoveIfThere( bias_median )
+  REFSTI_functions.RemoveIfThere( mean_bias )
+  REFSTI_functions.RemoveIfThere( tmp_bias )
+  REFSTI_functions.RemoveIfThere( tmp_bias2 )
+  for item in crj_list:
+    REFSTI_functions.RemoveIfThere( item )
 
 #------------------------------------------------------------------------------------
     

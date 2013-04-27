@@ -21,10 +21,13 @@ def make_refbias( bias_list, refbias_name ):
     from pyraf import iraf
     from iraf import stsdas,toolbox,imgtools,mstools
     import os
+
+    print '#-------------------------------#'
+    print '#        Running refbias        #'
+    print '#-------------------------------#'
+
+
     print 'Making refbias %s'%(refbias_name)
-    print '\nInput Biases:'
-    print bias_list
-    print '\n\n'
 
     refbias_name.replace('.fits','') # ensure its just a rootname
     refbias_path = os.path.split( refbias_name )[0]
@@ -73,7 +76,8 @@ def make_refbias( bias_list, refbias_name ):
     REFSTI_functions.RemoveIfThere( msjoin_list_name )
     REFSTI_functions.RemoveIfThere( crj_filename )
     REFSTI_functions.RemoveIfThere( joined_out )
-    
+    for item in msjoin_list.split(','):
+        REFSTI_functions.RemoveIfThere( item ) 
     
 #------------------------------------------------------------------------------------
     

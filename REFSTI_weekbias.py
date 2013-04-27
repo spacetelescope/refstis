@@ -33,7 +33,7 @@ import traceback
 
 import REFSTI_functions
 
-def make_weekbias( bias_list, basebias, refbias_name ):
+def make_weekbias( bias_list, refbias_name, basebias ):
 
   from pyraf import iraf
   from iraf import stsdas,toolbox,imgtools,mstools

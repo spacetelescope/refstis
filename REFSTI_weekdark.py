@@ -6,6 +6,7 @@ import glob
 import shutil
 import pyfits
 from scipy.signal import medfilt
+import REFSTI_functions
 
 def split_and_join( input_list, refname ):
   # not done with this...tired.
@@ -18,7 +19,7 @@ def split_and_join( input_list, refname ):
 
   print 'Splitting images'
   rootname_list = [ os.path.split(item)[1][:9] for item in input_list ]
-  imset_count = functions.split_images( input_list ) 
+  imset_count = REFSTI_functions.split_images( input_list ) 
   
   print 'Joining images'
   msjoin_list = ','.join( [ item for item in glob.glob('*raw??.fits') if item[:9] in rootname_list] )
@@ -58,7 +59,7 @@ def make_weekdark( imglist, refdark_name, thebiasfile ):
   iraf.stis()
   
   print 'Splitting images'
-  imset_count = functions.split_images( imglist ) 
+  imset_count = REFSTI_functions.split_images( imglist ) 
   
   print 'Joining images'
   msjoin_list = ','.join( [ item for item in glob.glob('*raw??.fits') ] )# if item[:9] in bias_list] )
@@ -77,7 +78,7 @@ def make_weekdark( imglist, refdark_name, thebiasfile ):
   crdone = stiref.bd_crreject(joinedfile)
   print "## crdone is ", crdone
   if (not crdone):
-      functions.bd_calstis(joinedfile, thebiasfile)
+      REFSTI_functions.bd_calstis(joinedfile, thebiasfile)
 
   # divide cr-rejected
   crj_filename = refdark_name + '_crj.fits'
@@ -99,7 +100,7 @@ def make_weekdark( imglist, refdark_name, thebiasfile ):
   # Perform iterative statistics on the normalized superdark
   #   (i.e., neglecting hot pixels in the process)
   #
-  iter_count,median,sigma,npx,med,mod,min,max = functions.iterate( norm_filename )
+  iter_count,median,sigma,npx,med,mod,min,max = REFSTI_functions.iterate( norm_filename )
   five_sigma = median + 5*sigma
 
   # save hot pixel level and the name of the baseline dark
@@ -116,7 +117,7 @@ def make_weekdark( imglist, refdark_name, thebiasfile ):
   # 1- norm_file - median = zerodark
   # 2- only_hotpix = 
   print "## Perform iterative statistics on the baseline superdark (thebasedark)"
-  iter_count,base_median,base_sigma,npx,basemed,mod,min,max = functions.iterate( norm_filename )
+  iter_count,base_median,base_sigma,npx,basemed,mod,min,max = REFSTI_functions.iterate( norm_filename )
   five_sigma = base_median + 5*base_sigma
 
   print "## Create median-filtered version of super-de-buper dark "
@@ -173,4 +174,4 @@ def make_weekdark( imglist, refdark_name, thebiasfile ):
 
 
 if __name__ == "__main__":
-    make_
+    make_weekdark()

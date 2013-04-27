@@ -64,7 +64,7 @@ def list_retreieved_files( folder ):
 def get_new_periods():
     print '#-------------------#'
     print 'Reading from database'
-    print '#-------------------#\n\n'
+    print '#-------------------#\n'
     db = sqlite3.connect("/user/ely/STIS/refstis_mark2/my_scripts/anneal_info")
     c = db.cursor()
     table = 'anneals'
@@ -95,10 +95,9 @@ def get_new_periods():
         else:
             visit = str(visit)
 
-        print
         print '#--------------------------------#'
         print 'Searching for new observations for'
-        print '%d_%d_%s'%(year,proposal,visit)  
+        print 'Period: %d_%d_%s'%(year,proposal,visit)  
         print 'MJD %5.5f %5.5f'%(ref_begin,ref_end)
         print month,day,year,' to ',end_month,end_day,end_year
         print '#--------------------------------#'
@@ -122,11 +121,11 @@ def get_new_periods():
         obs_to_get = [ obs for obs in new_obs if not obs in already_retrieved ]
 
         if not len( obs_to_get ): 
-            print 'No new obs to get, skipping this period'
+            print 'No new obs to get, skipping this period\n\n'
             continue
         else: 
             print 'Found new observations for this period'
-            print obs_to_get
+            print obs_to_get,'\n\n'
 
         #response = collect_new( obs_to_get )
 
@@ -138,6 +137,19 @@ def get_new_periods():
 
 #-------------------------------------------------------------------------------
 
+def split_files(  all_files ):
+    all_info = [ ( pyfits.getval(filename,'EXPSTART',1),filename ) for filename in all_files ]
+    all_info.sort()
+    all_files = [ line[1] for line in all_info ]
+
+    halfway = len(all_files)//2
+
+    super_list = [ all_files[:halfway],
+                   all_files[halfway:] ]
+
+    return super_list
+
+#-------------------------------------------------------------------------------
 def make_ref_files( root_folder ):
     print '#-----------------------------#'
     print '#  Making all ref files for   #'
@@ -201,7 +213,7 @@ def make_ref_files( root_folder ):
     else:
         print 'Basedark already created, skipping'
 
-    '''
+    
     ####################
     # make the weekly biases and darks
     ####################
@@ -220,8 +232,8 @@ def make_ref_files( root_folder ):
         raw_files = glob.glob( os.path.join( folder, '*raw.fits') )
         n_imsets = REFSTI_functions.count_imsets( raw_files )
 
-        if n_imsets > 200: 
-            sys.exit('error, too many imsets fonud: %d'%(n_imsets) )
+        #if n_imsets > 140: 
+        #    sys.exit('error, too many imsets fonud: %d'%(n_imsets) )
         
         gain = REFSTI_functions.get_keyword( raw_files, 'CCDGAIN', 0)
         xbin = REFSTI_functions.get_keyword( raw_files, 'BINAXIS1', 0)
@@ -246,12 +258,26 @@ def make_ref_files( root_folder ):
 
 
         ref_base_name = os.path.join( folder, '%s_%s_%s'%(filetype,proposal,wk) )
-        print folder, filetype
+        print 'Making REFFILE for ', filetype
         print '%d files found with %d imsets'%(len(raw_files),n_imsets)
 
         if REFBIAS: 
             refbias_name = os.path.join( folder, 'refbias_%s_%s'%(proposal,wk) )
-            REFSTI_refbias.make_refbias( raw_files, refbias_name )
+            if os.path.exists( refbias_name+'.fits'):
+                print 'Weekbias already created, skipping'
+            else:
+                if n_imsets > 120:
+                    super_list = split_files( raw_files )
+                    all_subnames = []
+                    for i,sub_list in enumerate( super_list ):
+                        subname = refbias_name+'_grp0'+str(i+1)+'.fits'
+                        print 'Making sub-file for datasets'
+                        print sub_list
+                        REFSTI_refbias.make_refbias( sub_list, subname )
+                        all_subnames.append( subname )
+                    REFSTI_functions.refaver( all_subnames, refbias_name )
+                else:
+                    REFSTI_refbias.make_refbias( raw_files, refbias_name )
 
         if WEEKBIAS:
             weekbias_name = os.path.join( folder, 'weekbias_%s_%s'%(proposal,wk) )
@@ -260,8 +286,8 @@ def make_ref_files( root_folder ):
         if WEEKDARK:
             weekdark_name = os.path.join( folder, 'weekdark_%s_%s'%(proposal,wk) )
             weekbias_name = os.path.join( root_folder, '/biases/1-1x1/',wk,'weekbias_%s_%s'%(proposal,wk) )
-            REFSI_weekdark.make_weekdark( raw_files, weekdark_name, weekbias_name )
-    '''
+            REFSTI_weekdark.make_weekdark( raw_files, weekdark_name, weekbias_name )
+    
 
 #-------------------------------------------------------------------------------
 

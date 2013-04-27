@@ -455,6 +455,36 @@ def RemoveIfThere(item):
 
 #--------------------------------------------------------------------------
 
+def refaver( reffiles,combined_name ):
+    from pyraf import iraf
+    from iraf import mstools,stsdas,hst_calib,stis
+    import os
+   
+    if not combined_name.endswith('.fits'):
+        combined_name = combined_name + '.fits'
+ 
+    print '#-----------------------#'
+    print 'combining datasets'
+    print reffiles
+    print 'into'
+    print combined_name
+    print '#-----------------------#'
+
+    all_subfiles = []
+    for subfile in reffiles:
+        outfile = subfile.replace('.fits','_aver.fits')
+        iraf.msarith( subfile,'/',2,outfile,verbose=1 )
+        all_subfiles.append( outfile )
+
+    assert len(all_subfiles) == 2,'Length of subfiles doesnt equal 2'
+
+    iraf.msarith( all_subfiles[0],'+',all_subfiles[1],combined_name,verbose=1)
+
+    for filename in all_subfiles:
+        os.remove( filename )
+
+#--------------------------------------------------------------------------
+
 def move_to( directory ):
     import os
     os.chdir( directory )

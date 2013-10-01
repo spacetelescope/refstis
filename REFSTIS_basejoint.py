@@ -86,7 +86,7 @@ def average_biases( bias_list ):
   # Then divide by the sum of the weighting factors.
   mean_arr = sum_arr/totalweight
   hdu = pyfits.PrimaryHDU(mean_arr)
-  hdu.writeto(mean_file)
+  hdu.writeto(mean_file, clobber = True)
 
   return mean_file,totalweight
 
@@ -184,9 +184,9 @@ def make_basebias ( bias_list, refbias_name ):
   # hot columns and such
   print 'Median filtering'
   REFSTIS_functions.RemoveIfThere( bias_median )
-  iraf.median( mean_bias + '[1]', bias_median, xwindow = 15, ywindow = 3, verb=yes)
+  iraf.median( mean_bias + '[0]', bias_median, xwindow = 15, ywindow = 3, verb=yes)
 
-  iraf.iterstat( mean_bias + '[1]', nsigrej = 3., maxiter = 40, PYprint=no, verbose=no)
+  iraf.iterstat( mean_bias + '[0]', nsigrej = 3., maxiter = 40, PYprint=no, verbose=no)
   iraf.iterstat( bias_median + '[0]', nsigrej = 3., maxiter = 40, PYprint=no, verbose=no)
 
   diffmean = float(iraf.iterstat.mean) - float(iraf.iterstat.mean)

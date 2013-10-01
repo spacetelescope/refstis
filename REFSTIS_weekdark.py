@@ -6,7 +6,8 @@ import glob
 import shutil
 import pyfits
 from scipy.signal import medfilt
-import REFSTI_functions
+import REFSTIS_functions
+import numpy as np
 
 def split_and_join( input_list, refname ):
   # not done with this...tired.
@@ -17,9 +18,8 @@ def split_and_join( input_list, refname ):
   refname = refname.replace('.fits','')
   joined_out = refname + '_joined.fits'
 
-  print 'Splitting images'
   rootname_list = [ os.path.split(item)[1][:9] for item in input_list ]
-  imset_count = REFSTI_functions.split_images( input_list ) 
+  imset_count = REFSTIS_functions.split_images( input_list ) 
   
   print 'Joining images'
   msjoin_list = ','.join( [ item for item in glob.glob('*raw??.fits') if item[:9] in rootname_list] )
@@ -34,7 +34,7 @@ def split_and_join( input_list, refname ):
   return joined_out,imset_count
 
 
-def make_weekdark( imglist, refdark_name, thebiasfile ):
+def make_weekdark( imglist, refdark_name, thebiasfile, thebasedark ):
   """
   1- split all raw images into their imsets
   2- join imsets together into a single file
@@ -47,6 +47,13 @@ def make_weekdark( imglist, refdark_name, thebiasfile ):
   upper = INDEF           # Initial upper limit for imstat'))
   verbose = 0             # Show results of imstat iterations?'))
 
+  print '#-------------------#'
+  print '  Running weekdark'
+  print 'Ouput Dark: ',refdark_name
+  print 'Bias Used: ',thebiasfile
+  print '#-------------------#'
+
+
   #
   #*********************************************************************
   # Load necessary packages
@@ -58,34 +65,39 @@ def make_weekdark( imglist, refdark_name, thebiasfile ):
   iraf.hst_calib()
   iraf.stis()
   
-  print 'Splitting images'
-  imset_count = REFSTI_functions.split_images( imglist ) 
+  imset_count = REFSTIS_functions.split_images( imglist ) 
   
-  print 'Joining images'
-  msjoin_list = ','.join( [ item for item in glob.glob('*raw??.fits') ] )# if item[:9] in bias_list] )
-  print msjoin_list
   refdark_name.replace('.fits','')
-  joined_out = refdark_name+ '_joined' +'.fits' 
+  refdark_path = os.path.split( refdark_name )[0] 
+
+  print 'Joining images'
+  msjoin_list = ','.join( [ item for item in 
+                              glob.glob( os.path.join(refdark_path,'*raw??.fits') ) ] )# if item[:9] in bias_list] )
+  n_imsets = len(msjoin_list)
+  joined_out = refdark_name+ '_joined.fits' 
   print joined_out
   
-  msjoin_file = open('msjoin.txt','w')
+  msjoin_list_name = os.path.join( refdark_path,'msjoin.txt')  
+  msjoin_file = open( msjoin_list_name,'w')
   msjoin_file.write( '\n'.join(msjoin_list.split(',')) )
   msjoin_file.close()
-  
-  iraf.msjoin( inimg='@msjoin.txt', outimg=joined_out, Stderr='dev$null')
+
+  iraf.chdir( refdark_path )
+  iraf.msjoin( inimg='@%s'%(msjoin_list_name), outimg=joined_out)#, Stderr='dev$null')
+
 
   # test for the need to perform cosmic-ray rejection, and do it
-  crdone = stiref.bd_crreject(joinedfile)
+  crdone = REFSTIS_functions.bd_crreject(joined_out)
   print "## crdone is ", crdone
   if (not crdone):
-      REFSTI_functions.bd_calstis(joinedfile, thebiasfile)
+      REFSTIS_functions.bd_calstis(joined_out, thebiasfile)
 
   # divide cr-rejected
-  crj_filename = refdark_name + '_crj.fits'
+  crj_filename = joined_out.replace('.fits','_crj.fits')
   exptime = pyfits.getval( crj_filename, 'TEXPTIME', ext=0 )
   gain = pyfits.getval( crj_filename, 'ATODGAIN', ext=0 )
-  xbin = pyfits.getval( crj_filename, 'XBIN', ext=0 )
-  ybin = pyfits.getval( crj_filename, 'YBIN', ext=0 )
+  xbin = pyfits.getval( crj_filename, 'BINAXIS1', ext=0 )
+  ybin = pyfits.getval( crj_filename, 'BINAXIS2', ext=0 )
   
   normalize_factor = float(exptime)/gain # ensure floating point
   
@@ -100,14 +112,15 @@ def make_weekdark( imglist, refdark_name, thebiasfile ):
   # Perform iterative statistics on the normalized superdark
   #   (i.e., neglecting hot pixels in the process)
   #
-  iter_count,median,sigma,npx,med,mod,min,max = REFSTI_functions.iterate( norm_filename )
+  iter_count,median,sigma,npx,med,mod,min,max = REFSTIS_functions.iterate( norm_filename )
   five_sigma = median + 5*sigma
 
   # save hot pixel level and the name of the baseline dark
   # for use in updating history
-  out_fd = open(weekoutfile, 'w')
-  out_fd.write(str(p_fivesig)+' '+basedark)
-  out_fd.close()
+  #weekoutfile = os.path.join(refdark_path,'five_sig.txt')
+  #out_fd = open(weekoutfile, 'w')
+  #out_fd.write(str(p_fivesig)+' '+basedark)
+  #out_fd.close()
 
   #
   #***************************************************************************
@@ -117,7 +130,7 @@ def make_weekdark( imglist, refdark_name, thebiasfile ):
   # 1- norm_file - median = zerodark
   # 2- only_hotpix = 
   print "## Perform iterative statistics on the baseline superdark (thebasedark)"
-  iter_count,base_median,base_sigma,npx,basemed,mod,min,max = REFSTI_functions.iterate( norm_filename )
+  iter_count,base_median,base_sigma,npx,basemed,mod,min,max = REFSTIS_functions.iterate( norm_filename )
   five_sigma = base_median + 5*base_sigma
 
   print "## Create median-filtered version of super-de-buper dark "
@@ -125,7 +138,7 @@ def make_weekdark( imglist, refdark_name, thebiasfile ):
 
   norm_hdu = pyfits.open( norm_filename )
 
-  zerodark = norm_hdu[ ('sci',1) ] - basemed
+  zerodark = norm_hdu[ ('sci',1) ].data - basemed
   only_hot = np.where( theoutfile >= five_sigma, zerodark, 0 )
 
   print "## Create 'only baseline dark current' image from these two "

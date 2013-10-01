@@ -52,7 +52,7 @@ import shutil
 import tempfile
 import pyfits
 import numpy as np
-import REFSTI_functions
+import REFSTIS_functions
 
 #---------------------------------------------------------------------------
 
@@ -82,6 +82,11 @@ def average_biases( bias_list ):
     if (iteration == 0):
       shutil.copy(item, sum_file )
     else:
+      print '### for debugging ###'
+      print sum_file
+      print item
+      print sum_file_tmp
+      print '###      end      ###'
       iraf.msarith( sum_file, '+', item, sum_file_tmp, verbose=1 )
       shutil.move( sum_file_tmp, sum_file )
       totalweight += ncombine
@@ -99,9 +104,9 @@ def calibrate( input_file ):
     os.environ['oref'] = '/grp/hst/cdbs/oref/'
     print 'Calibrating %s'%(input_file)
     output_blev = input_file.replace('.fits','_blev.fits')
-    REFSTI_functions.RemoveIfThere( output_blev )
+    REFSTIS_functions.RemoveIfThere( output_blev )
     output_crj = input_file.replace('.fits','_crj.fits')
-    REFSTI_functions.RemoveIfThere( output_crj )
+    REFSTIS_functions.RemoveIfThere( output_crj )
 
     # between the long file paths and not being able to find EPC files, 
     # need IRAF to run in the work dir
@@ -186,7 +191,7 @@ def make_basebias ( bias_list, refbias_name ):
   # subtract it from the superbias to produce a "residual" image containing
   # hot columns and such
   print 'Median filtering'
-  REFSTI_functions.RemoveIfThere( bias_median )
+  REFSTIS_functions.RemoveIfThere( bias_median )
   iraf.median( mean_bias + '[1]', bias_median, xwindow = 15, ywindow = 3, verb=yes)
 
   iraf.iterstat( mean_bias + '[1]', nsigrej = 3., maxiter = 40, PYprint=no, verbose=no)
@@ -204,16 +209,16 @@ def make_basebias ( bias_list, refbias_name ):
   #bias_residual = mean_image - median_image
 
   bias_residual = os.path.join( bias_path, 'residual.fits' )
-  REFSTI_functions.RemoveIfThere( bias_residual )
+  REFSTIS_functions.RemoveIfThere( bias_residual )
   iraf.imarith( mean_bias + '[1]', '-', bias_median + '[0]', bias_residual, verb=no)
 
   # FIRST STEP TO REMOVE HOT COLUMNS:
   # Average all rows together and stretch resulting image to match input image
  
   resi_cols = os.path.join( bias_path, "resi_cols.fits")
-  REFSTI_functions.RemoveIfThere(resi_cols)
+  REFSTIS_functions.RemoveIfThere(resi_cols)
   resi_cols2d = os.path.join( bias_path, "resi_cols2d.fits" )
-  REFSTI_functions.RemoveIfThere(resi_cols2d)
+  REFSTIS_functions.RemoveIfThere(resi_cols2d)
   
   fd = pyfits.open( mean_bias )
   xsize   = fd[1].header['naxis1']
@@ -236,7 +241,7 @@ def make_basebias ( bias_list, refbias_name ):
   print 'thresh mean,sigma = ',iraf.iterstat.mean,' ',iraf.iterstat.sigma
   replval = float(iraf.iterstat.mean) + 3.0 * (float(iraf.iterstat.sigma))
   tmp_bias = os.path.join( bias_path, 'tmp_col.fits' )
-  REFSTI_functions.RemoveIfThere( tmp_bias )
+  REFSTIS_functions.RemoveIfThere( tmp_bias )
   #iraf.imcalc(mean_bias + '[1],'+bias_median+'[0],'+resi_cols2d+'[0]', tmp_bias,
   #            'if im3 .ge. ' + str(replval) + ' then im2 else im1', verb=no)
 
@@ -251,8 +256,8 @@ def make_basebias ( bias_list, refbias_name ):
   # Average only the lower 20% of all rows together and stretch resulting
   # image to match input image.
   
-  REFSTI_functions.RemoveIfThere(resi_cols)
-  REFSTI_functions.RemoveIfThere(resi_cols2d)
+  REFSTIS_functions.RemoveIfThere(resi_cols)
+  REFSTIS_functions.RemoveIfThere(resi_cols2d)
 
   #
   # Now only use lower 20% of the Y range to check for hot columns
@@ -275,7 +280,7 @@ def make_basebias ( bias_list, refbias_name ):
   replval = float(iraf.iterstat.mean) + 3.0 * (float(iraf.iterstat.sigma))
 
   tmp_bias2 = os.path.join( bias_path, 'tmp_col2.fits' )
-  REFSTI_functions.RemoveIfThere( tmp_bias2 )
+  REFSTIS_functions.RemoveIfThere( tmp_bias2 )
 
   #iraf.imcalc(tmp_bias+'[1],'+bias_median+'[0],'+resi_cols2d+'[0]', tmp_bias2, 
   #            'if im3 .ge. ' + str(replval) + ' then im2 else im1', verb=yes)
@@ -294,12 +299,12 @@ def make_basebias ( bias_list, refbias_name ):
   # final output reference superbias.
   #
   bias_residual_2 = os.path.join( bias_path, 'residual2.fits' )
-  REFSTI_functions.RemoveIfThere( bias_residual_2 )
+  REFSTIS_functions.RemoveIfThere( bias_residual_2 )
   print 'Imarith',tmp_bias2 + '[1]', '-', bias_median+'[0]'
   iraf.imarith(tmp_bias2 + '[1]', '-', bias_median+'[0]',
   		bias_residual_2, verb=yes)
 
-  iter_count,mn,sig,npx,med,mod,min,max = REFSTI_functions.iterate( bias_residual_2+'[0]' )
+  iter_count,mn,sig,npx,med,mod,min,max = REFSTIS_functions.iterate( bias_residual_2+'[0]' )
 
   if (PYprint and not verbose):
   	print('Median-subtracted bias: mean='+str(mn)+' rms='+str(sig))
@@ -349,16 +354,16 @@ def make_basebias ( bias_list, refbias_name ):
   pyfits.setval( out_ref, 'NCOMBINE', value=totalweight, ext=1)
   
   ### clean up temporary files
-  REFSTI_functions.RemoveIfThere( bias_residual )
-  REFSTI_functions.RemoveIfThere( bias_residual_2 )
-  REFSTI_functions.RemoveIfThere( resi_cols )
-  REFSTI_functions.RemoveIfThere( resi_cols2d)
-  REFSTI_functions.RemoveIfThere( bias_median )
-  REFSTI_functions.RemoveIfThere( mean_bias )
-  REFSTI_functions.RemoveIfThere( tmp_bias )
-  REFSTI_functions.RemoveIfThere( tmp_bias2 )
+  REFSTIS_functions.RemoveIfThere( bias_residual )
+  REFSTIS_functions.RemoveIfThere( bias_residual_2 )
+  REFSTIS_functions.RemoveIfThere( resi_cols )
+  REFSTIS_functions.RemoveIfThere( resi_cols2d)
+  REFSTIS_functions.RemoveIfThere( bias_median )
+  REFSTIS_functions.RemoveIfThere( mean_bias )
+  REFSTIS_functions.RemoveIfThere( tmp_bias )
+  REFSTIS_functions.RemoveIfThere( tmp_bias2 )
   for item in crj_list:
-    REFSTI_functions.RemoveIfThere( item )
+    REFSTIS_functions.RemoveIfThere( item )
 
 #------------------------------------------------------------------------------------
     

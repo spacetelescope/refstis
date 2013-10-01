@@ -1,4 +1,4 @@
-import REFSTI_functions
+import REFSTIS_functions
 import numpy as np
 import pyfits
 import glob
@@ -43,7 +43,7 @@ def make_basedark( input_dark_list, refdark_name='basedark.fits', bias_file=None
     refdark_name = refdark_name.replace('.fits','')
     refdark_path = os.path.split( refdark_name )[0]
 
-    imset_count = REFSTI_functions.split_images( input_dark_list )
+    imset_count = REFSTIS_functions.split_images( input_dark_list )
 
     print 'Joining images'
     msjoin_list = ','.join( [ item for item in 
@@ -62,9 +62,9 @@ def make_basedark( input_dark_list, refdark_name='basedark.fits', bias_file=None
 
     # ocrreject
     print 'CRREJECT'
-    crdone = REFSTI_functions.bd_crreject( joined_out )
+    crdone = REFSTIS_functions.bd_crreject( joined_out )
     if (not crdone):
-        REFSTI_functions.bd_calstis( joined_out, bias_file )
+        REFSTIS_functions.bd_calstis( joined_out, bias_file )
 
     # divide cr-rejected
     print 'Dividing'
@@ -82,7 +82,7 @@ def make_basedark( input_dark_list, refdark_name='basedark.fits', bias_file=None
     pyfits.setval( norm_filename, 'TEXPTIME', value=1 )
 
     # hotpixel stuff
-    iter_count,median,sigma,npx,med,mod,min,max = REFSTI_functions.iterate( norm_filename )
+    iter_count,median,sigma,npx,med,mod,min,max = REFSTIS_functions.iterate( norm_filename )
     five_sigma = median + 5*sigma
     
     shutil.copy( norm_filename, refdark_name+'.fits' )
@@ -93,12 +93,12 @@ def make_basedark( input_dark_list, refdark_name='basedark.fits', bias_file=None
     norm_hdu.flush()
     norm_hdu.close()
 
-    REFSTI_functions.RemoveIfThere( msjoin_list_name )
-    REFSTI_functions.RemoveIfThere( crj_filename )
-    REFSTI_functions.RemoveIfThere( norm_filename )
-    REFSTI_functions.RemoveIfThere( joined_out )
+    REFSTIS_functions.RemoveIfThere( msjoin_list_name )
+    REFSTIS_functions.RemoveIfThere( crj_filename )
+    REFSTIS_functions.RemoveIfThere( norm_filename )
+    REFSTIS_functions.RemoveIfThere( joined_out )
     for item in msjoin_list.split(','):
-        REFSTI_functions.RemoveIfThere( item )
+        REFSTIS_functions.RemoveIfThere( item )
 
     ### Do i need any of this?
     #hot_data = pyfits.getdata( norm_filename,ext=1 )

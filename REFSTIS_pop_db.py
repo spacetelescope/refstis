@@ -48,7 +48,7 @@ def grab_anneal_mjds():
 
 def pop_database(anneal_info):
     print 'Populating Anneal database'
-    db = sqlite3.connect("/user/ely/STIS/refstis_mark2/my_scripts/anneal_info")
+    db = sqlite3.connect("anneal_info.db")
     c = db.cursor()
     table = 'anneals'
     try:

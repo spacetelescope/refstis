@@ -459,10 +459,10 @@ def refaver( reffiles,combined_name ):
     from pyraf import iraf
     from iraf import mstools,stsdas,hst_calib,stis
     import os
-   
+
     if not combined_name.endswith('.fits'):
         combined_name = combined_name + '.fits'
- 
+
     print '#-----------------------#'
     print 'combining datasets'
     print reffiles

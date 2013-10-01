@@ -1,6 +1,6 @@
 from pyraf import iraf
 from pyraf.irafglobals import *
-import REFSTI_functions
+import REFSTIS_functions
 import pyfits
 import sys
 import glob
@@ -32,11 +32,11 @@ def make_refbias( bias_list, refbias_name ):
     refbias_name.replace('.fits','') # ensure its just a rootname
     refbias_path = os.path.split( refbias_name )[0]
 
-    gain = REFSTI_functions.get_keyword( bias_list, 'CCDGAIN', 0)
-    xbin = REFSTI_functions.get_keyword( bias_list, 'BINAXIS1', 0)
-    ybin = REFSTI_functions.get_keyword( bias_list, 'BINAXIS2', 0)
+    gain = REFSTIS_functions.get_keyword( bias_list, 'CCDGAIN', 0)
+    xbin = REFSTIS_functions.get_keyword( bias_list, 'BINAXIS1', 0)
+    ybin = REFSTIS_functions.get_keyword( bias_list, 'BINAXIS2', 0)
 
-    REFSTI_functions.split_images( bias_list )
+    REFSTIS_functions.split_images( bias_list )
     
     print 'Joining images'
     msjoin_list = ','.join( [ item for item in 
@@ -54,9 +54,9 @@ def make_refbias( bias_list, refbias_name ):
     iraf.msjoin( inimg='@%s'%(msjoin_list_name), outimg=joined_out)#, Stderr='dev$null')
 
     #pdb.set_trace()
-    crj_filename = REFSTI_functions.crreject( joined_out )
+    crj_filename = REFSTIS_functions.crreject( joined_out )
     out_name = refbias_name + '.fits' 
-    REFSTI_functions.RemoveIfThere( out_name )
+    REFSTIS_functions.RemoveIfThere( out_name )
     shutil.copy( crj_filename, out_name)
 
     pyfits.setval( out_name, 'FILENAME', value=out_name )
@@ -73,11 +73,11 @@ def make_refbias( bias_list, refbias_name ):
     for item in msjoin_list.split(','):
         os.remove(item)
         
-    REFSTI_functions.RemoveIfThere( msjoin_list_name )
-    REFSTI_functions.RemoveIfThere( crj_filename )
-    REFSTI_functions.RemoveIfThere( joined_out )
+    REFSTIS_functions.RemoveIfThere( msjoin_list_name )
+    REFSTIS_functions.RemoveIfThere( crj_filename )
+    REFSTIS_functions.RemoveIfThere( joined_out )
     for item in msjoin_list.split(','):
-        REFSTI_functions.RemoveIfThere( item ) 
+        REFSTIS_functions.RemoveIfThere( item ) 
     
 #------------------------------------------------------------------------------------
     

@@ -65,36 +65,28 @@ def average_biases( bias_list ):
   '''
 
   file_path,file_name = os.path.split( bias_list[0] )
-  sum_file_tmp = os.path.join( file_path, 'sum_tmp.fits' )
-  sum_file = os.path.join( file_path, 'sum.fits' )
   mean_file = os.path.join( file_path, 'mean.fits' )
 
-  totalweight = 0
+ 
   for iteration,item in enumerate(bias_list):
     nimset = pyfits.getval(item,'nextend') // 3
     ncombine = pyfits.getval(item,'ncombine',ext=1)
-
+    #If input files have more than one imset or have not been cr-rejected, exit
     if (nimset > 1) | (ncombine <= 1):
       print('Input files have to be single imset files and have been CR-rejected')
       print('NIMSET: %d  NCOMBINE: %d'%(nimset,ncombine) )
       sys.exit(3)
-
+    #Otherwise, add image to running sum
     if (iteration == 0):
-      shutil.copy(item, sum_file )
+      sum_arr = pyfits.getdata(item, 1)
+      totalweight = ncombine
     else:
-      print '### for debugging ###'
-      print sum_file
-      print item
-      print sum_file_tmp
-      print '###      end      ###'
-      iraf.msarith( sum_file, '+', item, sum_file_tmp, verbose=1 )
-      shutil.move( sum_file_tmp, sum_file )
+      sum_arr += pyfits.getdata(item, 1)
       totalweight += ncombine
-
   # Then divide by the sum of the weighting factors.
-  iraf.msarith( sum_file, '/', totalweight, mean_file, verbose = 0)  
-
-  os.remove( sum_file )
+  mean_arr = sum_arr/totalweight
+  hdu = pyfits.PrimaryHDU(mean_arr)
+  hdu.writeto(mean_file)
 
   return mean_file,totalweight
 

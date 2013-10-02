@@ -38,9 +38,6 @@ def make_weekbias( bias_list, refbias_name, basebias ):
   from pyraf import iraf
   from iraf import stsdas,toolbox,imgtools,mstools
   import os
-  maxiter = 30 
-  version = "08Nov99"
-  verbose = 1
  
   for item in bias_list:
     for imset in glob.glob( item.replace('.fits','??.fits') ):

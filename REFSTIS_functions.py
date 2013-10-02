@@ -397,10 +397,11 @@ def bd_crreject(joinedfile) :
       print("Sorry, your input image seems to have only 1 imset, but it isn't cr-rejected.")
       print("This task can only handle 'raw' or 'flt images with the NEXTEND keyword equal to 3*N (N > 1).")
       print("Bye now... better luck next time!")
-  
+      raise ValueError( 'Something bad happened' )
+
    if not crdone:
       print('FYI: CR rejection not done')
-      print('Keyword NRPTEXP = '+str(nrptexp)+' while nr. of imsets = '+str(nimset))
+      print('Keyword NRPTEXP = ' + str(nrptexp) + ' while nr. of imsets = ' + str(nimset))
       if (nrptexp != nimset):
           pyfits.setval( joinedfile,'NRPTEXP',value=nimset)
           pyfits.setval( joinedfile,'CRSPLIT',value=1)
@@ -422,9 +423,10 @@ def bd_calstis(joinedfile, thebiasfile=None ) :
    import shutil
 
    initial_dir = os.getcwd()
-   working_dir= os.path.split( joinedfile )[0]
+   working_dir= os.path.split( joinedfile )[0] or './'
 
-   shutil.copy( thebiasfile, working_dir )
+   if not os.path.exists( os.path.join( working_dir, thebiasfile ) ):
+       shutil.copy( thebiasfile, working_dir )
    os.chdir( working_dir )
    iraf.chdir( working_dir )
 

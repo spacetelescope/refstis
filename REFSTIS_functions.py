@@ -1,6 +1,24 @@
 
 def calibrate():
     pass
+#------------------------------------------------------------------------------------
+
+def msjoin( imset_list, out_name ):
+    """ Replicate msjoin functionality in pure python
+
+    """
+
+    import pyfits
+
+    hdu = pyfits.open( imset_list[0] )
+    
+    for dataset in imset_list[1:]:
+        add_hdu = pyfits.open( dataset )
+        for extension in add_hdu[1:]:
+            hdu.append( extension )
+
+    hdu.writeto( out_name )
+    
 
 #------------------------------------------------------------------------------------
 

@@ -67,11 +67,11 @@ def get_new_periods():
     print '#-------------------#'
     print 'Reading from database'
     print '#-------------------#\n'
-    db = sqlite3.connect("anneal_info.db")
+    db = sqlite3.connect( "anneal_info.db" )
     c = db.cursor()
     table = 'anneals'
 
-    c.execute("""SELECT * FROM %s """%(table))
+    c.execute("""SELECT * FROM %s """ % (table))
 
     all_info = [row for row in c]
 
@@ -84,12 +84,12 @@ def get_new_periods():
     dirs_to_process = []
 
     for i in range( len(table_id_all) )[::-1]:
-        if i == len(table_id_all)-1: continue
+        if i == len(table_id_all) - 1: continue
         ref_begin = anneal_end_all[i]
-        ref_end = anneal_start_all[i+1]
-        proposal = proposal_id_all[i+1]  # defined from proposal of the next anneal
-        visit = visit_id_all[i+1]
-        year,month,day,dec_year = support.mjd_to_greg(ref_begin)
+        ref_end = anneal_start_all[i + 1]
+        proposal = proposal_id_all[i + 1]  # defined from proposal of the next anneal
+        visit = visit_id_all[i + 1]
+        year, month, day, dec_year = support.mjd_to_greg(ref_begin)
         end_year,end_month,end_day,dec_year = support.mjd_to_greg(ref_end)       
  
         if visit < 10:
@@ -106,8 +106,6 @@ def get_new_periods():
 
         products_folder = os.path.join( products_directory,'%d_%d_%s'%(year,proposal,visit) )
         dirs_to_process.append( products_folder )
-
-        #break ### testing
 
         if not os.path.exists( products_folder ): 
             os.mkdir( products_folder )
@@ -236,7 +234,7 @@ def make_ref_files( root_folder,clean=False ):
         n_imsets = REFSTIS_functions.count_imsets( raw_files )
 
         #if n_imsets > 140: 
-        #    sys.exit('error, too many imsets fonud: %d'%(n_imsets) )
+        #    sys.exit('error, too many imsets found: %d'%(n_imsets) )
         
         gain = REFSTIS_functions.get_keyword( raw_files, 'CCDGAIN', 0)
         xbin = REFSTIS_functions.get_keyword( raw_files, 'BINAXIS1', 0)
@@ -529,8 +527,11 @@ Procedure
 
 #-----------------------------------------------------------------------
 
-def main():
+def run():
+    """ Run the reference file pipeline """
+
     args = parse_args()
+
     REFSTIS_pop_db.main()
 
     all_folders = get_new_periods()
@@ -541,4 +542,4 @@ def main():
 #-----------------------------------------------------------------------
 
 if __name__ == "__main__":
-    main()
+    run()

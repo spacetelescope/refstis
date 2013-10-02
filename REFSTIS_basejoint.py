@@ -55,7 +55,6 @@ import numpy as np
 import REFSTIS_functions
 
 #---------------------------------------------------------------------------
-
 def average_biases( bias_list ):
   '''
   Create a weighted sum of the individual input files.
@@ -67,10 +66,13 @@ def average_biases( bias_list ):
   file_path,file_name = os.path.split( bias_list[0] )
   mean_file = os.path.join( file_path, 'mean.fits' )
 
- 
+  
   for iteration,item in enumerate(bias_list):
-    nimset = pyfits.getval(item,'nextend') // 3
-    ncombine = pyfits.getval(item,'ncombine',ext=1)
+    ofile = pyfits.open(item)
+    hdr0 = ofile[0].header
+    hdr1 = ofile[1].header
+    nimset = hdr0['nextend'] // 3
+    ncombine = hdr1['ncombine']
     #If input files have more than one imset or have not been cr-rejected, exit
     if (nimset > 1) | (ncombine <= 1):
       print('Input files have to be single imset files and have been CR-rejected')
@@ -78,16 +80,30 @@ def average_biases( bias_list ):
       sys.exit(3)
     #Otherwise, add image to running sum
     if (iteration == 0):
-      sum_arr = pyfits.getdata(item, 1)
+      sum_arr = ofile[1].data
+      err_arr = (ofile[2].data)**2
+      dq_arr = ofile[3].data
       totalweight = ncombine
+      totaltime = hdr0['texptime']
     else:
-      sum_arr += pyfits.getdata(item, 1)
+      sum_arr += ofile[1].data
+      err_arr += (ofile[2].data)**2
+      dq_arr = dq_arr | ofile[3].data
       totalweight += ncombine
+      totaltime += hdr0['texptime']
   # Then divide by the sum of the weighting factors.
   mean_arr = sum_arr/totalweight
-  hdu = pyfits.PrimaryHDU(mean_arr)
-  hdu.writeto(mean_file, clobber = True)
-
+  mean_err_arr = np.sqrt(err_arr/(totalweight**2))
+  #Update exptime and number of orbits
+  hdr0['texptime'] = totaltime
+  hdr1['ncombine'] = totalweight
+  hdr1['exptime'] = totaltime
+  hdu0 = pyfits.PrimaryHDU(header = hdr0)
+  hdu1 = pyfits.ImageHDU(mean_arr, header = hdr1)
+  hdu2 = pyfits.ImageHDU(err_arr, header =  ofile[2].header)
+  hdu3 = pyfits.ImageHDU(dq_arr, header =  ofile[3].header)
+  hdulist = pyfits.HDUList([hdu0, hdu1, hdu2, hdu3])
+  hdulist.writeto(mean_file)
   return mean_file,totalweight
 
 #---------------------------------------------------------------------------
@@ -184,9 +200,9 @@ def make_basebias ( bias_list, refbias_name ):
   # hot columns and such
   print 'Median filtering'
   REFSTIS_functions.RemoveIfThere( bias_median )
-  iraf.median( mean_bias + '[0]', bias_median, xwindow = 15, ywindow = 3, verb=yes)
+  iraf.median( mean_bias + '[1]', bias_median, xwindow = 15, ywindow = 3, verb=yes)
 
-  iraf.iterstat( mean_bias + '[0]', nsigrej = 3., maxiter = 40, PYprint=no, verbose=no)
+  iraf.iterstat( mean_bias + '[1]', nsigrej = 3., maxiter = 40, PYprint=no, verbose=no)
   iraf.iterstat( bias_median + '[0]', nsigrej = 3., maxiter = 40, PYprint=no, verbose=no)
 
   diffmean = float(iraf.iterstat.mean) - float(iraf.iterstat.mean)
@@ -325,25 +341,24 @@ def make_basebias ( bias_list, refbias_name ):
   #print ref_template
   #shutil.copyfile(ref_template, thebasefile + '.fits')
  
-  out_ref = os.path.join( bias_path, refbias_name)
-  shutil.copy( mean_bias, out_ref )
-  ref_hdu = pyfits.open( out_ref,mode='update')
+  shutil.copy( mean_bias, refbias_name )
+  ref_hdu = pyfits.open( refbias_name,mode='update')
   ref_hdu[1].data = pyfits.getdata( tmp_bias, ext=0 )
   ref_hdu.flush()
   ref_hdu.close()
   del ref_hdu
 
-  pyfits.setval( out_ref, 'FILENAME', value=out_ref)
-  pyfits.setval( out_ref, 'FILETYPE', value='CCD BIAS IMAGE')
-  pyfits.setval( out_ref, 'CCDGAIN', value=gain)
-  pyfits.setval( out_ref, 'BINAXIS1', value=xbin)
-  pyfits.setval( out_ref, 'BINAXIS2', value=ybin)
-  pyfits.setval( out_ref, 'USEAFTER', value=' ')
-  pyfits.setval( out_ref, 'PEDIGREE', value='INFLIGHT')
-  pyfits.setval( out_ref, 'DESCRIP', value='Superbias created by R. de los Santos from proposals 7948/7949/8409/8439')
-  pyfits.setval( out_ref, 'NEXTEND', value='3')
-  pyfits.setval( out_ref, 'COMMENT', value='Reference file created by the STIS BIAS file pipeline')
-  pyfits.setval( out_ref, 'NCOMBINE', value=totalweight, ext=1)
+  pyfits.setval( refbias_name, 'FILENAME', value=refbias_name)
+  pyfits.setval( refbias_name, 'FILETYPE', value='CCD BIAS IMAGE')
+  pyfits.setval( refbias_name, 'CCDGAIN', value=gain)
+  pyfits.setval( refbias_name, 'BINAXIS1', value=xbin)
+  pyfits.setval( refbias_name, 'BINAXIS2', value=ybin)
+  pyfits.setval( refbias_name, 'USEAFTER', value=' ')
+  pyfits.setval( refbias_name, 'PEDIGREE', value='INFLIGHT')
+  pyfits.setval( refbias_name, 'DESCRIP', value='Superbias created by R. de los Santos from proposals 7948/7949/8409/8439')
+  pyfits.setval( refbias_name, 'NEXTEND', value='3')
+  pyfits.setval( refbias_name, 'COMMENT', value='Reference file created by the STIS BIAS file pipeline')
+  pyfits.setval( refbias_name, 'NCOMBINE', value=totalweight, ext=1)
   
   ### clean up temporary files
   REFSTIS_functions.RemoveIfThere( bias_residual )

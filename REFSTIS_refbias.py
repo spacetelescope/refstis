@@ -35,7 +35,7 @@ def make_refbias( input_list, refbias_name='basebias.fits' ):
     print '#-------------------------------#'
     print '#        Running refbias        #'
     print '#-------------------------------#'
-    print 'Making refbias %s'%(refbias_name)
+    print 'Making refbias %s' % (refbias_name)
 
     refbias_path = os.path.split( refbias_name )[0]
 
@@ -45,13 +45,12 @@ def make_refbias( input_list, refbias_name='basebias.fits' ):
     xbin = REFSTIS_functions.get_keyword( input_list, 'BINAXIS1', 0)
     ybin = REFSTIS_functions.get_keyword( input_list, 'BINAXIS2', 0)
 
-    REFSTIS_functions.split_images( input_list )
+    n_imsets = REFSTIS_functions.split_images( input_list )
     
     joined_out = refbias_name.replace('.fits', '_joined.fits' )
     print 'Joining images to %s' % joined_out
     msjoin_list = [ item for item in 
                     glob.glob( os.path.join(refbias_path,'*raw??.fits') )  if os.path.split(item)[1][:9] in rootname_set]
-    n_imsets = len(msjoin_list)
     REFSTIS_functions.msjoin( msjoin_list, joined_out)
 
 

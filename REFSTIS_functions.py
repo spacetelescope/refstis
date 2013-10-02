@@ -467,7 +467,7 @@ def bd_calstis(joinedfile, thebiasfile=None ) :
    print '##              wavecal="",outroot="",'
    print '##    savetmp=no,verbose=no, Stderr=logname('+logname+')'
    iraf.calstis(joinedfile,wavecal="",outroot="",
-                savetmp=no,verbose=no, Stderr=logname)
+                savetmp=no,verbose=yes, Stderr=logname)
 
    pyfits.setval(crj_file, 'FILENAME', value=crj_file)
 

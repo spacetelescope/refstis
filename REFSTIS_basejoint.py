@@ -53,6 +53,7 @@ import tempfile
 import pyfits
 import numpy as np
 import REFSTIS_functions
+import pdb
 
 #---------------------------------------------------------------------------
 def average_biases( bias_list ):
@@ -100,7 +101,7 @@ def average_biases( bias_list ):
   hdr1['exptime'] = totaltime
   hdu0 = pyfits.PrimaryHDU(header = hdr0)
   hdu1 = pyfits.ImageHDU(mean_arr, header = hdr1)
-  hdu2 = pyfits.ImageHDU(err_arr, header =  ofile[2].header)
+  hdu2 = pyfits.ImageHDU(mean_err_arr, header =  ofile[2].header)
   hdu3 = pyfits.ImageHDU(dq_arr, header =  ofile[3].header)
   hdulist = pyfits.HDUList([hdu0, hdu1, hdu2, hdu3])
   hdulist.writeto(mean_file)

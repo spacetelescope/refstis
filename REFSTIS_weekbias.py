@@ -61,7 +61,7 @@ def make_weekbias( input_list, refbias_name, basebias ):
             REFSTIS_functions.RemoveIfThere( imset )
 
     bias_path = os.path.split( input_list[0] )[0] or './'
-    rootname_set = set( [item[:9] for item in input_list] )
+    rootname_set = set( [ os.path.split(item)[1][:9] for item in input_list] )
 
     REFSTIS_functions.RemoveIfThere( refbias_name )
 

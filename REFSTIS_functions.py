@@ -114,19 +114,11 @@ def crreject( input_file, workdir=None) :
     out_div = output_crj.replace('.fits','_div.fits')
     print out_div, output_crj, ncombine
 
-
-    iraf.unlearn( iraf.msarith )
-    current_path = os.getcwd()
-    file_path = os.path.split( output_crj )[0] or './'
-    
-    os.chdir( file_path )
-    iraf.chdir( file_path )
-
-
-    iraf.msarith( operand1=os.path.split(output_crj)[-1], op='/', operand2=ncombine,
-                  result= os.path.split(out_div)[-1], verbose = yes)
-    os.chdir( current_path )
-    iraf.chdir( current_path )
+    #this used to be a call to MSARITH, is anything else needed?
+    #modifying the error too, etc?
+    hdu = pyfits.open( output_crj )
+    hdu[1].data /= ncombine
+    hdu.writeto( out_div )
 
     os.remove( output_blev )
     os.remove( output_crj )
@@ -242,7 +234,7 @@ def figure_number_of_periods(number_of_days, mode) :
                     PrintMsg("W", msg, nm)
                 break
     else:
-	sys.exit('what mode did you put in?')
+        sys.exit('what mode did you put in?')
 
     # return value
     #print "return number_of_periods =",  number_of_periods
@@ -305,167 +297,153 @@ def translate_date_string(input_string):
 #-------------------------------------------------------------------------------
 
 def iterate(thefile, extension=1, maxiter=30, verbose=0):
-  from pyraf import iraf
-  from iraf import stsdas,toolbox,imgtools,mstools  
-  from pyraf.irafglobals import *
-  import os
-  mnval = -1.0
-  sig = -1.0 
-  npx = -1
-  med = -1.0
-  mod = -1.0
-  min = -1.0
-  max = -1.0
-  lower = INDEF
-  upper = INDEF
-  string_extension = '[%d]'%(extension) # imstat wants just the extension
-  if not thefile.endswith(']'): thefile += string_extension
+    from pyraf import iraf
+    from iraf import stsdas,toolbox,imgtools,mstools  
+    from pyraf.irafglobals import *
+    import os
+    mnval = -1.0
+    sig = -1.0 
+    npx = -1
+    med = -1.0
+    mod = -1.0
+    min = -1.0
+    max = -1.0
+    lower = INDEF
+    upper = INDEF
+    string_extension = '[%d]'%(extension) # imstat wants just the extension
+    if not thefile.endswith(']'): thefile += string_extension
 
-  Pipe1 = iraf.imstat(thefile,
-                      fields = 'mean,stddev,npix,midpt,mode,min,max', lower = lower,
-                      upper = upper, PYfor=no, Stdout=1)
-  parts = Pipe1[0].split()
-  print Pipe1
-  print parts
-  mnval = float( parts[0] )
-  sig   = float( parts[1] )
-  npx   = float( parts[2] )
-  med   = float( parts[3] )
-  mod   = float( parts[4] )
-  min   = float( parts[5] )
-  max   = float( parts[6] )
-  del Pipe1
-  iter_count = 1
-  while (iter_count <= maxiter):
-      if (verbose):
-          print(str(iter_count)+' '+thefile+ ': mean='+str(mnval)+' rms='+str(sig ))
-          print('   npix='+str(npx)+' median='+str(med)+' mode='+str(mod ))
-          print('   min='+str(min)+' max='+str(max ))
+    Pipe1 = iraf.imstat(thefile,
+                        fields = 'mean,stddev,npix,midpt,mode,min,max', lower = lower,
+                        upper = upper, PYfor=no, Stdout=1)
+    parts = Pipe1[0].split()
+    print Pipe1
+    print parts
+    mnval = float( parts[0] )
+    sig   = float( parts[1] )
+    npx   = float( parts[2] )
+    med   = float( parts[3] )
+    mod   = float( parts[4] )
+    min   = float( parts[5] )
+    max   = float( parts[6] )
+    del Pipe1
+    iter_count = 1
+    while (iter_count <= maxiter):
+        if (verbose):
+            print(str(iter_count)+' '+thefile+ ': mean='+str(mnval)+' rms='+str(sig ))
+            print('   npix='+str(npx)+' median='+str(med)+' mode='+str(mod ))
+            print('   min='+str(min)+' max='+str(max ))
+            
+        ll = float(mnval) - (5.0 * float(sig))
+        ul = float(mnval) + (5.0 * float(sig))
+        if (lower != INDEF and ll < lower):
+            ll = lower
+        if (upper != INDEF and ul > upper):
+            ul = upper
+        nx = -1
+        Pipe1 = iraf.imstat(thefile,
+                            fields = 'mean,stddev,npix,midpt,mode,min,max', 
+                            lower = ll, upper = ul, PYfor=no, Stdout=1)
+        parts = Pipe1[0].split()
+        mnval = float( parts[0] )
+        sig   = float( parts[1] )
+        nx    = float( parts[2] )
+        med   = float( parts[3] )
+        mod   = float( parts[4] )
+        min   = float( parts[5] )
+        max   = float( parts[6] )
+        del Pipe1
+        if (nx == npx):
+            break
+        npx = nx
+        iter_count = iter_count + 1
 
-      ll = float(mnval) - (5.0 * float(sig))
-      ul = float(mnval) + (5.0 * float(sig))
-      if (lower != INDEF and ll < lower):
-          ll = lower
-      if (upper != INDEF and ul > upper):
-          ul = upper
-      nx = -1
-      Pipe1 = iraf.imstat(thefile,
-                          fields = 'mean,stddev,npix,midpt,mode,min,max', 
-                          lower = ll, upper = ul, PYfor=no, Stdout=1)
-      parts = Pipe1[0].split()
-      mnval = float( parts[0] )
-      sig   = float( parts[1] )
-      nx    = float( parts[2] )
-      med   = float( parts[3] )
-      mod   = float( parts[4] )
-      min   = float( parts[5] )
-      max   = float( parts[6] )
-      del Pipe1
-      if (nx == npx):
-          break
-      npx = nx
-      iter_count = iter_count + 1
-
-  return iter_count,mnval,sig,npx,med,mod,min,max
-  # End iterate()
+    return iter_count,mnval,sig,npx,med,mod,min,max
 
 #---------------------------------------------------------------------------
+
 def bd_crreject(joinedfile) :
-   #
-   # if cosmic-ray rejection has already been done on the input bias image,
-   # skip all calstis-related calibration steps
-   #
-   import pyfits
-   import os
+    #
+    # if cosmic-ray rejection has already been done on the input bias image,
+    # skip all calstis-related calibration steps
+    #
+    import pyfits
+    import os
 
-   print joinedfile
+    print joinedfile
 
-   fd = pyfits.open(joinedfile)
-   nimset   = fd[0].header['nextend'] / 3
-   nrptexp  = fd[0].header['nrptexp']
-   crcorr   = fd[0].header['crcorr']
-   crdone = 0
+    fd = pyfits.open(joinedfile)
+    nimset   = fd[0].header['nextend'] / 3
+    nrptexp  = fd[0].header['nrptexp']
+    crcorr   = fd[0].header['crcorr']
+    crdone = 0
 
-   if (crcorr == "COMPLETE") :
-      crdone = 1
-      print('OK, CR rejection already done')
-      os.rename(joinedfile, joinedfile.replace('_joined', '_crj') )
-   else:
-      print('crcorr found = '+ crcorr)
-  
-   if (nimset <= 1 and not crdone):
-      print("Sorry, your input image seems to have only 1 imset, but it isn't cr-rejected.")
-      print("This task can only handle 'raw' or 'flt images with the NEXTEND keyword equal to 3*N (N > 1).")
-      print("Bye now... better luck next time!")
-      raise ValueError( 'Something bad happened' )
+    if (crcorr == "COMPLETE") :
+        crdone = 1
+        print('OK, CR rejection already done')
+        os.rename(joinedfile, joinedfile.replace('_joined', '_crj') )
+    else:
+        print('crcorr found = '+ crcorr)
 
-   if not crdone:
-      print('FYI: CR rejection not done')
-      print('Keyword NRPTEXP = ' + str(nrptexp) + ' while nr. of imsets = ' + str(nimset))
-      if (nrptexp != nimset):
-          pyfits.setval( joinedfile,'NRPTEXP',value=nimset)
-          pyfits.setval( joinedfile,'CRSPLIT',value=1)
-  
-          print('>>>> Updated keyword NRPTEXP to '+str(nimset) )
-          print('    (and set keyword CRSPLIT to 1)' )
-          print('     in ' + joinedfile )
+    if (nimset <= 1 and not crdone):
+        print("Sorry, your input image seems to have only 1 imset, but it isn't cr-rejected.")
+        print("This task can only handle 'raw' or 'flt images with the NEXTEND keyword equal to 3*N (N > 1).")
+        print("Bye now... better luck next time!")
+        raise ValueError( 'Something bad happened' )
 
-   return crdone
+    if not crdone:
+        print('FYI: CR rejection not done')
+        print('Keyword NRPTEXP = ' + str(nrptexp) + ' while nr. of imsets = ' + str(nimset))
+        if (nrptexp != nimset):
+            pyfits.setval( joinedfile,'NRPTEXP',value=nimset)
+            pyfits.setval( joinedfile,'CRSPLIT',value=1)
+            
+            print('>>>> Updated keyword NRPTEXP to '+str(nimset) )
+            print('    (and set keyword CRSPLIT to 1)' )
+            print('     in ' + joinedfile )
+
+    return crdone
 
 #--------------------------------------------------------------------------
 
 def bd_calstis(joinedfile, thebiasfile=None ) :
-   import pyfits
-   from pyraf import iraf 
-   from iraf import stsdas,hst_calib,stis
-   from pyraf.irafglobals import *
-   import os
-   import shutil
-
-   initial_dir = os.getcwd()
-   working_dir= os.path.split( joinedfile )[0] or './'
-
-   if not os.path.exists( os.path.join( working_dir, thebiasfile ) ):
-       shutil.copy( thebiasfile, working_dir )
-
-   os.chdir( working_dir )
-   iraf.chdir( working_dir )
-
-   thebiasfile = os.path.split( thebiasfile )[-1]
-   joinedfile = os.path.split( joinedfile )[-1]
-   
-   #
-   # Change APERTURE to '50CCD' and APER_FOV to '50x50' for ocrreject to work
-   # correctly (i.e., so that it doesn't flag regions outside the original
-   # APERTURE)
-   pyfits.setval(joinedfile, 'CRCORR', value='PERFORM')
-   pyfits.setval(joinedfile, 'APERTURE', value='50CCD')
-   pyfits.setval(joinedfile, 'APER_FOV', value='50x50')
-   pyfits.setval(joinedfile, 'DARKCORR', value='OMIT')
-   pyfits.setval(joinedfile, 'FLATCORR', value='OMIT')
+    import pyfits
+    from pyraf import iraf 
+    from iraf import stsdas,hst_calib,stis
+    from pyraf.irafglobals import *
+    import os
+    import shutil
 
 
-   ### This was causing a floating point error in CalSTIS
-   ### Perhaps the biasfile i was using was bad?
+    #
+    # Change APERTURE to '50CCD' and APER_FOV to '50x50' for ocrreject to work
+    # correctly (i.e., so that it doesn't flag regions outside the original
+    # APERTURE)
+    pyfits.setval(joinedfile, 'CRCORR', value='PERFORM')
+    pyfits.setval(joinedfile, 'APERTURE', value='50CCD')
+    pyfits.setval(joinedfile, 'APER_FOV', value='50x50')
+    pyfits.setval(joinedfile, 'DARKCORR', value='OMIT')
+    pyfits.setval(joinedfile, 'FLATCORR', value='OMIT')
 
-   #if thebiasfile:
-   #   print('Set BIASFILE to thebiasfile ' + thebiasfile)
-   #   print('              in joinedfile ' + joinedfile)
-   #   pyfits.setval(joinedfile, 'BIASFILE', value=thebiasfile)
 
-   crj_file = joinedfile.replace('.fits','_crj.fits')
+    ### This was causing a floating point error in CalSTIS
+    ### Perhaps the biasfile i was using was bad?
 
-   logname = 'dev$null'
-   print 'Running CalSTIS on %s' % joinedfile 
-   print 'to create: %s' % crj_file
-   iraf.calstis(joinedfile,wavecal="",outroot="",
-                savetmp=no,verbose=yes)#, Stderr=logname)
+    #if thebiasfile:
+    #   print('Set BIASFILE to thebiasfile ' + thebiasfile)
+    #   print('              in joinedfile ' + joinedfile)
+    #   pyfits.setval(joinedfile, 'BIASFILE', value=thebiasfile)
 
-   pyfits.setval(crj_file, 'FILENAME', value=crj_file)
+    crj_file = joinedfile.replace('.fits','_crj.fits')
 
-   os.chdir( initial_dir )
-   iraf.chdir( initial_dir )
-   
+    logname = 'dev$null'
+    print 'Running CalSTIS on %s' % joinedfile 
+    print 'to create: %s' % crj_file
+    iraf.calstis(joinedfile,wavecal="",outroot="",
+                 savetmp=no,verbose=yes)#, Stderr=logname)
+    
+    pyfits.setval(crj_file, 'FILENAME', value=os.path.split(crj_file)[1] )
+
 #--------------------------------------------------------------------------
 
 def RemoveIfThere(item):

@@ -41,6 +41,9 @@ def make_basedark( input_list, refdark_name='basedark.fits', bias_file=None, ore
     print '#-------------------------------#'
     print '#        Running basedark       #'
     print '#-------------------------------#'
+    print 'output to: %s' % refdark_name
+    print 'with biasfile %s' % bias_file
+
 
     from pyraf import iraf
     from iraf import stsdas,toolbox,imgtools,mstools
@@ -55,7 +58,7 @@ def make_basedark( input_list, refdark_name='basedark.fits', bias_file=None, ore
     if (not oref) and (not 'oref' in os.environ):
         oref = '/grp/hst/cdbs/oref/'
 
-    rootname_set = set( [item[:9] for item in input_list] )
+    rootname_set = set( [os.path.split(item)[1][:9] for item in input_list] )
 
     refdark_name = refdark_name
     refdark_path = os.path.split( refdark_name )[0] or './'
@@ -71,7 +74,7 @@ def make_basedark( input_list, refdark_name='basedark.fits', bias_file=None, ore
 
     # ocrreject
     print 'CRREJECT'
-    iraf.chdir( refdark_path )
+    #iraf.chdir( refdark_path )
     crdone = REFSTIS_functions.bd_crreject( joined_out )
     if (not crdone):
         REFSTIS_functions.bd_calstis( joined_out, bias_file )

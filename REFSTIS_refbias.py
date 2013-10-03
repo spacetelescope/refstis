@@ -39,7 +39,7 @@ def make_refbias( input_list, refbias_name='basebias.fits' ):
 
     refbias_path = os.path.split( refbias_name )[0]
 
-    rootname_set = set( [item[:9] for item in input_list] )
+    rootname_set = set( [ os.path.split(item)[1][:9] for item in input_list] )
 
     gain = REFSTIS_functions.get_keyword( input_list, 'CCDGAIN', 0)
     xbin = REFSTIS_functions.get_keyword( input_list, 'BINAXIS1', 0)

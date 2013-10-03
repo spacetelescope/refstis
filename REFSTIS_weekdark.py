@@ -63,7 +63,7 @@ def make_weekdark( input_list, refdark_name, thebiasfile, thebasedark ):
 
     refdark_path = os.path.split( refdark_name )[0] or './'
 
-    rootname_set = set( [item[:9] for item in input_list] )
+    rootname_set = set( [ os.path.split(item)[1][:9] for item in input_list] )
 
     n_imsets = REFSTIS_functions.split_images( input_list ) 
 

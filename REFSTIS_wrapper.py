@@ -52,14 +52,22 @@ retrieve_directory = 'requested/'
 #bias_proposals = [7600, 7601, 8409, 8439, 8838, 8865, 8903, 8904, 9607, 9608, 
 #                  10019, 10020, 11846, 11847, 12403, 12404, 12743, 12744]
 
-dark_proposals = [ 11844, 11845, 12400, 12401, 12741, 12742, 13131, 13132]
-bias_proposals = [ 11846, 11847, 12402, 12403, 12743, 12744, 13133, 13134]
+#dark_proposals = [ 11844, 11845, 12400, 12401, 12741, 12742, 13131, 13132]
+#bias_proposals = [ 11846, 11847, 12402, 12403, 12743, 12744, 13133, 13134]
+
+dark_proposals = [ 13131, 13132]
+bias_proposals = [ 13133, 13134]
 
 #-------------------------------------------------------------------------------
 
 def list_retreieved_files( folder ):
     for root,dirs,files in os.walk( folder ):
         file_list = glob.glob('?????????_raw.fits')
+
+#-------------------------------------------------------------------------------
+
+def get_all_periods():
+    pass
 
 #-------------------------------------------------------------------------------
 
@@ -104,7 +112,7 @@ def get_new_periods():
         print month,day,year,' to ',end_month,end_day,end_year
         print '#--------------------------------#'
 
-        products_folder = os.path.join( products_directory,'%d_%d_%s'%(year,proposal,visit) )
+        products_folder = os.path.join( products_directory,'%d_%d_%s' % (year,proposal,visit) )
         dirs_to_process.append( products_folder )
 
         if not os.path.exists( products_folder ): 
@@ -115,9 +123,8 @@ def get_new_periods():
             for filename in files:
                 if filename.endswith('_raw.fits'):
                     already_retrieved.append( filename[:9].upper() )
-        #already_retrieved = [ os.path.split(item)[1][:9] for item in glob.glob( os.path.join(products_folder,'?????????_raw.fits') ) ]
 
-        new_obs = get_new_obs('DARK',ref_begin,ref_end) + get_new_obs('BIAS',ref_begin,ref_end)  ###Grab both darks and biases before moving on to collect and move.
+        new_obs = get_new_obs('DARK', ref_begin, ref_end) + get_new_obs('BIAS', ref_begin, ref_end)
         obs_to_get = [ obs for obs in new_obs if not obs in already_retrieved ]
 
         if not len( obs_to_get ): 
@@ -154,6 +161,8 @@ def make_ref_files( root_folder,clean=False ):
     print '#  Making all ref files for   #'
     print  root_folder
     print '#-----------------------------#'
+
+    if not os.path.exists( root_folder ): raise IOError( 'Root folder does not exist' )
 
     if clean:  clean_directory( root_folder )
 
@@ -258,20 +267,19 @@ def make_ref_files( root_folder,clean=False ):
 
 
 
-        ref_base_name = os.path.join( folder, '%s_%s_%s'%(filetype,proposal,wk) )
         print 'Making REFFILE for ', filetype
         print '%d files found with %d imsets'%(len(raw_files),n_imsets)
 
         if REFBIAS: 
-            refbias_name = os.path.join( folder, 'refbias_%s_%s'%(proposal,wk) )
-            if os.path.exists( refbias_name+'.fits'):
-                print 'Weekbias already created, skipping'
+            refbias_name = os.path.join( folder, 'refbias_%s_%s.fits'%(proposal,wk) )
+            if os.path.exists( refbias_name ):
+                print 'Refbias already created, skipping'
             else:
                 if n_imsets > 120:
                     super_list = split_files( raw_files )
                     all_subnames = []
                     for i,sub_list in enumerate( super_list ):
-                        subname = refbias_name+'_grp0'+str(i+1)+'.fits'
+                        subname = refbias_name.replace('.fits','_grp0'+str(i+1)+'.fits')
                         print 'Making sub-file for datasets'
                         print sub_list
                         REFSTIS_refbias.make_refbias( sub_list, subname )
@@ -281,20 +289,26 @@ def make_ref_files( root_folder,clean=False ):
                     REFSTIS_refbias.make_refbias( raw_files, refbias_name )
 
         if WEEKBIAS:
-            weekbias_name = os.path.join( folder, 'weekbias_%s_%s'%(proposal,wk) )
-            REFSTIS_refbias.make_refbias( raw_files, weekbias_name, basebias_name )
+            weekbias_name = os.path.join( folder, 'weekbias_%s_%s.fits'%(proposal,wk) )
+            if os.path.exists( weekbias_name ):
+                print 'Weekbias already created, skipping'
+            else:
+                REFSTIS_refbias.make_refbias( raw_files, weekbias_name, basebias_name )
  
         if WEEKDARK:
-            weekdark_name = os.path.join( folder, 'weekdark_%s_%s'%(proposal,wk) )
-            weekbias_name = os.path.join( root_folder, 'biases/1-1x1',wk,'refbias_%s_%s.fits'%(proposal,wk) ) ### probably need to be final file, either week* or ref*
-            basedark_name = os.path.join( folder.replace(wk,'all'), 'basedark.fits' )
-            print "Can't make this yet"
-            #REFSTIS_weekdark.make_weekdark( raw_files, weekdark_name, weekbias_name , basedark_name)
+            weekdark_name = os.path.join( folder, 'weekdark_%s_%s.fits'%(proposal,wk) )
+            if os.path.exists( weekdark_name ):
+                print 'Weekdark already created, skipping'
+            else:
+                weekbias_name = os.path.join( root_folder, 'biases/1-1x1',wk,'refbias_%s_%s.fits'%(proposal,wk) ) ### probably need to be final file, either week* or ref*
+                basedark_name = os.path.join( folder.replace(wk,'all'), 'basedark.fits' )
+                REFSTIS_weekdark.make_weekdark( raw_files, weekdark_name, weekbias_name , basedark_name)
     
 
 #-------------------------------------------------------------------------------
 
 def clean_directory( root_path ):
+    """ Cleans directory of any fits files that do not end in _raw.fits """
     for root,dirs,files in os.walk( root_path ):
         for filename in files:
             if not ('_raw.fits' in filename):
@@ -337,10 +351,14 @@ def get_new_obs(file_type, start, end):
     
     obs_names = np.array( new_dict['sci_data_set_name'] )
     
-    start_times_MJD = np.array( map(translate_date_string,new_dict['sci_start_time'] ) )
+    start_times_MJD = np.array( map(translate_date_string, new_dict['sci_start_time'] ) )
     #start_times_MJD = np.array( [ translate_date_string(item) for item in start_times ] )
     
     index = np.where( (start_times_MJD > start) & (start_times_MJD < end) )[0]
+
+    if not len( index ):
+        print "WARNING: didn't find any datasets, skipping"
+        return []
 
     assert start_times_MJD[index].min() > start, 'Data has mjd before period start'
     assert start_times_MJD[index].max() < end, 'Data has mjd after period end'
@@ -357,12 +375,9 @@ def collect_new(observations_to_get):
     Function to find and retrieve new datasets for given proposal.
     Uses modules created by B. York: DADSAll.py and SybaseInterface.py.
     '''
-    print '#----------------------------#'
-    print 'Searching for new observations'
-    print '#----------------------------#'
 
     xml = createXmlFile(ftp_dir= retrieve_directory, 
-                      set=observations_to_get, file_type='RAW')
+                        set=observations_to_get, file_type='RAW')
 
     response = submitXmlFile(xml,'dmsops1.stsci.edu')
     if ('SUCCESS' in response):

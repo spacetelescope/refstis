@@ -111,26 +111,19 @@ def average_biases( bias_list ):
 
 def calibrate( input_file ):
     os.environ['oref'] = '/grp/hst/cdbs/oref/'
-    print 'Calibrating %s'%(input_file)
+    print 'Calibrating %s' % (input_file)
     output_blev = input_file.replace('.fits','_blev.fits')
     REFSTIS_functions.RemoveIfThere( output_blev )
     output_crj = input_file.replace('.fits','_crj.fits')
     REFSTIS_functions.RemoveIfThere( output_crj )
 
-    # between the long file paths and not being able to find EPC files, 
-    # need IRAF to run in the work dir
-    # 
-    #os.chdir( workdir )
-    #
-    # if cosmic-ray rejection has already been done on the input bias image,
-
-
-    fd = pyfits.open( input_file )
-    nimset   = fd[0].header['nextend'] / 3
-    nrptexp  = fd[0].header['nrptexp']
-    crcorr   = fd[0].header['crcorr']
-    blevcorr = fd[0].header['blevcorr']
-    del fd
+    hdu = pyfits.open( input_file )
+    nimset = hdu[0].header['nextend'] / 3
+    nrptexp = hdu[0].header['nrptexp']
+    crcorr = hdu[0].header['crcorr']
+    blevcorr = hdu[0].header['blevcorr']
+    hdu.close()
+    del hdu
 
     if (nimset <= 1 and crcorr != "COMPLETE"):
         print("Sorry, your input image seems to have only 1 imset, but it isn't cr-rejected.")
@@ -141,14 +134,14 @@ def calibrate( input_file ):
     if (crcorr != "COMPLETE"):
        
        if (nrptexp != nimset):
-            pyfits.setval(input_file,'NRPTEXP',value=nimset)
-            pyfits.setval(input_file,'CRSPLIT',value=1)
+            pyfits.setval(input_file, 'NRPTEXP', value=nimset)
+            pyfits.setval(input_file, 'CRSPLIT', value=1)
 
        pyfits.setval(input_file, 'CRCORR', value='PERFORM')
        pyfits.setval(input_file, 'APERTURE', value='50CCD')
        pyfits.setval(input_file, 'APER_FOV', value='50x50')
        if (blevcorr != 'COMPLETE') :
-           #print('Performing BLEVCORR')
+           print('Performing BLEVCORR')
            pyfits.setval(input_file, 'BLEVCORR', value='PERFORM')
            iraf.basic2d(input_file, output_blev,
                         outblev = '', dqicorr = 'perform', atodcorr = 'omit',
@@ -160,15 +153,14 @@ def calibrate( input_file ):
            print('Blevcorr alread Performed')
            shutil.copy(input_file,output_blev)
 
-       #print('Performing OCRREJECT')
+       print('Performing OCRREJECT')
        iraf.ocrreject(input=output_blev, output=output_crj, verb=no, Stdout='dev$null')
 
     elif (crcorr == "COMPLETE"):
         print "CR rejection already done"
         os.rename(input_file, output_crj )
   
-    pyfits.setval(output_crj, 'FILENAME',
-                  value=output_crj)
+    pyfits.setval(output_crj, 'FILENAME', value=os.path.split(output_crj)[1] )
 
     os.remove( output_blev )
 
@@ -177,201 +169,187 @@ def calibrate( input_file ):
 #---------------------------------------------------------------------------
 
 def make_basebias ( bias_list, refbias_name ):
-  maxiter = 40            # Maximum number of iterations for imstat'))
-  lower = INDEF           # Initial lower limit for imstat'))
-  upper = INDEF           # Initial upper limit for imstat'))
-  verbose = 0             # Show results of imstat iterations?'))
-  PYprint = 0             # Print final results of imstat iterations?'))
-  bias_path = os.path.split( bias_list[0] )[0]
+    """ Make the basebias for an anneal month 
 
-  print '#-------------------------------#'
-  print '#        Running basejoint      #'
-  print '#-------------------------------#'
+    """
+    print '#-------------------------------#'
+    print '#        Running basejoint      #'
+    print '#-------------------------------#'
+    print 'output to %s' % refbias_name
+    bias_path = os.path.split( bias_list[0] )[0]
 
-  print 'Processing individual files'
-  crj_list = [ calibrate(item) for item in bias_list ]
-  crj_list = [ item for item in crj_list if item != None ]
+    print 'Processing individual files'
+    crj_list = [ calibrate(item) for item in bias_list ]
+    crj_list = [ item for item in crj_list if item != None ]
 
-  mean_bias,totalweight = average_biases( crj_list )
-  bias_median = os.path.join( bias_path, 'median.fits')
-  #
-  #***************************************************************************
-  # Median filter resulting superbias by a window of 15 x 3 pixels, and
-  # subtract it from the superbias to produce a "residual" image containing
-  # hot columns and such
-  print 'Median filtering'
-  REFSTIS_functions.RemoveIfThere( bias_median )
-  iraf.median( mean_bias + '[1]', bias_median, xwindow = 15, ywindow = 3, verb=yes)
+    mean_bias, totalweight = average_biases( crj_list )
+    bias_median = os.path.join( bias_path, 'median.fits')
+    #
+    #***************************************************************************
+    # Median filter resulting superbias by a window of 15 x 3 pixels, and
+    # subtract it from the superbias to produce a "residual" image containing
+    # hot columns and such
+    print 'Median filtering'
+    REFSTIS_functions.RemoveIfThere( bias_median )
+    iraf.median( mean_bias + '[1]', bias_median, xwindow = 15, ywindow = 3, verb=yes)
 
-  iraf.iterstat( mean_bias + '[1]', nsigrej = 3., maxiter = 40, PYprint=no, verbose=no)
-  iraf.iterstat( bias_median + '[0]', nsigrej = 3., maxiter = 40, PYprint=no, verbose=no)
+    iraf.iterstat( mean_bias + '[1]', nsigrej = 3., maxiter = 40, PYprint=no, verbose=no)
+    iraf.iterstat( bias_median + '[0]', nsigrej = 3., maxiter = 40, PYprint=no, verbose=no)
 
-  diffmean = float(iraf.iterstat.mean) - float(iraf.iterstat.mean)
-  med_hdu = pyfits.open( bias_median,mode='update' )
-  med_hdu[0].data += diffmean
-  med_hdu.flush()
-  med_hdu.close()
-  del med_hdu
+    diffmean = float(iraf.iterstat.mean) - float(iraf.iterstat.mean)
+    med_hdu = pyfits.open( bias_median,mode='update' )
+    med_hdu[0].data += diffmean
+    med_hdu.flush()
+    med_hdu.close()
+    del med_hdu
 
-  #median_image = pyfits.getdata( bias_median, ext=0 )
-  #mean_image = pyfits.getdata( mean_bias, ext=('sci',1) )
-  #bias_residual = mean_image - median_image
+    #median_image = pyfits.getdata( bias_median, ext=0 )
+    #mean_image = pyfits.getdata( mean_bias, ext=('sci',1) )
+    #bias_residual = mean_image - median_image
 
-  bias_residual = os.path.join( bias_path, 'residual.fits' )
-  REFSTIS_functions.RemoveIfThere( bias_residual )
-  iraf.imarith( mean_bias + '[1]', '-', bias_median + '[0]', bias_residual, verb=no)
+    bias_residual = os.path.join( bias_path, 'residual.fits' )
+    REFSTIS_functions.RemoveIfThere( bias_residual )
+    iraf.imarith( mean_bias + '[1]', '-', bias_median + '[0]', bias_residual, verb=no)
 
-  # FIRST STEP TO REMOVE HOT COLUMNS:
-  # Average all rows together and stretch resulting image to match input image
- 
-  resi_cols = os.path.join( bias_path, "resi_cols.fits")
-  REFSTIS_functions.RemoveIfThere(resi_cols)
-  resi_cols2d = os.path.join( bias_path, "resi_cols2d.fits" )
-  REFSTIS_functions.RemoveIfThere(resi_cols2d)
-  
-  fd = pyfits.open( mean_bias )
-  xsize   = fd[1].header['naxis1']
-  ysize   = fd[1].header['naxis2']
-  xbin    = fd[0].header['binaxis1']
-  ybin    = fd[0].header['binaxis2']
-  gain    = fd[0].header['ccdgain']
-  del fd
-  iraf.blkavg(bias_residual, resi_cols, 1, ysize)
-  iraf.blkrep(resi_cols, resi_cols2d, 1, ysize)
+    # FIRST STEP TO REMOVE HOT COLUMNS:
+    # Average all rows together and stretch resulting image to match input image
 
-  #
-  #***************************************************************************
-  # Replace image values in hot columns by those in median filtered bias image
-  # For now, the threshold above which a column is called "hot" is defined as
-  # 3*sigma above the mean (using iterative statistics) in "resi_cols.fits".
-  #
-  #   replval = 0.08 / (gain*xbin)
-  iraf.iterstat(resi_cols, nsigrej = 3., maxiter = 40, PYprint=no, verbose=no)
-  print 'thresh mean,sigma = ',iraf.iterstat.mean,' ',iraf.iterstat.sigma
-  replval = float(iraf.iterstat.mean) + 3.0 * (float(iraf.iterstat.sigma))
-  tmp_bias = os.path.join( bias_path, 'tmp_col.fits' )
-  REFSTIS_functions.RemoveIfThere( tmp_bias )
-  #iraf.imcalc(mean_bias + '[1],'+bias_median+'[0],'+resi_cols2d+'[0]', tmp_bias,
-  #            'if im3 .ge. ' + str(replval) + ' then im2 else im1', verb=no)
+    resi_cols = os.path.join( bias_path, "resi_cols.fits")
+    REFSTIS_functions.RemoveIfThere(resi_cols)
+    resi_cols2d = os.path.join( bias_path, "resi_cols2d.fits" )
+    REFSTIS_functions.RemoveIfThere(resi_cols2d)
 
-  hdu = pyfits.open( mean_bias )
-  index = np.where( pyfits.getdata( resi_cols2d,ext=0 ) >= replval )
-  hdu[ ('sci',1) ].data[index] = pyfits.getdata( bias_median, ext=0)[index]
-  hdu.writeto(tmp_bias)
-  
-  #
-  #***************************************************************************
-  # SECOND STEP TO REMOVE HOT COLUMNS:
-  # Average only the lower 20% of all rows together and stretch resulting
-  # image to match input image.
-  
-  REFSTIS_functions.RemoveIfThere(resi_cols)
-  REFSTIS_functions.RemoveIfThere(resi_cols2d)
+    fd = pyfits.open( mean_bias )
+    xsize   = fd[1].header['naxis1']
+    ysize   = fd[1].header['naxis2']
+    xbin    = fd[0].header['binaxis1']
+    ybin    = fd[0].header['binaxis2']
+    gain    = fd[0].header['ccdgain']
+    del fd
+    iraf.blkavg(bias_residual, resi_cols, 1, ysize)
+    iraf.blkrep(resi_cols, resi_cols2d, 1, ysize)
 
-  #
-  # Now only use lower 20% of the Y range to check for hot columns
-  #
-  hotrange = int(math.floor(float(ysize) * 0.2 + 0.5))
-  print 'hotrange =',hotrange
-  iraf.blkavg(bias_residual+'[*,1:' + str(hotrange) + ']',
-              resi_cols, 1, hotrange)
-  iraf.blkrep(resi_cols, resi_cols2d, 1, ysize)
-  
-  #
-  #***************************************************************************
-  # Replace image values in hot columns by those in median filtered bias image
-  # For now, the threshold above which a column is called "hot" is defined as
-  # 3*sigma above the mean (using iterative statistics) in "resi_cols.fits".
-  #
-  #   replval = 0.08 / (gain*xbin)
-  iraf.iterstat(resi_cols, nsigrej = 3., maxiter = 40, PYprint=no, verbose=no)
-  print('iraf.iterstat.mean,sigma = '+str(iraf.iterstat.mean)+' '+str(iraf.iterstat.sigma))
-  replval = float(iraf.iterstat.mean) + 3.0 * (float(iraf.iterstat.sigma))
+    #
+    #***************************************************************************
+    # Replace image values in hot columns by those in median filtered bias image
+    # For now, the threshold above which a column is called "hot" is defined as
+    # 3*sigma above the mean (using iterative statistics) in "resi_cols.fits".
+    #
+    #   replval = 0.08 / (gain*xbin)
+    iraf.iterstat(resi_cols, nsigrej = 3., maxiter = 40, PYprint=no, verbose=no)
+    print 'thresh mean,sigma = ',iraf.iterstat.mean,' ',iraf.iterstat.sigma
+    replval = float(iraf.iterstat.mean) + 3.0 * (float(iraf.iterstat.sigma))
+    tmp_bias = os.path.join( bias_path, 'tmp_col.fits' )
+    REFSTIS_functions.RemoveIfThere( tmp_bias )
+    #iraf.imcalc(mean_bias + '[1],'+bias_median+'[0],'+resi_cols2d+'[0]', tmp_bias,
+    #            'if im3 .ge. ' + str(replval) + ' then im2 else im1', verb=no)
 
-  tmp_bias2 = os.path.join( bias_path, 'tmp_col2.fits' )
-  REFSTIS_functions.RemoveIfThere( tmp_bias2 )
+    hdu = pyfits.open( mean_bias )
+    index = np.where( pyfits.getdata( resi_cols2d,ext=0 ) >= replval )
+    hdu[ ('sci',1) ].data[index] = pyfits.getdata( bias_median, ext=0)[index]
+    hdu.writeto(tmp_bias)
 
-  #iraf.imcalc(tmp_bias+'[1],'+bias_median+'[0],'+resi_cols2d+'[0]', tmp_bias2, 
-  #            'if im3 .ge. ' + str(replval) + ' then im2 else im1', verb=yes)
+    #
+    #***************************************************************************
+    # SECOND STEP TO REMOVE HOT COLUMNS:
+    # Average only the lower 20% of all rows together and stretch resulting
+    # image to match input image.
 
-  hdu = pyfits.open( tmp_bias )
-  index = np.where( pyfits.getdata( resi_cols2d,ext=0 ) >= replval )
-  hdu[ ('sci',1) ].data[index] = pyfits.getdata( bias_median, ext=0)[index]
-  hdu.writeto(tmp_bias2)
+    REFSTIS_functions.RemoveIfThere(resi_cols)
+    REFSTIS_functions.RemoveIfThere(resi_cols2d)
 
-  print('Columns hotter than '+str(replval)+' replaced by median value')
-  #
-  #***************************************************************************
-  # Replace image values in residual single hot pixels (defined as those having
-  # values greater than (mean + 5 sigma of Poisson noise) by those in
-  # median-filtered bias image. This represents the science extension of the
-  # final output reference superbias.
-  #
-  bias_residual_2 = os.path.join( bias_path, 'residual2.fits' )
-  REFSTIS_functions.RemoveIfThere( bias_residual_2 )
-  print 'Imarith',tmp_bias2 + '[1]', '-', bias_median+'[0]'
-  iraf.imarith(tmp_bias2 + '[1]', '-', bias_median+'[0]',
-  		bias_residual_2, verb=yes)
+    #
+    # Now only use lower 20% of the Y range to check for hot columns
+    #
+    hotrange = int(math.floor(float(ysize) * 0.2 + 0.5))
+    print 'hotrange =',hotrange
+    iraf.blkavg(bias_residual+'[*,1:' + str(hotrange) + ']',
+                resi_cols, 1, hotrange)
+    iraf.blkrep(resi_cols, resi_cols2d, 1, ysize)
 
-  iter_count,mn,sig,npx,med,mod,min,max = REFSTIS_functions.iterate( bias_residual_2+'[0]' )
+    #
+    #***************************************************************************
+    # Replace image values in hot columns by those in median filtered bias image
+    # For now, the threshold above which a column is called "hot" is defined as
+    # 3*sigma above the mean (using iterative statistics) in "resi_cols.fits".
+    #
+    #   replval = 0.08 / (gain*xbin)
+    iraf.iterstat(resi_cols, nsigrej = 3., maxiter = 40, PYprint=no, verbose=no)
+    print('iraf.iterstat.mean,sigma = '+str(iraf.iterstat.mean)+' '+str(iraf.iterstat.sigma))
+    replval = float(iraf.iterstat.mean) + 3.0 * (float(iraf.iterstat.sigma))
 
-  if (PYprint and not verbose):
-  	print('Median-subtracted bias: mean='+str(mn)+' rms='+str(sig))
-  	ptin('   npix='+str(npx)+' median='+str(med)+' min='+str(min)+'max='+str(max))
-  
-  fivesig = float(mn) + (5.0 * float(sig))
-  
-  #iraf.imcalc(tmp_bias + '[1],'+bias_median+'[0],'+bias_residual_2+'[0]',tmp_bias,
-  # 		'if im3 .ge. ' + str(fivesig) + ' then im2 else im1', verb=no)
-  
-  hdu = pyfits.open( tmp_bias )
-  index = np.where( pyfits.getdata( bias_residual_2,ext=0 ) >= replval )
-  hdu[ ('sci',1) ].data[index] = pyfits.getdata( bias_median, ext=0)[index]
-  hdu.writeto(tmp_bias,clobber=True)
+    tmp_bias2 = os.path.join( bias_path, 'tmp_col2.fits' )
+    REFSTIS_functions.RemoveIfThere( tmp_bias2 )
+
+    #iraf.imcalc(tmp_bias+'[1],'+bias_median+'[0],'+resi_cols2d+'[0]', tmp_bias2, 
+    #            'if im3 .ge. ' + str(replval) + ' then im2 else im1', verb=yes)
+
+    hdu = pyfits.open( tmp_bias )
+    index = np.where( pyfits.getdata( resi_cols2d,ext=0 ) >= replval )
+    hdu[ ('sci',1) ].data[index] = pyfits.getdata( bias_median, ext=0)[index]
+    hdu.writeto(tmp_bias2)
+
+    print('Columns hotter than '+str(replval)+' replaced by median value')
+    #
+    #***************************************************************************
+    # Replace image values in residual single hot pixels (defined as those having
+    # values greater than (mean + 5 sigma of Poisson noise) by those in
+    # median-filtered bias image. This represents the science extension of the
+    # final output reference superbias.
+    #
+    bias_residual_2 = os.path.join( bias_path, 'residual2.fits' )
+    REFSTIS_functions.RemoveIfThere( bias_residual_2 )
+    print 'Imarith',tmp_bias2 + '[1]', '-', bias_median+'[0]'
+    iraf.imarith(tmp_bias2 + '[1]', '-', bias_median+'[0]',
+                  bias_residual_2, verb=yes)
+
+    iter_count,mn,sig,npx,med,mod,min,max = REFSTIS_functions.iterate( bias_residual_2+'[0]' )
+
+    fivesig = float(mn) + (5.0 * float(sig))
+
+    #iraf.imcalc(tmp_bias + '[1],'+bias_median+'[0],'+bias_residual_2+'[0]',tmp_bias,
+    # 		'if im3 .ge. ' + str(fivesig) + ' then im2 else im1', verb=no)
+
+    hdu = pyfits.open( tmp_bias )
+    index = np.where( pyfits.getdata( bias_residual_2,ext=0 ) >= replval )
+    hdu[ ('sci',1) ].data[index] = pyfits.getdata( bias_median, ext=0)[index]
+    hdu.writeto(tmp_bias, clobber=True)
 
 
-  #
-  #***************************************************************************
-  # Build reference superbias file
-  #
-  # Copy "NULL reference bias" to current directory, taking into account
-  #  the x- and y-binning (xsize and ysize) (the "NULL" ref. bias is one
-  #  without a HISTORY keyword)
-  #
-  #ref_template = os.path.expandvars('$oref/ref_null_bia' + str(xbin) + 'x' + str(ybin) + '.fits')
-  #print ref_template
-  #shutil.copyfile(ref_template, thebasefile + '.fits')
- 
-  shutil.copy( mean_bias, refbias_name )
-  ref_hdu = pyfits.open( refbias_name,mode='update')
-  ref_hdu[1].data = pyfits.getdata( tmp_bias, ext=0 )
-  ref_hdu.flush()
-  ref_hdu.close()
-  del ref_hdu
+    shutil.copy( mean_bias, refbias_name )
+    ref_hdu = pyfits.open( refbias_name, mode='update')
+    ref_hdu[1].data = pyfits.getdata( tmp_bias, ext=0 )
+    ref_hdu.flush()
+    ref_hdu.close()
+    del ref_hdu
 
-  pyfits.setval( refbias_name, 'FILENAME', value=refbias_name)
-  pyfits.setval( refbias_name, 'FILETYPE', value='CCD BIAS IMAGE')
-  pyfits.setval( refbias_name, 'CCDGAIN', value=gain)
-  pyfits.setval( refbias_name, 'BINAXIS1', value=xbin)
-  pyfits.setval( refbias_name, 'BINAXIS2', value=ybin)
-  pyfits.setval( refbias_name, 'USEAFTER', value=' ')
-  pyfits.setval( refbias_name, 'PEDIGREE', value='INFLIGHT')
-  pyfits.setval( refbias_name, 'DESCRIP', value='Superbias created by R. de los Santos from proposals 7948/7949/8409/8439')
-  pyfits.setval( refbias_name, 'NEXTEND', value='3')
-  pyfits.setval( refbias_name, 'COMMENT', value='Reference file created by the STIS BIAS file pipeline')
-  pyfits.setval( refbias_name, 'NCOMBINE', value=totalweight, ext=1)
-  
-  ### clean up temporary files
-  REFSTIS_functions.RemoveIfThere( bias_residual )
-  REFSTIS_functions.RemoveIfThere( bias_residual_2 )
-  REFSTIS_functions.RemoveIfThere( resi_cols )
-  REFSTIS_functions.RemoveIfThere( resi_cols2d)
-  REFSTIS_functions.RemoveIfThere( bias_median )
-  REFSTIS_functions.RemoveIfThere( mean_bias )
-  REFSTIS_functions.RemoveIfThere( tmp_bias )
-  REFSTIS_functions.RemoveIfThere( tmp_bias2 )
-  for item in crj_list:
-    REFSTIS_functions.RemoveIfThere( item )
+    pyfits.setval( refbias_name, 'FILENAME', value=refbias_name)
+    pyfits.setval( refbias_name, 'FILETYPE', value='CCD BIAS IMAGE')
+    pyfits.setval( refbias_name, 'CCDGAIN', value=gain)
+    pyfits.setval( refbias_name, 'BINAXIS1', value=xbin)
+    pyfits.setval( refbias_name, 'BINAXIS2', value=ybin)
+    pyfits.setval( refbias_name, 'USEAFTER', value=' ')
+    pyfits.setval( refbias_name, 'PEDIGREE', value='INFLIGHT')
+    pyfits.setval( refbias_name, 'DESCRIP', value='Superbias created by R. de los Santos from proposals 7948/7949/8409/8439')
+    pyfits.setval( refbias_name, 'NEXTEND', value='3')
+    pyfits.setval( refbias_name, 'COMMENT', value='Reference file created by the STIS BIAS file pipeline')
+    pyfits.setval( refbias_name, 'NCOMBINE', value=totalweight, ext=1)
+
+    print 'Cleaning up...'
+    REFSTIS_functions.RemoveIfThere( bias_residual )
+    REFSTIS_functions.RemoveIfThere( bias_residual_2 )
+    REFSTIS_functions.RemoveIfThere( resi_cols )
+    REFSTIS_functions.RemoveIfThere( resi_cols2d)
+    REFSTIS_functions.RemoveIfThere( bias_median )
+    REFSTIS_functions.RemoveIfThere( mean_bias )
+    REFSTIS_functions.RemoveIfThere( tmp_bias )
+    REFSTIS_functions.RemoveIfThere( tmp_bias2 )
+    for item in crj_list:
+      REFSTIS_functions.RemoveIfThere( item )
+
+    print '#-------------------------------#'
+    print '#        Finished basejoint     #'
+    print '#-------------------------------#'
 
 #------------------------------------------------------------------------------------
     

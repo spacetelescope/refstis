@@ -1,6 +1,29 @@
 
 def calibrate():
     pass
+#------------------------------------------------------------------------------------
+
+def msjoin( imset_list, out_name ):
+    """ Replicate msjoin functionality in pure python
+
+    """
+
+    import pyfits
+
+    hdu = pyfits.open( imset_list[0] )
+    
+    ext_count = 0
+    n_offset = (len( hdu[1:] ) // 3) + 1
+    for dataset in imset_list[1:]:
+        add_hdu = pyfits.open( dataset )
+        for extension in add_hdu[1:]:
+            extension.header['EXTVER'] = (ext_count // 3) + n_offset
+            hdu.append( extension )
+            ext_count += 1
+
+    hdu[0].header['NEXTEND'] = len( hdu ) - 1
+    hdu.writeto( out_name )
+    
 
 #------------------------------------------------------------------------------------
 
@@ -36,32 +59,31 @@ def crreject( input_file, workdir=None) :
         print("Sorry, your input image seems to have only 1 imset, but it isn't cr-rejected.")
         print("This task can only handle 'raw' or 'flt images with the NEXTEND keyword equal to 3*N (N > 1).")
         print("Bye now... better luck next time!")
-
+        raise ValueError( 'nimset <=1 and CRCORR not complete' )
 
     if (crcorr != "COMPLETE"):
-       
-       if (nrptexp != nimset):
+        if (nrptexp != nimset):
             pyfits.setval(input_file,'NRPTEXP',value=nimset)
             pyfits.setval(input_file,'CRSPLIT',value=1)
 
-       pyfits.setval(input_file, 'CRCORR', value='PERFORM')
-       pyfits.setval(input_file, 'APERTURE', value='50CCD')
-       pyfits.setval(input_file, 'APER_FOV', value='50x50')
-       if (blevcorr != 'COMPLETE') :
-           print('Performing BLEVCORR')
-           pyfits.setval(input_file, 'BLEVCORR', value='PERFORM')
-           iraf.basic2d(input_file, output_blev,
-                        outblev = '', dqicorr = 'perform', atodcorr = 'omit',
-                        blevcorr = 'perform', doppcorr = 'omit', lorscorr = 'omit',
-                        glincorr = 'omit', lflgcorr = 'omit', biascorr = 'omit',
-                        darkcorr = 'omit', flatcorr = 'omit', shadcorr = 'omit',
-                        photcorr = 'omit', statflag = no, verb=no, Stdout='dev$null')
-       else:
-           print('Blevcorr alread Performed')
-           shutil.copy(input_file,output_blev)
+        pyfits.setval(input_file, 'CRCORR', value='PERFORM')
+        pyfits.setval(input_file, 'APERTURE', value='50CCD')
+        pyfits.setval(input_file, 'APER_FOV', value='50x50')
+        if (blevcorr != 'COMPLETE') :
+            print('Performing BLEVCORR')
+            pyfits.setval(input_file, 'BLEVCORR', value='PERFORM')
+            iraf.basic2d(input_file, output_blev,
+                         outblev = '', dqicorr = 'perform', atodcorr = 'omit',
+                         blevcorr = 'perform', doppcorr = 'omit', lorscorr = 'omit',
+                         glincorr = 'omit', lflgcorr = 'omit', biascorr = 'omit',
+                         darkcorr = 'omit', flatcorr = 'omit', shadcorr = 'omit',
+                         photcorr = 'omit', statflag = no, verb=no, Stdout='dev$null')
+        else:
+            print('Blevcorr alread Performed')
+            shutil.copy(input_file,output_blev)
 
-       print('Performing OCRREJECT')
-       iraf.ocrreject(input=output_blev, output=output_crj, verb=no)#, Stdout='dev$null')
+        print('Performing OCRREJECT')
+        iraf.ocrreject(input=output_blev, output=output_crj, verb=no)
 
     elif (crcorr == "COMPLETE"):
         print "CR rejection already done"
@@ -93,9 +115,9 @@ def crreject( input_file, workdir=None) :
     print out_div, output_crj, ncombine
 
 
-    iraf.unlearn(iraf.msarith)
+    iraf.unlearn( iraf.msarith )
     current_path = os.getcwd()
-    file_path = os.path.split( output_crj )[0]
+    file_path = os.path.split( output_crj )[0] or './'
     
     os.chdir( file_path )
     iraf.chdir( file_path )
@@ -355,15 +377,19 @@ def bd_crreject(joinedfile) :
    #
    import pyfits
    import os
+
+   print joinedfile
+
    fd = pyfits.open(joinedfile)
    nimset   = fd[0].header['nextend'] / 3
    nrptexp  = fd[0].header['nrptexp']
    crcorr   = fd[0].header['crcorr']
    crdone = 0
+
    if (crcorr == "COMPLETE") :
       crdone = 1
       print('OK, CR rejection already done')
-      os.rename(joinedfile, joinedfile.replace('_joined.fits', '_crj.fits') )
+      os.rename(joinedfile, joinedfile.replace('_joined', '_crj') )
    else:
       print('crcorr found = '+ crcorr)
   
@@ -371,10 +397,11 @@ def bd_crreject(joinedfile) :
       print("Sorry, your input image seems to have only 1 imset, but it isn't cr-rejected.")
       print("This task can only handle 'raw' or 'flt images with the NEXTEND keyword equal to 3*N (N > 1).")
       print("Bye now... better luck next time!")
-  
+      raise ValueError( 'Something bad happened' )
+
    if not crdone:
       print('FYI: CR rejection not done')
-      print('Keyword NRPTEXP = '+str(nrptexp)+' while nr. of imsets = '+str(nimset))
+      print('Keyword NRPTEXP = ' + str(nrptexp) + ' while nr. of imsets = ' + str(nimset))
       if (nrptexp != nimset):
           pyfits.setval( joinedfile,'NRPTEXP',value=nimset)
           pyfits.setval( joinedfile,'CRSPLIT',value=1)
@@ -396,50 +423,43 @@ def bd_calstis(joinedfile, thebiasfile=None ) :
    import shutil
 
    initial_dir = os.getcwd()
-   working_dir= os.path.split( joinedfile )[0]
+   working_dir= os.path.split( joinedfile )[0] or './'
 
-   shutil.copy( thebiasfile, working_dir )
+   if not os.path.exists( os.path.join( working_dir, thebiasfile ) ):
+       shutil.copy( thebiasfile, working_dir )
+
    os.chdir( working_dir )
    iraf.chdir( working_dir )
 
    thebiasfile = os.path.split( thebiasfile )[-1]
    joinedfile = os.path.split( joinedfile )[-1]
    
-   
-   print('Set CRCORR to PERFORM in joinedfile ' + joinedfile)
-   # set CRCORR calibration switch for cosmic-ray rejection
-   pyfits.setval( joinedfile,'CRCORR',value='PERFORM' )
    #
    # Change APERTURE to '50CCD' and APER_FOV to '50x50' for ocrreject to work
    # correctly (i.e., so that it doesn't flag regions outside the original
    # APERTURE)
-   pyfits.setval(joinedfile,'APERTURE',value='50CCD')
-   pyfits.setval(joinedfile,'APER_FOV',value='50x50')
-   pyfits.setval(joinedfile,'DARKCORR',value='OMIT')
-   pyfits.setval(joinedfile,'FLATCORR',value='OMIT')
+   pyfits.setval(joinedfile, 'CRCORR', value='PERFORM')
+   pyfits.setval(joinedfile, 'APERTURE', value='50CCD')
+   pyfits.setval(joinedfile, 'APER_FOV', value='50x50')
+   pyfits.setval(joinedfile, 'DARKCORR', value='OMIT')
+   pyfits.setval(joinedfile, 'FLATCORR', value='OMIT')
 
-   #
-   # If parameter "biasfile" is specified, use it as BIASFILE in calstis
-   #
-   print('Input thebiasfile is ' + str(thebiasfile) +'.')
-   if thebiasfile:
-      print('Set BIASFILE to thebiasfile ' + thebiasfile)
-      print('              in joinedfile ' + joinedfile)
-      pyfits.setval(joinedfile, 'BIASFILE', value=thebiasfile)
+
+   ### This was causing a floating point error in CalSTIS
+   ### Perhaps the biasfile i was using was bad?
+
+   #if thebiasfile:
+   #   print('Set BIASFILE to thebiasfile ' + thebiasfile)
+   #   print('              in joinedfile ' + joinedfile)
+   #   pyfits.setval(joinedfile, 'BIASFILE', value=thebiasfile)
 
    crj_file = joinedfile.replace('.fits','_crj.fits')
-   print crj_file
-   print("Running CALSTIS on joined CRJ input file ...") 
-   print "## ...joinedfile", joinedfile
-   print("Cosmic-ray-rejected file will be called "+crj_file)
-   print('...by calstis which creates it')
 
    logname = 'dev$null'
-   print '## iraf.calstis(joinedfile('+joinedfile+'.fits),'
-   print '##              wavecal="",outroot="",'
-   print '##    savetmp=no,verbose=no, Stderr=logname('+logname+')'
+   print 'Running CalSTIS on %s' % joinedfile 
+   print 'to create: %s' % crj_file
    iraf.calstis(joinedfile,wavecal="",outroot="",
-                savetmp=no,verbose=no, Stderr=logname)
+                savetmp=no,verbose=yes)#, Stderr=logname)
 
    pyfits.setval(crj_file, 'FILENAME', value=crj_file)
 

@@ -427,47 +427,39 @@ def bd_calstis(joinedfile, thebiasfile=None ) :
 
    if not os.path.exists( os.path.join( working_dir, thebiasfile ) ):
        shutil.copy( thebiasfile, working_dir )
+
    os.chdir( working_dir )
    iraf.chdir( working_dir )
 
    thebiasfile = os.path.split( thebiasfile )[-1]
    joinedfile = os.path.split( joinedfile )[-1]
    
-   
-   print('Set CRCORR to PERFORM in joinedfile ' + joinedfile)
-   # set CRCORR calibration switch for cosmic-ray rejection
-   pyfits.setval( joinedfile,'CRCORR',value='PERFORM' )
    #
    # Change APERTURE to '50CCD' and APER_FOV to '50x50' for ocrreject to work
    # correctly (i.e., so that it doesn't flag regions outside the original
    # APERTURE)
-   pyfits.setval(joinedfile,'APERTURE',value='50CCD')
-   pyfits.setval(joinedfile,'APER_FOV',value='50x50')
-   pyfits.setval(joinedfile,'DARKCORR',value='OMIT')
-   pyfits.setval(joinedfile,'FLATCORR',value='OMIT')
+   pyfits.setval(joinedfile, 'CRCORR', value='PERFORM')
+   pyfits.setval(joinedfile, 'APERTURE', value='50CCD')
+   pyfits.setval(joinedfile, 'APER_FOV', value='50x50')
+   pyfits.setval(joinedfile, 'DARKCORR', value='OMIT')
+   pyfits.setval(joinedfile, 'FLATCORR', value='OMIT')
 
-   #
-   # If parameter "biasfile" is specified, use it as BIASFILE in calstis
-   #
-   print('Input thebiasfile is ' + str(thebiasfile) +'.')
-   if thebiasfile:
-      print('Set BIASFILE to thebiasfile ' + thebiasfile)
-      print('              in joinedfile ' + joinedfile)
-      pyfits.setval(joinedfile, 'BIASFILE', value=thebiasfile)
+
+   ### This was causing a floating point error in CalSTIS
+   ### Perhaps the biasfile i was using was bad?
+
+   #if thebiasfile:
+   #   print('Set BIASFILE to thebiasfile ' + thebiasfile)
+   #   print('              in joinedfile ' + joinedfile)
+   #   pyfits.setval(joinedfile, 'BIASFILE', value=thebiasfile)
 
    crj_file = joinedfile.replace('.fits','_crj.fits')
-   print crj_file
-   print("Running CALSTIS on joined CRJ input file ...") 
-   print "## ...joinedfile", joinedfile
-   print("Cosmic-ray-rejected file will be called "+crj_file)
-   print('...by calstis which creates it')
 
    logname = 'dev$null'
-   print '## iraf.calstis(joinedfile('+joinedfile+'.fits),'
-   print '##              wavecal="",outroot="",'
-   print '##    savetmp=no,verbose=no, Stderr=logname('+logname+')'
+   print 'Running CalSTIS on %s' % joinedfile 
+   print 'to create: %s' % crj_file
    iraf.calstis(joinedfile,wavecal="",outroot="",
-                savetmp=no,verbose=yes, Stderr=logname)
+                savetmp=no,verbose=yes)#, Stderr=logname)
 
    pyfits.setval(crj_file, 'FILENAME', value=crj_file)
 

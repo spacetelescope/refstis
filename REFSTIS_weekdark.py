@@ -122,15 +122,16 @@ def make_weekdark( input_list, refdark_name, thebiasfile, thebasedark ):
     five_sigma = base_median + 5*base_sigma
 
     print "## Create median-filtered version of super-de-buper dark "
-    basedark_med = medfilt( pyfits.getdata(thebasedark,ext=('sci',1)),(5,5) )
+    basedark_hdu = pyfits.open( thebasedark )
+    basedark_med = medfilt( basedark_hdu[('sci',1)].data, (5, 5) )
 
     norm_hdu = pyfits.open( norm_filename )
 
     zerodark = norm_hdu[ ('sci',1) ].data - basemed
-    only_hot = np.where( theoutfile >= five_sigma, zerodark, 0 )
+    only_hotpix = np.where( basedark_hdu[ ('sci',1) ].data >= five_sigma, zerodark, 0 )
 
     print "## Create 'only baseline dark current' image from these two "
-    only_dark = np.where( thebasedark >= five_sigma, basedark_med, thebasedark )
+    only_dark = np.where( basedark_hdu[ ('sci',1) ].data >= five_sigma, basedark_med, basedark_hdu[ ('sci',1) ].data )
 
     print "## Add 'only baseline dark current' image to 'only hot pixels' image. "
     print "## This creates the science portion of the forthcoming reference dark. "
@@ -143,7 +144,7 @@ def make_weekdark( input_list, refdark_name, thebiasfile, thebasedark ):
     # hot pixels, and put the result in temporary image.
     #
     print "## Use imcalc to update DQ  extension of normalized dark"
-    index = np.where( only_hotpix >= p_fivesig )[0]
+    index = np.where( only_hotpix >= five_sigma )[0]
     norm_hdu[ ('dq',1) ].data[index] = 16
 
     #***************************************************************************
@@ -153,25 +154,35 @@ def make_weekdark( input_list, refdark_name, thebiasfile, thebasedark ):
     # Put the result in temporary ERR image.
     #
     print "## Use imcalc to update ERR extension of new superdark "
-    index = np.where( only_hotpix == 0 )[0]
-    norm_hdu[ ('err',1) ].data[index] = thebasedark_error[index]
-    index = np.where( only_hotpix != 0 )[0]
-    norm_hdu[ ('err',1) ].data[index] = theoutfile_error[index]
+    ### This is obviously wrong
+    index = np.where( only_hotpix == 0 )
+    norm_hdu[ ('err',1) ].data[index] = basedark_hdu[ ('err', 1) ].data[index]
+    index = np.where( only_hotpix != 0 )
+    norm_hdu[ ('err',1) ].data[index] = basedark_hdu[ ('err', 1) ].data[index]
 
 
-    pyfits.setval(thereffile+".fits[0]", "FILENAME", thereffile)
-    pyfits.setval(thereffile+".fits[0]", "FILETYPE", "DARK IMAGE")
-    pyfits.setval(thereffile+".fits[0]", "CCDAMP", "ANY")
-    pyfits.setval(thereffile+".fits[0]", "CCDGAIN", "-1")
-    pyfits.setval(thereffile+".fits[0]", "BINAXIS1", xbin)
-    pyfits.setval(thereffile+".fits[0]", "BINAXIS2", ybin)
-    pyfits.setval(thereffile+".fits[0]", "USEAFTER", " ")
-    pyfits.setval(thereffile+".fits[0]", "PEDIGREE", "INFLIGHT")
-    pyfits.setval(thereffile+".fits[0]", "DESCRIP",
-                   "Weekly superdark created by J. Ely")
-    pyfits.setval(thereffile+".fits[0]", "NEXTEND", 3)
-    pyfits.setval(thereffile+".fits[0]", "COMMENT", 
-                  "created by the STIS weekdark task in the reference file pipeline")
+    pyfits.setval(norm_filename, "FILENAME", value=norm_filename)
+    pyfits.setval(norm_filename, "FILETYPE", value="DARK IMAGE")
+    pyfits.setval(norm_filename, "CCDAMP", value="ANY")
+    pyfits.setval(norm_filename, "CCDGAIN", value="-1")
+    pyfits.setval(norm_filename, "BINAXIS1", value=xbin)
+    pyfits.setval(norm_filename, "BINAXIS2", value=ybin)
+    pyfits.setval(norm_filename, "USEAFTER", value=" ")
+    pyfits.setval(norm_filename, "PEDIGREE", value="INFLIGHT")
+    pyfits.setval(norm_filename, "DESCRIP",
+                  value="Weekly superdark created by J. Ely")
+    pyfits.setval(norm_filename, "NEXTEND", value=3)
+    pyfits.setval(norm_filename, "COMMENT", 
+                  value="created by the STIS weekdark task in the reference file pipeline")
+
+    shutil.copy( norm_filename, refdark_name )
+
+    print 'Cleaning up...'
+    REFSTIS_functions.RemoveIfThere( crj_filename )
+    REFSTIS_functions.RemoveIfThere( norm_filename )
+    REFSTIS_functions.RemoveIfThere( joined_out )
+    for item in msjoin_list:
+        REFSTIS_functions.RemoveIfThere( item ) 
 
     print '#-------------------------------#'
     print '#        Finished weekdark      #'

@@ -182,47 +182,49 @@ def make_ref_files( root_folder,clean=False ):
     ######################
     # make the base biases
     ######################
+    if os.path.exists(os.path.join(root_folder, 'biases')):
+        for folder in gain_folders:
+            all_dir = os.path.join( folder,'all' )
+            if not os.path.exists( all_dir ):  os.mkdir( all_dir )
 
-    for folder in gain_folders:
-        all_dir = os.path.join( folder,'all' )
+            for root,dirs,files in os.walk( folder ):
+                if root.endswith('all'): continue
+                for filename in files:
+                    if filename.endswith('_raw.fits'):
+                        shutil.copy( os.path.join( root, filename), all_dir )
+
+            all_files = glob.glob( os.path.join( all_dir, '*_raw.fits') )
+            basebias_name = os.path.join( all_dir,'basebias.fits' )
+            if not os.path.exists( basebias_name ):
+                REFSTIS_basejoint.make_basebias( all_files ,basebias_name )
+            else:
+                print 'Basebias already created, skipping'
+    else:
+        print 'no folder %s exists, not making a basebias' %(os.path.join(root_folder, 'biases'))
+    ######################
+    # make the base darks
+    ######################
+    if os.path.exists(os.path.join(root_folder, 'darks')):
+        dark_folder = os.path.join( root_folder, 'darks' )
+        all_dir = os.path.join( dark_folder,'all' )
         if not os.path.exists( all_dir ):  os.mkdir( all_dir )
 
-        for root,dirs,files in os.walk( folder ):
+        for root,dirs,files in os.walk( dark_folder ):
             if root.endswith('all'): continue
             for filename in files:
                 if filename.endswith('_raw.fits'):
                     shutil.copy( os.path.join( root, filename), all_dir )
 
         all_files = glob.glob( os.path.join( all_dir, '*_raw.fits') )
-        basebias_name = os.path.join( all_dir,'basebias.fits' )
-        if not os.path.exists( basebias_name ):
-            REFSTIS_basejoint.make_basebias( all_files ,basebias_name )
+
+        basebias_name = os.path.join( root_folder,'biases/1-1x1/all/','basebias.fits' )
+        basedark_name = os.path.join( all_dir,'basedark.fits' )
+        if not os.path.exists( basedark_name ):
+            REFSTIS_basedark.make_basedark( all_files ,basedark_name, basebias_name )
         else:
-            print 'Basebias already created, skipping'
-
-    ######################
-    # make the base darks
-    ######################
-
-    dark_folder = os.path.join( root_folder, 'darks' )
-    all_dir = os.path.join( dark_folder,'all' )
-    if not os.path.exists( all_dir ):  os.mkdir( all_dir )
-
-    for root,dirs,files in os.walk( dark_folder ):
-        if root.endswith('all'): continue
-        for filename in files:
-            if filename.endswith('_raw.fits'):
-                shutil.copy( os.path.join( root, filename), all_dir )
-
-    all_files = glob.glob( os.path.join( all_dir, '*_raw.fits') )
-
-    basebias_name = os.path.join( root_folder,'biases/1-1x1/all/','basebias.fits' )
-    basedark_name = os.path.join( all_dir,'basedark.fits' )
-    if not os.path.exists( basedark_name ):
-        REFSTIS_basedark.make_basedark( all_files ,basedark_name, basebias_name )
+            print 'Basedark already created, skipping'
     else:
-        print 'Basedark already created, skipping'
-
+        print 'no folder %s exists, not making a basedark' %(os.path.join(root_folder, 'darks'))
     
     ####################
     # make the weekly biases and darks

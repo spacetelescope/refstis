@@ -187,10 +187,14 @@ def pull_info( foldername ):
     week
         string, week of the anneal (wk01, etc)
     """
-
-    proposal = re.search('(_[0-9]{5}_)', foldername ).group().strip('_')
-    week = re.search('([bi]*wk0[0-9])', foldername ).group()
-    
+    try:
+        proposal = re.search('(_[0-9]{5}_)', foldername ).group().strip('_')
+    except:
+        proposal = ''
+    try:
+        week = re.search('([bi]*wk0[0-9])', foldername ).group()
+    except:
+        week = ''
     return proposal, week
 
 #-------------------------------------------------------------------------------
@@ -276,7 +280,7 @@ def make_ref_files( root_folder, clean=False ):
         BASEDARK = False
         WEEKDARK = False
         print 'Processing %s'%(folder)
-
+        
         proposal, wk = pull_info( folder )
 
         raw_files = glob.glob( os.path.join( folder, '*raw.fits') )

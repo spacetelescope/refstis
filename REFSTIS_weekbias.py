@@ -1,30 +1,9 @@
-
-#!/usr/bin/env python
-#--------------------------------------------------------------------------
-#
-# Name: weekbias
-#
-# Description:
-#       This script produces a bias reference file and other products.
 """
-
 Functions to create a weekly bias for the STIS Darks and Biases reference file
 pipeline
 
 """
 
-#
-# Return:
-#
-# Usage:
-#       % weekbias
-#
-# History:
-# Date     OPR      Who         Reason
-# -------- -------- ---------- ---------------------------------------------
-# 05/22/01 45222    MSwam      from stlocal.teststis.weekbias.cl
-#--------------------------------------------------------------------------
-#
 from pyraf import iraf
 from iraf import stsdas,hst_calib,nicmos,stis,imgtools,mstools,ttools
 from pyraf.irafglobals import *
@@ -55,39 +34,27 @@ def make_weekbias( input_list, refbias_name, basebias ):
     print '#        Running weekbias       #'
     print '#-------------------------------#'
     print 'Making weekbias %s' % (refbias_name)
-
-    for item in input_list:
-        for imset in glob.glob( item.replace('.fits','??.fits') ):
-            REFSTIS_functions.RemoveIfThere( imset )
-
-    bias_path = os.path.split( input_list[0] )[0] or './'
-    rootname_set = set( [ os.path.split(item)[1][:9] for item in input_list] )
-
+    joined_out = refbias_name.replace('.fits', '_joined.fits')
     REFSTIS_functions.RemoveIfThere( refbias_name )
 
-    nimsets = REFSTIS_functions.split_images( input_list )
+    bias_path = os.path.split( input_list[0] )[0] or './'
 
-    joined_out = refbias_name.replace('.fits', '_joined.fits')
-    REFSTIS_functions.RemoveIfThere( joined_out )
     print 'Joining images to %s' % joined_out
-    msjoin_list = [ item for item in 
-                    glob.glob( os.path.join(bias_path,'*raw??.fits') )  if os.path.split(item)[1][:9] in rootname_set]
-    REFSTIS_functions.msjoin( msjoin_list, joined_out)
+    REFSTIS_functions.msjoin( input_list, joined_out)
 
     crj_filename = REFSTIS_functions.crreject( joined_out )
-    mean_bias = crj_filename
     bias_median = os.path.join( bias_path, 'median.fits')
     REFSTIS_functions.RemoveIfThere( bias_median )
 
-    iraf.median( mean_bias + '[1]', bias_median, xwindow = 15, ywindow = 2, verb=yes)
+    iraf.median( crj_filename + '[1]', bias_median, xwindow = 15, ywindow = 2, verb=yes)
 
-    iraf.iterstat( mean_bias + '[1]', nsigrej = 3., maxiter = 40, PYprint=no, verbose=no)
+    iraf.iterstat( crj_filename + '[1]', nsigrej = 3., maxiter = 40, PYprint=no, verbose=no)
     iraf.iterstat( bias_median + '[0]', nsigrej = 3., maxiter = 40, PYprint=no, verbose=no)
     diffmean = float(iraf.iterstat.mean) - float(iraf.iterstat.mean)
 
     bias_residual = os.path.join( bias_path, 'residual.fits' )
     REFSTIS_functions.RemoveIfThere( bias_residual )
-    iraf.imarith( mean_bias + '[1]', '-', bias_median + '[0]', bias_residual, verb=no)
+    iraf.imarith( crj_filename + '[1]', '-', bias_median + '[0]', bias_residual, verb=no)
 
     #
     # STEP TO IDENTIFY HOT COLUMNS:
@@ -98,7 +65,7 @@ def make_weekbias( input_list, refbias_name, basebias ):
     REFSTIS_functions.RemoveIfThere(resi_cols)
     resi_cols2d = os.path.join( bias_path, "resi_cols2d.fits" )
     REFSTIS_functions.RemoveIfThere(resi_cols2d)
-    ysize = pyfits.getval( mean_bias, 'NAXIS2',ext=1)
+    ysize = pyfits.getval( crj_filename, 'NAXIS2',ext=1)
 
     #
     # Only use lower 25% of the Y range to check for hot columns
@@ -146,7 +113,7 @@ def make_weekbias( input_list, refbias_name, basebias ):
     #
 
     # update sci
-    hdu = pyfits.open( mean_bias, mode='update')
+    hdu = pyfits.open( crj_filename, mode='update')
 
     ccdgain = hdu[0].header['ATODGAIN']
     xbin = hdu[0].header['BINAXIS1']
@@ -173,25 +140,22 @@ def make_weekbias( input_list, refbias_name, basebias ):
     hdu.close()
     del hdu
 
-    pyfits.setval( mean_bias, 'FILENAME', value=mean_bias)
-    pyfits.setval( mean_bias, 'FILETYPE', value='CCD BIAS IMAGE')
-    pyfits.setval( mean_bias, 'CCDGAIN', value=ccdgain)
-    pyfits.setval( mean_bias, 'BINAXIS1', value=xbin)
-    pyfits.setval( mean_bias, 'BINAXIS2', value=ybin)
-    pyfits.setval( mean_bias, 'USEAFTER', value=' ')
-    pyfits.setval( mean_bias, 'PEDIGREE', value='INFLIGHT')
-    pyfits.setval( mean_bias, 'DESCRIP', value='Weekly Bias')
-    pyfits.setval( mean_bias, 'NEXTEND', value='3')
-    pyfits.setval( mean_bias, 'COMMENT', value='Reference file created by J. Ely')
+    pyfits.setval( crj_filename, 'FILENAME', value=crj_filename)
+    pyfits.setval( crj_filename, 'FILETYPE', value='CCD BIAS IMAGE')
+    pyfits.setval( crj_filename, 'CCDGAIN', value=ccdgain)
+    pyfits.setval( crj_filename, 'BINAXIS1', value=xbin)
+    pyfits.setval( crj_filename, 'BINAXIS2', value=ybin)
+    pyfits.setval( crj_filename, 'USEAFTER', value=' ')
+    pyfits.setval( crj_filename, 'PEDIGREE', value='INFLIGHT')
+    pyfits.setval( crj_filename, 'DESCRIP', value='Weekly Bias')
+    pyfits.setval( crj_filename, 'NEXTEND', value='3')
+    pyfits.setval( crj_filename, 'COMMENT', value='Reference file created by J. Ely')
 
-    shutil.copy( mean_bias, refbias_name )
+    shutil.copy( crj_filename, refbias_name )
 
     print 'Cleaning up...'
     REFSTIS_functions.RemoveIfThere( crj_filename )
-    REFSTIS_functions.RemoveIfThere( mean_bias )
     REFSTIS_functions.RemoveIfThere( joined_out )
-    for item in msjoin_list:
-        REFSTIS_functions.RemoveIfThere( item ) 
 
     print '#-------------------------------#'
     print '#        Finished weekbias      #'

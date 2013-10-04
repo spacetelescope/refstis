@@ -1,4 +1,8 @@
-#!/usr/bin/env python
+"""
+Script to produce a monthly base bias for STIS CCD
+
+"""
+
 #--------------------------------------------------------------------------
 #
 # Name: basejoint
@@ -41,6 +45,7 @@
 # 07/13/11 68438    Sherbert     python update again
 #--------------------------------------------------------------------------
 #
+
 from pyraf import iraf
 from iraf import stsdas,hst_calib,nicmos,stis,imgtools,mstools,ttools
 from pyraf.irafglobals import *
@@ -52,10 +57,12 @@ import shutil
 import tempfile
 import pyfits
 import numpy as np
-import REFSTIS_functions
 import pdb
 
+import REFSTIS_functions
+
 #---------------------------------------------------------------------------
+
 def average_biases( bias_list ):
   '''
   Create a weighted sum of the individual input files.

@@ -53,24 +53,6 @@ def update_header( filename, xbin, ybin ):
 
 #--------------------------------------------------------------------------
 
-
-def normalize_crj( filename ):
-    """ Normalize the input filename by exptim/gain and flush hdu """
-
-    hdu = pyfits.open( filename, mode='update' )
-
-    exptime = hdu[0].header[ 'TEXPTIME' ]
-    gain = hdu[0].header[ 'ATODGAIN' ]
-
-    hdu[ ('sci', 1) ].data /= (float(exptime) / gain)
-
-    hdu[0].header['TEXPTIME'] = 1
-
-    hdu.flush()
-    hdu.close()
-
-#--------------------------------------------------------------------------
-
 def make_basedark( input_list, refdark_name='basedark.fits', bias_file=None ):
     """
     Make a monthly baseline dark from the input list of raw dark files and
@@ -102,7 +84,7 @@ def make_basedark( input_list, refdark_name='basedark.fits', bias_file=None ):
     if (not crdone):
         REFSTIS_functions.bd_calstis( joined_filename, bias_file )
 
-    normalize_crj( crj_filename)
+    REFSTIS_functions.normalize_crj( crj_filename)
 
     shutil.copy( crj_filename, refdark_name )
 

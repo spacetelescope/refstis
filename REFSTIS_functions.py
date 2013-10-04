@@ -3,7 +3,7 @@ def calibrate():
     pass
 #------------------------------------------------------------------------------------
 
-def msjoin( imset_list, out_name ):
+def msjoin( imset_list, out_name='joined_out.fits' ):
     """ Replicate msjoin functionality in pure python
 
     """
@@ -23,7 +23,20 @@ def msjoin( imset_list, out_name ):
 
     hdu[0].header['NEXTEND'] = len( hdu ) - 1
     hdu.writeto( out_name )
-    
+
+#------------------------------------------------------------------------------------
+
+def split_images( imglist,outname='' ):
+    from pyraf import iraf
+    from iraf import stsdas,toolbox,imgtools,mstools
+    import glob
+    print 'Splitting images'
+    for dataset in imglist:
+        print dataset
+        iraf.mssplit(inimg=dataset, outimg=outname, extension = '*', retain='no', 
+                     Stderr='dev$null')
+    nimsets = len( glob.glob('*raw??.fits') )
+    return nimsets
 
 #------------------------------------------------------------------------------------
 
@@ -34,7 +47,8 @@ def crreject( input_file, workdir=None) :
     from iraf import stsdas,hst_calib,stis
     from pyraf.irafglobals import *
 
-    os.environ['oref'] = '/grp/hst/cdbs/oref/'
+    if not 'oref' in os.environ:
+        os.environ['oref'] = '/grp/hst/cdbs/oref/'
 
     output_blev = input_file.replace('.fits','_blev.fits')
     output_crj = input_file.replace('.fits','_crj.fits')
@@ -125,20 +139,6 @@ def crreject( input_file, workdir=None) :
 
     return out_div
     #return tmpsuper, xbin, ybin, ccdgain, gain, xsize, ysize, ncombine
-
-#------------------------------------------------------------------------------------
-
-def split_images( imglist,outname='' ):
-    from pyraf import iraf
-    from iraf import stsdas,toolbox,imgtools,mstools
-    import glob
-    print 'Splitting images'
-    for dataset in imglist:
-        print dataset
-        iraf.mssplit(inimg=dataset, outimg=outname, extension = '*', retain='no', 
-                     Stderr='dev$null')
-    nimsets = len( glob.glob('*raw??.fits') )
-    return nimsets
 
 #------------------------------------------------------------------------------------
                      

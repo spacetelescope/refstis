@@ -1,118 +1,102 @@
 """
 Script to produce a monthly base bias for STIS CCD
 
+ Description:
+        Python translation of a python translation
+  of an original IRAF cl script to create superbias 
+  reference file from a list of bias frames.
+ 
+  METHOD:
+   The input image (with multiple extensions) is overscan-subtracted and
+   cosmic-ray-rejected using the CALSTIS algorithms within STSDAS. The
+   cosmic-ray-rejected image is divided by the number of imsets present
+   in the input image (since ocrreject adds up the individual imsets).
+   After that, the superbias is median filtered using a window of 15 x 1
+   pixels. The median-filtered is subtracted from the superbias to produce a
+   "residual" image containing hot columns and such. This "residual" image
+   is averaged along rows and replicated back to the original image size, so
+   that hot columns clearly show up. After that, the image values in
+   hot columns and pixels of the original superbias image (defined as those
+   pixels having values greater than (mean + 5 sigma of Poisson noise) are
+   replaced by those in the median-filtered bias image.
+   Plots are made of the row- and column-averaged superbias, with plotting
+   scales appropriate to the gain and binning settings of the superbias.
+ 
+
 """
 
-#--------------------------------------------------------------------------
-#
-# Name: basejoint
-#
-# Description:
-#       Python translation of an original IRAF cl script to create superbias 
-# reference file from a list of bias frames.
-#
-# METHOD:
-#  The input image (with multiple extensions) is overscan-subtracted and
-#  cosmic-ray-rejected using the CALSTIS algorithms within STSDAS. The
-#  cosmic-ray-rejected image is divided by the number of imsets present
-#  in the input image (since ocrreject adds up the individual imsets).
-#  After that, the superbias is median filtered using a window of 15 x 1
-#  pixels. The median-filtered is subtracted from the superbias to produce a
-#  "residual" image containing hot columns and such. This "residual" image
-#  is averaged along rows and replicated back to the original image size, so
-#  that hot columns clearly show up. After that, the image values in
-#  hot columns and pixels of the original superbias image (defined as those
-#  pixels having values greater than (mean + 5 sigma of Poisson noise) are
-#  replaced by those in the median-filtered bias image.
-#  Plots are made of the row- and column-averaged superbias, with plotting
-#  scales appropriate to the gain and binning settings of the superbias.
-#
-# Return:
-#
-# Usage:
-#       % basejoint input_biases
-#
-# History:
-# Date     OPR      Who         Reason
-# -------- -------- ---------- ---------------------------------------------
-# 09/25/97 ?????    P.Goudfrooij original version
-# 10/28/97 ?????    P.Goudfrooij Included automated plotting of averaged columns
-#                                and rows to PS files.
-# 05/22/01 45222    MSwam        ported to Python/Pyraf
-# 02/02/10 62549    Sherbert     remove extraneous strings, fix python
-# 02/18/10 64454    Sherbert     Inc factor to 3 for min_imsets (TIR 2000-05)
-# 07/01/11 68438    Sherbert     long path fix; more debugs; go absent
-# 07/13/11 68438    Sherbert     python update again
-#--------------------------------------------------------------------------
-#
-
 from pyraf import iraf
-from iraf import stsdas,hst_calib,nicmos,stis,imgtools,mstools,ttools
+from iraf import stsdas, hst_calib, stis
 from pyraf.irafglobals import *
 import os
 import sys
-import math
-import glob
 import shutil
-import tempfile
 import pyfits
 import numpy as np
-import pdb
+import support
+from scipy.signal import medfilt
 
 import REFSTIS_functions
 
 #---------------------------------------------------------------------------
 
 def average_biases( bias_list ):
-  '''
-  Create a weighted sum of the individual input files.
-  First make sure all individual input files have been ocrrejected.
+    """
+    Create a weighted sum of the individual input files.
+    First make sure all individual input files have been ocrrejected.
 
-  returns the filename of the averaged file
-  '''
+    returns the filename of the averaged file
 
-  file_path,file_name = os.path.split( bias_list[0] )
-  mean_file = os.path.join( file_path, 'mean.fits' )
+    """
 
-  
-  for iteration,item in enumerate(bias_list):
-    ofile = pyfits.open(item)
-    hdr0 = ofile[0].header
-    hdr1 = ofile[1].header
-    nimset = hdr0['nextend'] // 3
-    ncombine = hdr1['ncombine']
-    #If input files have more than one imset or have not been cr-rejected, exit
-    if (nimset > 1) | (ncombine <= 1):
-      print('Input files have to be single imset files and have been CR-rejected')
-      print('NIMSET: %d  NCOMBINE: %d'%(nimset,ncombine) )
-      sys.exit(3)
-    #Otherwise, add image to running sum
-    if (iteration == 0):
-      sum_arr = ofile[1].data
-      err_arr = (ofile[2].data)**2
-      dq_arr = ofile[3].data
-      totalweight = ncombine
-      totaltime = hdr0['texptime']
-    else:
-      sum_arr += ofile[1].data
-      err_arr += (ofile[2].data)**2
-      dq_arr = dq_arr | ofile[3].data
-      totalweight += ncombine
-      totaltime += hdr0['texptime']
-  # Then divide by the sum of the weighting factors.
-  mean_arr = sum_arr/totalweight
-  mean_err_arr = np.sqrt(err_arr/(totalweight**2))
-  #Update exptime and number of orbits
-  hdr0['texptime'] = totaltime
-  hdr1['ncombine'] = totalweight
-  hdr1['exptime'] = totaltime
-  hdu0 = pyfits.PrimaryHDU(header = hdr0)
-  hdu1 = pyfits.ImageHDU(mean_arr, header = hdr1)
-  hdu2 = pyfits.ImageHDU(mean_err_arr, header =  ofile[2].header)
-  hdu3 = pyfits.ImageHDU(dq_arr, header =  ofile[3].header)
-  hdulist = pyfits.HDUList([hdu0, hdu1, hdu2, hdu3])
-  hdulist.writeto(mean_file)
-  return mean_file,totalweight
+    file_path, file_name = os.path.split( bias_list[0] )
+    mean_file = os.path.join( file_path, 'mean.fits' )
+
+    for iteration, item in enumerate(bias_list):
+        ofile = pyfits.open(item)
+        hdr0 = ofile[0].header
+        hdr1 = ofile[1].header
+        nimset = hdr0['nextend'] // 3
+        ncombine = hdr1['ncombine']
+
+        #If input files have more than one imset or have not been cr-rejected, exit
+        if (nimset > 1) | (ncombine <= 1):
+            print('Input files have to be single imset files and have been CR-rejected')
+            print('NIMSET: %d  NCOMBINE: %d'%(nimset, ncombine) )
+            sys.exit(3)
+
+        #Otherwise, add image to running sum
+        if (iteration == 0):
+            sum_arr = ofile[1].data
+            err_arr = (ofile[2].data) ** 2
+            dq_arr = ofile[3].data
+            totalweight = ncombine
+            totaltime = hdr0['texptime']
+        else:
+            sum_arr += ofile[1].data
+            err_arr += (ofile[2].data) ** 2
+            dq_arr = dq_arr | ofile[3].data
+            totalweight += ncombine
+            totaltime += hdr0['texptime']
+
+    # Then divide by the sum of the weighting factors.
+    mean_arr = sum_arr / totalweight
+    mean_err_arr = np.sqrt(err_arr / (totalweight ** 2))
+    #Update exptime and number of orbits
+
+    hdr0['texptime'] = totaltime
+    hdr1['ncombine'] = totalweight
+    hdr1['exptime'] = totaltime
+
+    hdu0 = pyfits.PrimaryHDU(header = hdr0)
+    hdu1 = pyfits.ImageHDU(mean_arr, header = hdr1)
+    hdu2 = pyfits.ImageHDU(mean_err_arr, header =  ofile[2].header)
+    hdu3 = pyfits.ImageHDU(dq_arr, header =  ofile[3].header)
+
+    hdulist = pyfits.HDUList([hdu0, hdu1, hdu2, hdu3])
+    hdulist.writeto(mean_file)
+
+    return mean_file, totalweight
 
 #---------------------------------------------------------------------------
 
@@ -140,28 +124,28 @@ def calibrate( input_file ):
 
     if (crcorr != "COMPLETE"):
        
-       if (nrptexp != nimset):
+        if (nrptexp != nimset):
             pyfits.setval(input_file, 'NRPTEXP', value=nimset)
             pyfits.setval(input_file, 'CRSPLIT', value=1)
 
-       pyfits.setval(input_file, 'CRCORR', value='PERFORM')
-       pyfits.setval(input_file, 'APERTURE', value='50CCD')
-       pyfits.setval(input_file, 'APER_FOV', value='50x50')
-       if (blevcorr != 'COMPLETE') :
-           print('Performing BLEVCORR')
-           pyfits.setval(input_file, 'BLEVCORR', value='PERFORM')
-           iraf.basic2d(input_file, output_blev,
-                        outblev = '', dqicorr = 'perform', atodcorr = 'omit',
-                        blevcorr = 'perform', doppcorr = 'omit', lorscorr = 'omit',
-                        glincorr = 'omit', lflgcorr = 'omit', biascorr = 'omit',
-                        darkcorr = 'omit', flatcorr = 'omit', shadcorr = 'omit',
-                        photcorr = 'omit', statflag = no, verb=no, Stdout='dev$null')
-       else:
-           print('Blevcorr alread Performed')
-           shutil.copy(input_file,output_blev)
+        pyfits.setval(input_file, 'CRCORR', value='PERFORM')
+        pyfits.setval(input_file, 'APERTURE', value='50CCD')
+        pyfits.setval(input_file, 'APER_FOV', value='50x50')
+        if (blevcorr != 'COMPLETE') :
+            print('Performing BLEVCORR')
+            pyfits.setval(input_file, 'BLEVCORR', value='PERFORM')
+            iraf.basic2d(input_file, output_blev,
+                         outblev = '', dqicorr = 'perform', atodcorr = 'omit',
+                         blevcorr = 'perform', doppcorr = 'omit', lorscorr = 'omit',
+                         glincorr = 'omit', lflgcorr = 'omit', biascorr = 'omit',
+                         darkcorr = 'omit', flatcorr = 'omit', shadcorr = 'omit',
+                         photcorr = 'omit', statflag = no, verb=no, Stdout='dev$null')
+        else:
+            print('Blevcorr alread Performed')
+            shutil.copy(input_file, output_blev)
 
-       print('Performing OCRREJECT')
-       iraf.ocrreject(input=output_blev, output=output_crj, verb=no, Stdout='dev$null')
+        print('Performing OCRREJECT')
+        iraf.ocrreject(input=output_blev, output=output_crj, verb=no, Stdout='dev$null')
 
     elif (crcorr == "COMPLETE"):
         print "CR rejection already done"
@@ -175,160 +159,119 @@ def calibrate( input_file ):
 
 #---------------------------------------------------------------------------
 
-def make_basebias ( bias_list, refbias_name ):
-    """ Make the basebias for an anneal month 
+def make_residual( mean_bias ):
+    """Create residual image
+
+    Median filter the median with a 15 x 3 box and subtract from the mean
+    to produce the residual image.
+
 
     """
+    
+    mean_hdu = pyfits.open( mean_bias )
+    mean_image = mean_hdu[ ('sci', 1) ].data
+
+    median_image = medfilt( mean_image, (3, 15) )
+
+    diffmean = support.sigma_clip( mean_image, sigma=3, iterations=40)[1] - support.sigma_clip( median_image, sigma=3, iterations=40 )[1]
+    residual_image = median_image - diffmean
+
+    return residual_image, median_image
+
+#---------------------------------------------------------------------------
+
+def replace_hot_cols( mean_bias, median_image, residual_image, yfrac=None ):
+    """ Replace hot columns in the mean_bias as identified from the 
+    residual image with values from the bias_median
+
+    'hot' is 3* sigma
+
+    mean_bias will be updated in place
+
+    """
+
+    print 'Replacing hot column'
+
+    if yfrac:
+        ystart = int( (yfrac[0] / 100.0) * residual_image.shape[0] )
+        yend = int( (yfrac[1] / 100.0) * residual_image.shape[0] )
+        residual_columns = np.mean( residual_image[ ystart:yend ], axis=0 )
+    else:
+        residual_columns = np.mean( residual_image, axis=0 )
+
+    residual_columns_image = residual_columns.repeat( residual_image.shape[0] ).reshape( residual_image.shape )
+    
+    resi_cols_median, resi_cols_mean, resi_cols_std = support.sigma_clip( residual_columns, sigma=3, iterations=40 )
+    print 'thresh mean,sigma = {} {}'.format( resi_cols_mean, resi_cols_std )
+    replval = resi_cols_mean + 3.0 * resi_cols_std
+    index = np.where( residual_columns_image >= replval )
+
+    hdu = pyfits.open( mean_bias, mode='update' )
+    hdu[ ('sci', 1) ].data[index] = median_image[index]
+    hdu.flush()
+    hdu.close()
+
+#---------------------------------------------------------------------------
+
+def replace_hot_pix( mean_bias, median_image ):
+    """
+    Replace image values in residual single hot pixels (defined as those having
+    values greater than (mean + 5 sigma of Poisson noise) by those in
+    median-filtered bias image. This represents the science extension of the
+    final output reference superbias.
+    
+
+    mean_bias will be updated in place.
+
+    """
+    print 'Replacing hot pixels'
+    second_residual_image = pyfits.getdata( mean_bias, ext=('sci', 1) ) - median_image
+    resi_2_median, resi_2_mean, resi_2_std = support.sigma_clip( second_residual_image )
+    fivesig = resi_2_mean + (5.0 * resi_2_std)
+
+    index = np.where( second_residual_image >= fivesig )
+
+    hdu = pyfits.open( mean_bias, mode='update' )
+    hdu[ ('sci', 1) ].data[index] = median_image[index]
+    hdu.flush()
+    hdu.close()
+
+#---------------------------------------------------------------------------
+
+def make_basebias( input_list, refbias_name='basebias.fits' ):
+    """ Make the basebias for an anneal month 
+
+
+    1- Calbrate each bias in the list
+    2- Average together the biases
+    3- Replace pixels and colums with median values
+    4- Set header keywords
+
+    """
+
     print '#-------------------------------#'
     print '#        Running basejoint      #'
     print '#-------------------------------#'
     print 'output to %s' % refbias_name
-    bias_path = os.path.split( bias_list[0] )[0]
+
+    gain = REFSTIS_functions.get_keyword( input_list, 'CCDGAIN', 0)
+    xbin = REFSTIS_functions.get_keyword( input_list, 'BINAXIS1', 0)
+    ybin = REFSTIS_functions.get_keyword( input_list, 'BINAXIS2', 0)
 
     print 'Processing individual files'
-    crj_list = [ calibrate(item) for item in bias_list ]
+    crj_list = [ calibrate(item) for item in input_list ]
     crj_list = [ item for item in crj_list if item != None ]
-
+    
     mean_bias, totalweight = average_biases( crj_list )
-    bias_median = os.path.join( bias_path, 'median.fits')
-    #
-    #***************************************************************************
-    # Median filter resulting superbias by a window of 15 x 3 pixels, and
-    # subtract it from the superbias to produce a "residual" image containing
-    # hot columns and such
-    print 'Median filtering'
-    REFSTIS_functions.RemoveIfThere( bias_median )
-    iraf.median( mean_bias + '[1]', bias_median, xwindow = 15, ywindow = 3, verb=yes)
 
-    iraf.iterstat( mean_bias + '[1]', nsigrej = 3., maxiter = 40, PYprint=no, verbose=no)
-    iraf.iterstat( bias_median + '[0]', nsigrej = 3., maxiter = 40, PYprint=no, verbose=no)
+    print 'Replacing hot columns and pixels by median-smoothed values'
+    residual_image, median_image = make_residual( mean_bias )
 
-    diffmean = float(iraf.iterstat.mean) - float(iraf.iterstat.mean)
-    med_hdu = pyfits.open( bias_median,mode='update' )
-    med_hdu[0].data += diffmean
-    med_hdu.flush()
-    med_hdu.close()
-    del med_hdu
-
-    #median_image = pyfits.getdata( bias_median, ext=0 )
-    #mean_image = pyfits.getdata( mean_bias, ext=('sci',1) )
-    #bias_residual = mean_image - median_image
-
-    bias_residual = os.path.join( bias_path, 'residual.fits' )
-    REFSTIS_functions.RemoveIfThere( bias_residual )
-    iraf.imarith( mean_bias + '[1]', '-', bias_median + '[0]', bias_residual, verb=no)
-
-    # FIRST STEP TO REMOVE HOT COLUMNS:
-    # Average all rows together and stretch resulting image to match input image
-
-    resi_cols = os.path.join( bias_path, "resi_cols.fits")
-    REFSTIS_functions.RemoveIfThere(resi_cols)
-    resi_cols2d = os.path.join( bias_path, "resi_cols2d.fits" )
-    REFSTIS_functions.RemoveIfThere(resi_cols2d)
-
-    fd = pyfits.open( mean_bias )
-    xsize   = fd[1].header['naxis1']
-    ysize   = fd[1].header['naxis2']
-    xbin    = fd[0].header['binaxis1']
-    ybin    = fd[0].header['binaxis2']
-    gain    = fd[0].header['ccdgain']
-    del fd
-    iraf.blkavg(bias_residual, resi_cols, 1, ysize)
-    iraf.blkrep(resi_cols, resi_cols2d, 1, ysize)
-
-    #
-    #***************************************************************************
-    # Replace image values in hot columns by those in median filtered bias image
-    # For now, the threshold above which a column is called "hot" is defined as
-    # 3*sigma above the mean (using iterative statistics) in "resi_cols.fits".
-    #
-    #   replval = 0.08 / (gain*xbin)
-    iraf.iterstat(resi_cols, nsigrej = 3., maxiter = 40, PYprint=no, verbose=no)
-    print 'thresh mean,sigma = ',iraf.iterstat.mean,' ',iraf.iterstat.sigma
-    replval = float(iraf.iterstat.mean) + 3.0 * (float(iraf.iterstat.sigma))
-    tmp_bias = os.path.join( bias_path, 'tmp_col.fits' )
-    REFSTIS_functions.RemoveIfThere( tmp_bias )
-    #iraf.imcalc(mean_bias + '[1],'+bias_median+'[0],'+resi_cols2d+'[0]', tmp_bias,
-    #            'if im3 .ge. ' + str(replval) + ' then im2 else im1', verb=no)
-
-    hdu = pyfits.open( mean_bias )
-    index = np.where( pyfits.getdata( resi_cols2d,ext=0 ) >= replval )
-    hdu[ ('sci',1) ].data[index] = pyfits.getdata( bias_median, ext=0)[index]
-    hdu.writeto(tmp_bias)
-
-    #
-    #***************************************************************************
-    # SECOND STEP TO REMOVE HOT COLUMNS:
-    # Average only the lower 20% of all rows together and stretch resulting
-    # image to match input image.
-
-    REFSTIS_functions.RemoveIfThere(resi_cols)
-    REFSTIS_functions.RemoveIfThere(resi_cols2d)
-
-    #
-    # Now only use lower 20% of the Y range to check for hot columns
-    #
-    hotrange = int(math.floor(float(ysize) * 0.2 + 0.5))
-    print 'hotrange =',hotrange
-    iraf.blkavg(bias_residual+'[*,1:' + str(hotrange) + ']',
-                resi_cols, 1, hotrange)
-    iraf.blkrep(resi_cols, resi_cols2d, 1, ysize)
-
-    #
-    #***************************************************************************
-    # Replace image values in hot columns by those in median filtered bias image
-    # For now, the threshold above which a column is called "hot" is defined as
-    # 3*sigma above the mean (using iterative statistics) in "resi_cols.fits".
-    #
-    #   replval = 0.08 / (gain*xbin)
-    iraf.iterstat(resi_cols, nsigrej = 3., maxiter = 40, PYprint=no, verbose=no)
-    print('iraf.iterstat.mean,sigma = '+str(iraf.iterstat.mean)+' '+str(iraf.iterstat.sigma))
-    replval = float(iraf.iterstat.mean) + 3.0 * (float(iraf.iterstat.sigma))
-
-    tmp_bias2 = os.path.join( bias_path, 'tmp_col2.fits' )
-    REFSTIS_functions.RemoveIfThere( tmp_bias2 )
-
-    #iraf.imcalc(tmp_bias+'[1],'+bias_median+'[0],'+resi_cols2d+'[0]', tmp_bias2, 
-    #            'if im3 .ge. ' + str(replval) + ' then im2 else im1', verb=yes)
-
-    hdu = pyfits.open( tmp_bias )
-    index = np.where( pyfits.getdata( resi_cols2d,ext=0 ) >= replval )
-    hdu[ ('sci',1) ].data[index] = pyfits.getdata( bias_median, ext=0)[index]
-    hdu.writeto(tmp_bias2)
-
-    print('Columns hotter than '+str(replval)+' replaced by median value')
-    #
-    #***************************************************************************
-    # Replace image values in residual single hot pixels (defined as those having
-    # values greater than (mean + 5 sigma of Poisson noise) by those in
-    # median-filtered bias image. This represents the science extension of the
-    # final output reference superbias.
-    #
-    bias_residual_2 = os.path.join( bias_path, 'residual2.fits' )
-    REFSTIS_functions.RemoveIfThere( bias_residual_2 )
-    print 'Imarith',tmp_bias2 + '[1]', '-', bias_median+'[0]'
-    iraf.imarith(tmp_bias2 + '[1]', '-', bias_median+'[0]',
-                  bias_residual_2, verb=yes)
-
-    iter_count,mn,sig,npx,med,mod,min,max = REFSTIS_functions.iterate( bias_residual_2+'[0]' )
-
-    fivesig = float(mn) + (5.0 * float(sig))
-
-    #iraf.imcalc(tmp_bias + '[1],'+bias_median+'[0],'+bias_residual_2+'[0]',tmp_bias,
-    # 		'if im3 .ge. ' + str(fivesig) + ' then im2 else im1', verb=no)
-
-    hdu = pyfits.open( tmp_bias )
-    index = np.where( pyfits.getdata( bias_residual_2,ext=0 ) >= replval )
-    hdu[ ('sci',1) ].data[index] = pyfits.getdata( bias_median, ext=0)[index]
-    hdu.writeto(tmp_bias, clobber=True)
-
+    replace_hot_cols( mean_bias, median_image, residual_image )
+    ### for some reason this is done again, but only using the lower 20% of rows
+    replace_hot_cols( mean_bias, median_image, residual_image, yfrac=(0, 20) )
 
     shutil.copy( mean_bias, refbias_name )
-    ref_hdu = pyfits.open( refbias_name, mode='update')
-    ref_hdu[1].data = pyfits.getdata( tmp_bias, ext=0 )
-    ref_hdu.flush()
-    ref_hdu.close()
-    del ref_hdu
 
     pyfits.setval( refbias_name, 'FILENAME', value=refbias_name)
     pyfits.setval( refbias_name, 'FILETYPE', value='CCD BIAS IMAGE')
@@ -343,22 +286,13 @@ def make_basebias ( bias_list, refbias_name ):
     pyfits.setval( refbias_name, 'NCOMBINE', value=totalweight, ext=1)
 
     print 'Cleaning up...'
-    REFSTIS_functions.RemoveIfThere( bias_residual )
-    REFSTIS_functions.RemoveIfThere( bias_residual_2 )
-    REFSTIS_functions.RemoveIfThere( resi_cols )
-    REFSTIS_functions.RemoveIfThere( resi_cols2d)
-    REFSTIS_functions.RemoveIfThere( bias_median )
     REFSTIS_functions.RemoveIfThere( mean_bias )
-    REFSTIS_functions.RemoveIfThere( tmp_bias )
-    REFSTIS_functions.RemoveIfThere( tmp_bias2 )
     for item in crj_list:
-      REFSTIS_functions.RemoveIfThere( item )
+        REFSTIS_functions.RemoveIfThere( item )
 
     print '#-------------------------------#'
     print '#        Finished basejoint     #'
     print '#-------------------------------#'
 
 #------------------------------------------------------------------------------------
-    
-if __name__ == "__main__":
-    make_basebias( glob.glob(sys.argv[1]), sys.argv[2] )
+

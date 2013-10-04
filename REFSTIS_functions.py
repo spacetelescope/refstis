@@ -158,12 +158,8 @@ def crreject( input_file, workdir=None) :
     del fd
   
     print('Number of combined imsets is '+str(ncombine)+' while number of imsets is '+str(nimset ) )
-    print('HEADER INFO: CCD gain : '+str(gain)+' electrons/ADU' )
-    print('             BINAXIS1 : '+str(xbin ) )
-    print('             BINAXIS2 : '+str(ybin ) )
     print('Dividing cosmic-ray-rejected image by '+str(ncombine)+'...')
     out_div = output_crj.replace('.fits','_div.fits')
-    print out_div, output_crj, ncombine
 
     #this used to be a call to MSARITH, is anything else needed?
     #modifying the error too, etc?
@@ -175,7 +171,6 @@ def crreject( input_file, workdir=None) :
     os.remove( output_crj )
 
     return out_div
-    #return tmpsuper, xbin, ybin, ccdgain, gain, xsize, ysize, ncombine
 
 #-------------------------------------------------------------------------------
                      

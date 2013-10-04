@@ -556,7 +556,7 @@ Procedure
 2: pass
 
 ------------------------------------
-'''%(products_directory) ) )
+''' ) )
 
     parser.add_argument("-r",  "--redo_all", 
                       action='store_true', dest="redo_all",  default=False,

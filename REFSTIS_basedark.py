@@ -69,7 +69,6 @@ def normalize_crj( filename ):
     hdu.flush()
     hdu.close()
 
-
 #--------------------------------------------------------------------------
 
 def make_basedark( input_list, refdark_name='basedark.fits', bias_file=None ):

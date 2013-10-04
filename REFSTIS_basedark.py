@@ -3,7 +3,6 @@ import numpy as np
 import pyfits
 import glob
 import sys
-import shutil
 
 #--------------------------------------------------------------------------
 
@@ -12,7 +11,7 @@ def hotpix( filename ):
 
 #--------------------------------------------------------------------------
 
-def update_header( filename,xbin,ybin ):
+def update_header( filename, xbin, ybin ):
     pyfits.setval( filename, 'FILENAME', value=filename )
     pyfits.setval( filename, 'FILETYPE', value='DARK IMAGE' )
     pyfits.setval( filename, 'DETECTOR', value='CCD' )

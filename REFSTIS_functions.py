@@ -1,9 +1,46 @@
+#-------------------------------------------------------------------------------
 
-def calibrate():
-    pass
-#------------------------------------------------------------------------------------
+def iterclip( in_array, sigma, maxiter ):
+    skpix = indata.reshape( indata.size, )
+ 
+    ct = indata.size
+    iter = 0; c1 = 1.0 ; c2 = 0.0
+ 
+    while (c1 >= c2) and (iter < maxiter):
+        lastct = ct
+        medval = numpy.median(skpix)
+        sig = numpy.std(skpix)
+        wsm = numpy.where( abs(skpix-medval) < clipsig*sig )
+        ct = len(wsm[0])
+        if ct > 0:
+            skpix = skpix[wsm]
+ 
+        c1 = abs(ct - lastct)
+        c2 = converge_num * lastct
+        iter += 1
 
-def msjoin( imset_list, out_name ):
+#-------------------------------------------------------------------------------
+
+def normalize_crj( filename ):
+    """ Normalize the input filename by exptim/gain and flush hdu """
+
+    import pyfits
+
+    hdu = pyfits.open( filename, mode='update' )
+
+    exptime = hdu[0].header[ 'TEXPTIME' ]
+    gain = hdu[0].header[ 'ATODGAIN' ]
+
+    hdu[ ('sci', 1) ].data /= (float(exptime) / gain)
+
+    hdu[0].header['TEXPTIME'] = 1
+
+    hdu.flush()
+    hdu.close()
+
+#-------------------------------------------------------------------------------
+
+def msjoin( imset_list, out_name='joined_out.fits' ):
     """ Replicate msjoin functionality in pure python
 
     """
@@ -23,9 +60,22 @@ def msjoin( imset_list, out_name ):
 
     hdu[0].header['NEXTEND'] = len( hdu ) - 1
     hdu.writeto( out_name )
-    
 
-#------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+def split_images( imglist,outname='' ):
+    from pyraf import iraf
+    from iraf import stsdas,toolbox,imgtools,mstools
+    import glob
+    print 'Splitting images'
+    for dataset in imglist:
+        print dataset
+        iraf.mssplit(inimg=dataset, outimg=outname, extension = '*', retain='no', 
+                     Stderr='dev$null')
+    nimsets = len( glob.glob('*raw??.fits') )
+    return nimsets
+
+#-------------------------------------------------------------------------------
 
 def crreject( input_file, workdir=None) :
     import pyfits
@@ -34,7 +84,8 @@ def crreject( input_file, workdir=None) :
     from iraf import stsdas,hst_calib,stis
     from pyraf.irafglobals import *
 
-    os.environ['oref'] = '/grp/hst/cdbs/oref/'
+    if not 'oref' in os.environ:
+        os.environ['oref'] = '/grp/hst/cdbs/oref/'
 
     output_blev = input_file.replace('.fits','_blev.fits')
     output_crj = input_file.replace('.fits','_crj.fits')
@@ -107,12 +158,8 @@ def crreject( input_file, workdir=None) :
     del fd
   
     print('Number of combined imsets is '+str(ncombine)+' while number of imsets is '+str(nimset ) )
-    print('HEADER INFO: CCD gain : '+str(gain)+' electrons/ADU' )
-    print('             BINAXIS1 : '+str(xbin ) )
-    print('             BINAXIS2 : '+str(ybin ) )
     print('Dividing cosmic-ray-rejected image by '+str(ncombine)+'...')
     out_div = output_crj.replace('.fits','_div.fits')
-    print out_div, output_crj, ncombine
 
     #this used to be a call to MSARITH, is anything else needed?
     #modifying the error too, etc?
@@ -124,23 +171,8 @@ def crreject( input_file, workdir=None) :
     os.remove( output_crj )
 
     return out_div
-    #return tmpsuper, xbin, ybin, ccdgain, gain, xsize, ysize, ncombine
 
-#------------------------------------------------------------------------------------
-
-def split_images( imglist,outname='' ):
-    from pyraf import iraf
-    from iraf import stsdas,toolbox,imgtools,mstools
-    import glob
-    print 'Splitting images'
-    for dataset in imglist:
-        print dataset
-        iraf.mssplit(inimg=dataset, outimg=outname, extension = '*', retain='no', 
-                     Stderr='dev$null')
-    nimsets = len( glob.glob('*raw??.fits') )
-    return nimsets
-
-#------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
                      
 def count_imsets( file_list ):
     import pyfits
@@ -149,7 +181,7 @@ def count_imsets( file_list ):
         total += pyfits.getval(item,'NEXTEND',ext=0) / 3
     return total
 
-#------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 
 def get_keyword( file_list,keyword,ext=0):
     import pyfits

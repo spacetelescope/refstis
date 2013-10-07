@@ -1,17 +1,43 @@
-import REFSTIS_functions
+"""
+
+Functions to produce a monthly basedark for the STIS Darks and Biases
+reference file pipeline
+
+"""
+
 import numpy as np
 import pyfits
-import glob
-import sys
+import shutil
+
+import REFSTIS_functions
 
 #--------------------------------------------------------------------------
 
-def hotpix( filename ):
-    pass
+def find_hotpix( filename ):
+    """ find pixels hotter that median + 5*sigma and update DQ array with 
+    DQ == 16
+
+    Updates file in place.
+    
+    """
+
+    iter_count, median, sigma, npx, med, mod, data_min, data_max = REFSTIS_functions.iterate( filename )
+    five_sigma = median + 5*sigma
+
+    hdu = pyfits.open( filename, mode='update' )
+    index = np.where( hdu[ ('SCI', 1) ].data >= five_sigma + .1)
+    hdu[ ('DQ', 1) ].data[index] = 16
+
+    hdu.flush()
+    hdu.close()
 
 #--------------------------------------------------------------------------
 
 def update_header( filename, xbin, ybin ):
+    """ Update header information for the reference bias"""
+   
+    ### NOT USED
+
     pyfits.setval( filename, 'FILENAME', value=filename )
     pyfits.setval( filename, 'FILETYPE', value='DARK IMAGE' )
     pyfits.setval( filename, 'DETECTOR', value='CCD' )
@@ -27,13 +53,15 @@ def update_header( filename, xbin, ybin ):
 
 #--------------------------------------------------------------------------
 
-def make_basedark( input_list, refdark_name='basedark.fits', bias_file=None, oref=None):
+def make_basedark( input_list, refdark_name='basedark.fits', bias_file=None ):
     """
-    1- split all raw images into their imsets
-    2- join imsets together into a single file
-    3- combine and cr-reject
-    4- normalize to e/s by dividing by (exptime/gain)
-    5- do hot pixel things
+    Make a monthly baseline dark from the input list of raw dark files and
+    the given bias file.
+
+    1- Join all imsets from input list into single file
+    2- combine and cr-reject
+    3- normalize to e/s by dividing by (exptime/gain)
+    4- update DQ array with hot pixel information
 
     """
 
@@ -43,74 +71,28 @@ def make_basedark( input_list, refdark_name='basedark.fits', bias_file=None, ore
     print 'output to: %s' % refdark_name
     print 'with biasfile %s' % bias_file
 
+    joined_filename = refdark_name.replace('.fits', '_joined.fits') 
+    crj_filename = joined_filename.replace('.fits', '_crj.fits')
 
-    from pyraf import iraf
-    from iraf import stsdas,toolbox,imgtools,mstools
-    import os
-    import shutil
-    import REFSTIS_functions
-
-    if not bias_file:
-        raise IOError( 'No biasfile specified, this task needs one to run' )
-
-
-    if (not oref) and (not 'oref' in os.environ):
-        oref = '/grp/hst/cdbs/oref/'
-
-    rootname_set = set( [os.path.split(item)[1][:9] for item in input_list] )
-
-    refdark_name = refdark_name
-    refdark_path = os.path.split( refdark_name )[0] or './'
-
-    imset_count = REFSTIS_functions.split_images( input_list )
+    if not bias_file: raise IOError( 'No biasfile specified, this task needs one to run' )
 
     print 'Joining images'
-    msjoin_list = [ item for item in 
-                    glob.glob( os.path.join(refdark_path,'*raw??.fits') )  if os.path.split(item)[1][:9] in rootname_set]
-    joined_out = refdark_name.replace('.fits', '_joined.fits') 
+    REFSTIS_functions.msjoin( input_list, joined_filename  )
 
-    REFSTIS_functions.msjoin( msjoin_list, joined_out  )
-
-    # ocrreject
     print 'CRREJECT'
-    #iraf.chdir( refdark_path )
-    crdone = REFSTIS_functions.bd_crreject( joined_out )
+    crdone = REFSTIS_functions.bd_crreject( joined_filename )
     if (not crdone):
-        REFSTIS_functions.bd_calstis( joined_out, bias_file )
+        REFSTIS_functions.bd_calstis( joined_filename, bias_file )
 
-    # divide cr-rejected
-    print 'Dividing'
-    crj_filename = joined_out.replace('.fits', '_crj.fits')
-    exptime = pyfits.getval( crj_filename, 'TEXPTIME', ext=0 )
-    gain = pyfits.getval( crj_filename, 'ATODGAIN', ext=0 )
-    xbin = pyfits.getval( crj_filename, 'BINAXIS1', ext=0 )
-    ybin = pyfits.getval( crj_filename, 'BINAXIS2', ext=0 )
-    
-    normalize_factor = float(exptime) / gain # ensure floating point
+    REFSTIS_functions.normalize_crj( crj_filename)
 
-    norm_filename = crj_filename.replace('_crj.fits','_norm.fits')
-    iraf.msarith( crj_filename, '/', normalize_factor, norm_filename ,verbose=0)  
+    shutil.copy( crj_filename, refdark_name )
 
-    pyfits.setval( norm_filename, 'TEXPTIME', value=1 )
+    find_hotpix( refdark_name )
 
-    # hotpixel stuff
-    iter_count,median,sigma,npx,med,mod,min,max = REFSTIS_functions.iterate( norm_filename )
-    five_sigma = median + 5*sigma
-    
-    shutil.copy( norm_filename, refdark_name )
-
-    norm_hdu = pyfits.open( norm_filename,mode='update' )
-    index = np.where( norm_hdu[ ('SCI',1) ].data >= five_sigma + .1)[0]
-    norm_hdu[ ('DQ',1) ].data[index] = 16
-    norm_hdu.flush()
-    norm_hdu.close()
-
-    print 'Cleaning'
+    print 'Cleaning...'
     REFSTIS_functions.RemoveIfThere( crj_filename )
-    REFSTIS_functions.RemoveIfThere( norm_filename )
-    REFSTIS_functions.RemoveIfThere( joined_out )
-    for item in msjoin_list:
-        REFSTIS_functions.RemoveIfThere( item )
+    REFSTIS_functions.RemoveIfThere( joined_filename )
 
     ### Do i need any of this?
     #hot_data = pyfits.getdata( norm_filename,ext=1 )
@@ -127,9 +109,6 @@ def make_basedark( input_list, refdark_name='basedark.fits', bias_file=None, ore
     print '#-------------------------------#'
     
 #--------------------------------------------------------------------------
-
-if __name__ == "__main__":
-    make_basedark( glob.glob(sys.argv[1]), sys.argv[2], sys.argv[3] )
 
     
     

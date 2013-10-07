@@ -29,21 +29,17 @@ import REFSTIS_weekbias
 import REFSTIS_basejoint
 import REFSTIS_functions
 
-#products_directory = '/grp/hst/stis/referencefiles/darks_biases/'
-#retrieve_directory = '/grp/hst/stis/referencefiles/darks_biases/requested/'
-products_directory = 'darks_biases/'
-retrieve_directory = 'requested/'
+products_directory = '/user/ely/STIS/refstis/darks_biases/'
+retrieve_directory = '/user/ely/STIS/refstis/requested/'
 
 #dark_proposals = [7600, 7601, 8408, 8437, 8837, 8864, 8901, 8902, 9605, 9606, 
 #                  10017, 10018, 11844, 11845, 12401, 12402, 12741, 12742]
 #bias_proposals = [7600, 7601, 8409, 8439, 8838, 8865, 8903, 8904, 9607, 9608, 
 #                  10019, 10020, 11846, 11847, 12403, 12404, 12743, 12744]
 
-#dark_proposals = [ 11844, 11845, 12400, 12401, 12741, 12742, 13131, 13132]
-#bias_proposals = [ 11846, 11847, 12402, 12403, 12743, 12744, 13133, 13134]
+dark_proposals = [ 11844, 11845, 12400, 12401, 12741, 12742, 13131, 13132]
+bias_proposals = [ 11846, 11847, 12402, 12403, 12743, 12744, 13133, 13134]
 
-dark_proposals = [ 13131, 13132]
-bias_proposals = [ 13133, 13134]
 
 #-------------------------------------------------------------------------------
 
@@ -549,31 +545,22 @@ def parse_args():
                                      epilog=textwrap.dedent('''\
 Description
 ------------------------------------
-  Automated script for creating daily
-  superdarks and superbiases for the
-  STIS CCD.
+  Automated script for producing 
+  dark and bias reference files for 
+  STIS CCD data.
 
 Locations
 ------------------------------------
-  Product directory = %s
+  Product directory = EMPTY
 
 Procedure
 ------------------------------------
-1: Query database for anneal observationss
-   and retrieve from the archive.
+1: pass
 
-2: Compute statistics from pre and post anneal dark observations.
-   --# of pixels above threshold levels: .1,1,3,5,10 e-/s
-   --mean and median dark rate
-   --anneal away and growth rates
-
-3: Create plots from statistics, write to master list, copy
-   products to webpage directory to update the website.
-
-4: Compose and send report on the annealing process.
+2: pass
 
 ------------------------------------
-'''%(products_directory) ) )
+''' ) )
 
     parser.add_argument("-r",  "--redo_all", 
                       action='store_true', dest="redo_all",  default=False,

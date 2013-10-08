@@ -3,7 +3,7 @@ import numpy as np
 import os
 from scipy.signal import medfilt
 from astropy.time import Time
-
+import pdb
 import support
 
 #-------------------------------------------------------------------------------
@@ -80,19 +80,17 @@ def update_header_from_input( filename, input_list ):
 
 def get_start_and_endtimes(input_list):
     times = []
-    for ifile in flist:
+    for ifile in input_list:
         times.append(pyfits.getval(ifile, 'texpstrt', 0))
         times.append(pyfits.getval(ifile, 'texpend', 0))
     times.sort()
-    times = Time(times, format = 'mjd', scale = 'utc', out_subfmt = 'date')
-    
+    times = Time(times, format = 'mjd', scale = 'utc', out_subfmt = 'date').iso
     start_list = times[0].split('-')
-    end_list = times[0].split('-')
+    end_list = times[-1].split('-')
     
     #return strings in format mm/dd/yyyy
     start_str = '%s/%s/%s' %(start_list[1], start_list[0], start_list[2])
     end_str = '%s/%s/%s' %(end_list[1], end_list[0], end_list[2])
-    
     return start_str, end_str
 
     
@@ -185,9 +183,8 @@ def msjoin( imset_list, out_name='joined_out.fits' ):
 def crreject( input_file, workdir=None) :
     import pyfits
     import os
-    from pyraf import iraf
-    from iraf import stsdas,hst_calib,stis
-    from pyraf.irafglobals import *
+    from stistools.basic2d import basic2d
+    from stistools.ocrreject import ocrreject
 
     if not 'oref' in os.environ:
         os.environ['oref'] = '/grp/hst/cdbs/oref/'
@@ -228,18 +225,18 @@ def crreject( input_file, workdir=None) :
         if (blevcorr != 'COMPLETE') :
             print('Performing BLEVCORR')
             pyfits.setval(input_file, 'BLEVCORR', value='PERFORM')
-            iraf.basic2d(input_file, output_blev,
-                         outblev = '', dqicorr = 'perform', atodcorr = 'omit',
+            basic2d(input_file, output_blev,
+                         outblev = '', dqicorr = 'perform', 
                          blevcorr = 'perform', doppcorr = 'omit', lorscorr = 'omit',
                          glincorr = 'omit', lflgcorr = 'omit', biascorr = 'omit',
-                         darkcorr = 'omit', flatcorr = 'omit', shadcorr = 'omit',
-                         photcorr = 'omit', statflag = no, verb=no, Stdout='dev$null')
+                         darkcorr = 'omit', flatcorr = 'omit', 
+                         photcorr = 'omit', statflag = False, verbose = False)
         else:
             print('Blevcorr alread Performed')
             shutil.copy(input_file,output_blev)
 
         print('Performing OCRREJECT')
-        iraf.ocrreject(input=output_blev, output=output_crj, verb=no)
+        ocrreject(input=output_blev, output=output_crj, verbose=False)
 
     elif (crcorr == "COMPLETE"):
         print "CR rejection already done"
@@ -509,9 +506,7 @@ def bd_calstis(joinedfile, thebiasfile=None ) :
     """
 
     import pyfits
-    from pyraf import iraf 
-    from iraf import stsdas,hst_calib,stis
-    from pyraf.irafglobals import *
+    from stistools.calstis import calstis
     import os
     import shutil
 
@@ -530,7 +525,7 @@ def bd_calstis(joinedfile, thebiasfile=None ) :
 
     print 'Running CalSTIS on %s' % joinedfile 
     print 'to create: %s' % crj_file
-    iraf.calstis(joinedfile, wavecal="", outroot="",
+    calstis(joinedfile, wavecal="", outroot="",
                  savetmp=no, verbose=yes)
     
     pyfits.setval(crj_file, 'FILENAME', value=os.path.split(crj_file)[1] )

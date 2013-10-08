@@ -25,18 +25,18 @@ Script to produce a monthly base bias for STIS CCD
 
 """
 
-from pyraf import iraf
-from iraf import stsdas, hst_calib, stis
-from pyraf.irafglobals import *
 import os
 import sys
 import shutil
 import pyfits
 import numpy as np
 import support
-from scipy.signal import medfilt
 
 import REFSTIS_functions
+from pyraf import iraf
+from iraf import stsdas, hst_calib, stis
+from pyraf.irafglobals import *
+
 
 #---------------------------------------------------------------------------
 
@@ -48,6 +48,8 @@ def average_biases( bias_list ):
     returns the filename of the averaged file
 
     """
+    
+    assert len(bias_list), 'Bias list is empty'
 
     file_path, file_name = os.path.split( bias_list[0] )
     mean_file = os.path.join( file_path, 'mean.fits' )
@@ -101,7 +103,13 @@ def average_biases( bias_list ):
 #---------------------------------------------------------------------------
 
 def calibrate( input_file ):
-    os.environ['oref'] = '/grp/hst/cdbs/oref/'
+    """ calibrate input file
+
+    """
+
+    if not 'oref' in os.environ:
+        os.environ['oref'] = '/grp/hst/cdbs/oref/'
+
     print 'Calibrating %s' % (input_file)
     output_blev = input_file.replace('.fits','_blev.fits')
     REFSTIS_functions.RemoveIfThere( output_blev )
@@ -132,7 +140,7 @@ def calibrate( input_file ):
         pyfits.setval(input_file, 'APERTURE', value='50CCD')
         pyfits.setval(input_file, 'APER_FOV', value='50x50')
         if (blevcorr != 'COMPLETE') :
-            print('Performing BLEVCORR')
+            #print('Performing BLEVCORR')
             pyfits.setval(input_file, 'BLEVCORR', value='PERFORM')
             iraf.basic2d(input_file, output_blev,
                          outblev = '', dqicorr = 'perform', atodcorr = 'omit',
@@ -141,10 +149,10 @@ def calibrate( input_file ):
                          darkcorr = 'omit', flatcorr = 'omit', shadcorr = 'omit',
                          photcorr = 'omit', statflag = no, verb=no, Stdout='dev$null')
         else:
-            print('Blevcorr alread Performed')
+            #print('Blevcorr alread Performed')
             shutil.copy(input_file, output_blev)
 
-        print('Performing OCRREJECT')
+        #print('Performing OCRREJECT')
         iraf.ocrreject(input=output_blev, output=output_crj, verb=no, Stdout='dev$null')
 
     elif (crcorr == "COMPLETE"):
@@ -156,27 +164,6 @@ def calibrate( input_file ):
     os.remove( output_blev )
 
     return output_crj
-
-#---------------------------------------------------------------------------
-
-def make_residual( mean_bias ):
-    """Create residual image
-
-    Median filter the median with a 15 x 3 box and subtract from the mean
-    to produce the residual image.
-
-
-    """
-    
-    mean_hdu = pyfits.open( mean_bias )
-    mean_image = mean_hdu[ ('sci', 1) ].data
-
-    median_image = medfilt( mean_image, (3, 15) )
-
-    diffmean = support.sigma_clip( mean_image, sigma=3, iterations=40)[1] - support.sigma_clip( median_image, sigma=3, iterations=40 )[1]
-    residual_image = median_image - diffmean
-
-    return residual_image, median_image
 
 #---------------------------------------------------------------------------
 
@@ -192,19 +179,12 @@ def replace_hot_cols( mean_bias, median_image, residual_image, yfrac=None ):
 
     print 'Replacing hot column'
 
-    if yfrac:
-        ystart = int( (yfrac[0] / 100.0) * residual_image.shape[0] )
-        yend = int( (yfrac[1] / 100.0) * residual_image.shape[0] )
-        residual_columns = np.mean( residual_image[ ystart:yend ], axis=0 )
-    else:
-        residual_columns = np.mean( residual_image, axis=0 )
-
-    residual_columns_image = residual_columns.repeat( residual_image.shape[0] ).reshape( residual_image.shape )
+    residual_columns_2d = REFSTIS_functions.make_resicols_image( residual_image, yfrac=yfrac )
     
-    resi_cols_median, resi_cols_mean, resi_cols_std = support.sigma_clip( residual_columns, sigma=3, iterations=40 )
+    resi_cols_median, resi_cols_mean, resi_cols_std = support.sigma_clip( residual_columns_2d[0], sigma=3, iterations=40 )
     print 'thresh mean,sigma = {} {}'.format( resi_cols_mean, resi_cols_std )
     replval = resi_cols_mean + 3.0 * resi_cols_std
-    index = np.where( residual_columns_image >= replval )
+    index = np.where( residual_columns_2d >= replval )
 
     hdu = pyfits.open( mean_bias, mode='update' )
     hdu[ ('sci', 1) ].data[index] = median_image[index]
@@ -214,8 +194,7 @@ def replace_hot_cols( mean_bias, median_image, residual_image, yfrac=None ):
 #---------------------------------------------------------------------------
 
 def replace_hot_pix( mean_bias, median_image ):
-    """
-    Replace image values in residual single hot pixels (defined as those having
+    """ Replace image values in residual single hot pixels (defined as those having
     values greater than (mean + 5 sigma of Poisson noise) by those in
     median-filtered bias image. This represents the science extension of the
     final output reference superbias.
@@ -225,11 +204,11 @@ def replace_hot_pix( mean_bias, median_image ):
 
     """
     print 'Replacing hot pixels'
-    second_residual_image = pyfits.getdata( mean_bias, ext=('sci', 1) ) - median_image
-    resi_2_median, resi_2_mean, resi_2_std = support.sigma_clip( second_residual_image )
-    fivesig = resi_2_mean + (5.0 * resi_2_std)
+    residual_image = pyfits.getdata( mean_bias, ext=('sci', 1) ) - median_image
+    resi_median, resi_mean, resi_std = support.sigma_clip( residual_image )
+    fivesig = resi_mean + (5.0 * resi_std)
 
-    index = np.where( second_residual_image >= fivesig )
+    index = np.where( residual_image >= fivesig )
 
     hdu = pyfits.open( mean_bias, mode='update' )
     hdu[ ('sci', 1) ].data[index] = median_image[index]
@@ -252,20 +231,16 @@ def make_basebias( input_list, refbias_name='basebias.fits' ):
     print '#-------------------------------#'
     print '#        Running basejoint      #'
     print '#-------------------------------#'
-    print 'output to %s' % refbias_name
-
-    gain = REFSTIS_functions.get_keyword( input_list, 'CCDGAIN', 0)
-    xbin = REFSTIS_functions.get_keyword( input_list, 'BINAXIS1', 0)
-    ybin = REFSTIS_functions.get_keyword( input_list, 'BINAXIS2', 0)
+    print 'Output to %s' % refbias_name
 
     print 'Processing individual files'
     crj_list = [ calibrate(item) for item in input_list ]
     crj_list = [ item for item in crj_list if item != None ]
-    
+ 
     mean_bias, totalweight = average_biases( crj_list )
 
     print 'Replacing hot columns and pixels by median-smoothed values'
-    residual_image, median_image = make_residual( mean_bias )
+    residual_image, median_image = REFSTIS_functions.make_residual( mean_bias )
 
     replace_hot_cols( mean_bias, median_image, residual_image )
     ### for some reason this is done again, but only using the lower 20% of rows
@@ -273,26 +248,15 @@ def make_basebias( input_list, refbias_name='basebias.fits' ):
 
     shutil.copy( mean_bias, refbias_name )
 
-    pyfits.setval( refbias_name, 'FILENAME', value=refbias_name)
-    pyfits.setval( refbias_name, 'FILETYPE', value='CCD BIAS IMAGE')
-    pyfits.setval( refbias_name, 'CCDGAIN', value=gain)
-    pyfits.setval( refbias_name, 'BINAXIS1', value=xbin)
-    pyfits.setval( refbias_name, 'BINAXIS2', value=ybin)
-    pyfits.setval( refbias_name, 'USEAFTER', value=' ')
-    pyfits.setval( refbias_name, 'PEDIGREE', value='INFLIGHT')
-    pyfits.setval( refbias_name, 'DESCRIP', value='Superbias created by R. de los Santos from proposals 7948/7949/8409/8439')
-    pyfits.setval( refbias_name, 'NEXTEND', value='3')
-    pyfits.setval( refbias_name, 'COMMENT', value='Reference file created by the STIS BIAS file pipeline')
     pyfits.setval( refbias_name, 'NCOMBINE', value=totalweight, ext=1)
+    REFSTIS_functions.update_header_from_input( refbias_name, input_list )
 
     print 'Cleaning up...'
     REFSTIS_functions.RemoveIfThere( mean_bias )
     for item in crj_list:
         REFSTIS_functions.RemoveIfThere( item )
 
-    print '#-------------------------------#'
-    print '#        Finished basejoint     #'
-    print '#-------------------------------#'
+    print 'basejoint done'
 
 #------------------------------------------------------------------------------------
 

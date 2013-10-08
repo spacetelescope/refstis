@@ -10,6 +10,7 @@ import pyfits
 import shutil
 
 import REFSTIS_functions
+import support
 
 #--------------------------------------------------------------------------
 
@@ -21,35 +22,18 @@ def find_hotpix( filename ):
     
     """
 
-    iter_count, median, sigma, npx, med, mod, data_min, data_max = REFSTIS_functions.iterate( filename )
-    five_sigma = median + 5*sigma
-
     hdu = pyfits.open( filename, mode='update' )
-    index = np.where( hdu[ ('SCI', 1) ].data >= five_sigma + .1)
+
+    data_median, data_mean, data_std = support.sigma_clip( hdu[ ('sci', 1) ].data, 
+                                                           sigma=3, 
+                                                           iterations=40 )
+
+    five_sigma = data_median + 5 * data_std
+    index = np.where( hdu[ ('SCI', 1) ].data >= five_sigma + .1 )
     hdu[ ('DQ', 1) ].data[index] = 16
 
     hdu.flush()
     hdu.close()
-
-#--------------------------------------------------------------------------
-
-def update_header( filename, xbin, ybin ):
-    """ Update header information for the reference bias"""
-   
-    ### NOT USED
-
-    pyfits.setval( filename, 'FILENAME', value=filename )
-    pyfits.setval( filename, 'FILETYPE', value='DARK IMAGE' )
-    pyfits.setval( filename, 'DETECTOR', value='CCD' )
-    pyfits.setval( filename, 'CCDAMP', value='ANY' )
-    pyfits.setval( filename, 'CCDGAIN', value='-1' )
-    pyfits.setval( filename, 'BINAXIS1', value=xbin )
-    pyfits.setval( filename, 'BINAXIS2', value=ybin )
-    pyfits.setval( filename, 'USEAFTER', value='' )
-    pyfits.setval( filename, 'PEDIGREE', value='INFLIGHT' )
-    pyfits.setval( filename, 'DESCRIP', value='Monthly superdark created by J. Ely' )
-    pyfits.setval( filename, 'NEXTEND', value=3 )
-    pyfits.setval( filename, 'COMMENT', value='Reference file created by the STIS DARK reference file pipeline')
 
 #--------------------------------------------------------------------------
 
@@ -90,23 +74,13 @@ def make_basedark( input_list, refdark_name='basedark.fits', bias_file=None ):
 
     find_hotpix( refdark_name )
 
+    REFSTIS_functions.update_header_from_input( refdark_name, input_list )
+
     print 'Cleaning...'
     REFSTIS_functions.RemoveIfThere( crj_filename )
     REFSTIS_functions.RemoveIfThere( joined_filename )
 
-    ### Do i need any of this?
-    #hot_data = pyfits.getdata( norm_filename,ext=1 )
-    #np.where( hot_data > 5*median_level, hot_data - median_level, 0 )
-
-    #median_image = norm_filename + '_med.fits'
-    #iraf.median( norm_filename, median_image, xwindow=2, ywindow=2,verbose=no)
-    
-    #only_dark = norm_filename+'_onlydark.fits'
-    #med_hdu = pyfits.getdata( median_image,ext=1 )
-
-    print '#-------------------------------#'
-    print '#        Finished basedark      #'
-    print '#-------------------------------#'
+    print 'basedark done'
     
 #--------------------------------------------------------------------------
 

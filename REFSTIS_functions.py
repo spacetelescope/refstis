@@ -1,3 +1,10 @@
+import pyfits
+import numpy as np
+import os
+from scipy.signal import medfilt
+
+import support
+
 #-------------------------------------------------------------------------------
 
 def iterclip( in_array, sigma, maxiter ):
@@ -19,10 +26,102 @@ def iterclip( in_array, sigma, maxiter ):
         c2 = converge_num * lastct
         iter += 1
 
+#---------------------------------------------------------------------------
+
+def update_header_from_input( filename, input_list ):
+    """  Updates header of output file using keywords from the input data
+    
+    If a header keyword is not consistent in this step, an error will be 
+    raised
+
+    """
+
+    gain = get_keyword( input_list, 'CCDGAIN', 0)
+    xbin = get_keyword( input_list, 'BINAXIS1', 0)
+    ybin = get_keyword( input_list, 'BINAXIS2', 0)
+    amp = get_keyword( input_list, 'CCDAMP', 0)
+    targname = get_keyword( input_list, 'TARGNAME', 0)
+    
+    if targname == 'BIAS':
+        filetype = 'CCD BIAS IMAGE'
+    elif targname == 'DARK':
+        filetype = 'DARK IMAGE'
+    else:
+        raise ValueError( 'targname %s not understood' % str( targname ) )
+
+    if gain == 1:
+        frequency = 'Weekly'
+    elif gain == 4:
+        frequency = 'Bi-Weekly'
+    else:
+        raise ValueError( 'Frequency %s not understood' % str( frequency ) )
+
+    hdu = pyfits.open( filename, mode='update' )
+    hdu[0].header['FILENAME'] = os.path.split( filename )[1]
+    hdu[0].header['CCDGAIN'] = gain
+    hdu[0].header['BINAXIS1'] = xbin
+    hdu[0].header['BINAXIS2'] = ybin  
+    hdu[0].header['NEXTEND'] = 3
+    hdu[0].header['PEDIGREE'] = 'INFLIGHT'
+    hdu[0].header['USEAFTER'] = 'value'
+    hdu[0].header['DESCRIP'] = "%s gain=%d %s for STIS CCD data taken after XXX" % (frequency, gain, targname.lower)
+    hdu[0].header.add_comment('Reference file created by %s' % __name__ )
+
+    while len( hdu[0].header['DESCRIP'] ) < 67:
+        hdu[0].header['DESCRIP'] = hdu[0].header['DESCRIP'] + '-'
+
+    hdu[0].header.add_history('Used input files')
+    for item in input_list:
+        hdu[0].header.add_history(item)
+
+    hdu.flush()
+    hdu.close()
+
+#---------------------------------------------------------------------------
+
+def make_resicols_image( residual_image, yfrac=None ):    
+
+    import numpy as np
+
+    if yfrac:
+        ystart = int( (yfrac[0] / 100.0) * residual_image.shape[0] )
+        yend = int( (yfrac[1] / 100.0) * residual_image.shape[0] )
+        residual_columns = np.mean( residual_image[ ystart:yend ], axis=0 )
+    else:
+        residual_columns = np.mean( residual_image, axis=0 )
+
+    residual_columns_image = residual_columns.repeat( residual_image.shape[0] ).reshape( residual_image.shape )
+
+    return residual_columns_image
+
+#-------------------------------------------------------------------------------
+
+def make_residual( mean_bias ):
+    """Create residual image
+
+    Median filter the median with a 15 x 3 box and subtract from the mean
+    to produce the residual image.
+
+
+    """
+    import pyfits
+    
+    mean_hdu = pyfits.open( mean_bias )
+    mean_image = mean_hdu[ ('sci', 1) ].data
+
+    median_image = medfilt( mean_image, (3, 15) )
+
+    diffmean = support.sigma_clip( mean_image, sigma=3, iterations=40)[1] - support.sigma_clip( median_image, sigma=3, iterations=40 )[1]
+    residual_image = median_image - diffmean
+
+    return residual_image, median_image
+
 #-------------------------------------------------------------------------------
 
 def normalize_crj( filename ):
-    """ Normalize the input filename by exptim/gain and flush hdu """
+    """ Normalize the input filename by exptim/gain and flush hdu 
+
+    """
 
     import pyfits
 
@@ -60,20 +159,6 @@ def msjoin( imset_list, out_name='joined_out.fits' ):
 
     hdu[0].header['NEXTEND'] = len( hdu ) - 1
     hdu.writeto( out_name )
-
-#-------------------------------------------------------------------------------
-
-def split_images( imglist,outname='' ):
-    from pyraf import iraf
-    from iraf import stsdas,toolbox,imgtools,mstools
-    import glob
-    print 'Splitting images'
-    for dataset in imglist:
-        print dataset
-        iraf.mssplit(inimg=dataset, outimg=outname, extension = '*', retain='no', 
-                     Stderr='dev$null')
-    nimsets = len( glob.glob('*raw??.fits') )
-    return nimsets
 
 #-------------------------------------------------------------------------------
 
@@ -175,6 +260,11 @@ def crreject( input_file, workdir=None) :
 #-------------------------------------------------------------------------------
                      
 def count_imsets( file_list ):
+    """ Count the total number of imsets in a file list by dividing the number
+    of extensions (NEXTEND) by 3
+
+    """
+
     import pyfits
     total = 0
     for item in file_list:
@@ -184,9 +274,18 @@ def count_imsets( file_list ):
 #-------------------------------------------------------------------------------
 
 def get_keyword( file_list,keyword,ext=0):
+    """ return the value from a header keyword over a list of files
+    
+    if the value is not consistent accross the input files, an assertion error
+    will be raised
+    
+    """
+
     import pyfits
+
     kw_set = set( [pyfits.getval(item,keyword,ext=ext) for item in file_list] )
-    assert len(kw_set) == 1,'multiple values found for kw: %s'%(keyword)
+    assert len(kw_set) == 1,' multiple values found for kw: % s'% (keyword)
+
     return list(kw_set)[0]
 
 #------------------------------------------------------------------------------
@@ -196,7 +295,8 @@ def figure_number_of_periods(number_of_days, mode) :
     'month' should be split into.  
 
     Takes the number of days in the period and the mode ('WK' or 'BIWK')
-    and returns the total number of periods.  
+    and returns the total number of periods. 
+ 
     """
 
     #print "periods(", number_of_days,", ",mode,") called ..."
@@ -257,13 +357,13 @@ def figure_number_of_periods(number_of_days, mode) :
                 # For easier comparison to periods.py
                 if number_of_days > 72 :
                     msg = "length of anneal month = " +str(number_of_days)+ "; For real? "
-                    PrintMsg("E", msg, nm)
+                    print("E", msg, nm)
                     # Do we really need to set this to 0?  What's wrong with a bigger number?
                     msg  = "I give it "+str(number_of_periods)+" (BIWKs). "
                     msg += "Is this bad? "
                     msg += "Code would usually give such a large difference "
                     msg += "number_of_periods = 0, but why?  "
-                    PrintMsg("W", msg, nm)
+                    print("W", msg, nm)
                 break
     else:
         sys.exit('what mode did you put in?')
@@ -283,17 +383,19 @@ def figure_days_in_period(N_periods, N_days):
 
     Returns:
        list of days/period: e.g. [8,8,8,7]
+    
     """
-    base_length = N_days//N_periods
+
+    base_length = N_days // N_periods
     N_extra_days = N_days - N_periods * base_length
 
     period_lengths = [ base_length for item in xrange(N_periods) ]
 
     for i in range(N_extra_days):
-        index = i%N_periods
+        index = i % N_periods
         period_lengths[index] += 1
 
-    assert (sum(period_lengths)) == N_days,'ERROR: extra days not spread around correctly'
+    assert (sum(period_lengths)) == N_days, 'ERROR: extra days not spread around correctly'
 
     return period_lengths
 
@@ -321,84 +423,22 @@ def translate_date_string(input_string):
     y = year + 4800 - a
     m = month + 12*a - 3
 
-    JDN = day + (153*m + 2)//5 + 365*y + y//4 - y//100 + y//400 - 32045
-    JD = JDN + (hour-12)/24.0 + minute/1440.0 + second/86400.0
+    JDN = day + (153 * m + 2)//5 + 365*y + y//4 - y//100 + y//400 - 32045
+    JD = JDN + (hour - 12)/24.0 + minute/1440.0 + second/86400.0
     MJD = JD - 2400000.5
     return MJD
 
-#-------------------------------------------------------------------------------
-
-def iterate(thefile, extension=1, maxiter=30, verbose=0):
-    from pyraf import iraf
-    from iraf import stsdas,toolbox,imgtools,mstools  
-    from pyraf.irafglobals import *
-    import os
-    mnval = -1.0
-    sig = -1.0 
-    npx = -1
-    med = -1.0
-    mod = -1.0
-    min = -1.0
-    max = -1.0
-    lower = INDEF
-    upper = INDEF
-    string_extension = '[%d]'%(extension) # imstat wants just the extension
-    if not thefile.endswith(']'): thefile += string_extension
-
-    Pipe1 = iraf.imstat(thefile,
-                        fields = 'mean,stddev,npix,midpt,mode,min,max', lower = lower,
-                        upper = upper, PYfor=no, Stdout=1)
-    parts = Pipe1[0].split()
-    print Pipe1
-    print parts
-    mnval = float( parts[0] )
-    sig   = float( parts[1] )
-    npx   = float( parts[2] )
-    med   = float( parts[3] )
-    mod   = float( parts[4] )
-    min   = float( parts[5] )
-    max   = float( parts[6] )
-    del Pipe1
-    iter_count = 1
-    while (iter_count <= maxiter):
-        if (verbose):
-            print(str(iter_count)+' '+thefile+ ': mean='+str(mnval)+' rms='+str(sig ))
-            print('   npix='+str(npx)+' median='+str(med)+' mode='+str(mod ))
-            print('   min='+str(min)+' max='+str(max ))
-            
-        ll = float(mnval) - (5.0 * float(sig))
-        ul = float(mnval) + (5.0 * float(sig))
-        if (lower != INDEF and ll < lower):
-            ll = lower
-        if (upper != INDEF and ul > upper):
-            ul = upper
-        nx = -1
-        Pipe1 = iraf.imstat(thefile,
-                            fields = 'mean,stddev,npix,midpt,mode,min,max', 
-                            lower = ll, upper = ul, PYfor=no, Stdout=1)
-        parts = Pipe1[0].split()
-        mnval = float( parts[0] )
-        sig   = float( parts[1] )
-        nx    = float( parts[2] )
-        med   = float( parts[3] )
-        mod   = float( parts[4] )
-        min   = float( parts[5] )
-        max   = float( parts[6] )
-        del Pipe1
-        if (nx == npx):
-            break
-        npx = nx
-        iter_count = iter_count + 1
-
-    return iter_count,mnval,sig,npx,med,mod,min,max
-
 #---------------------------------------------------------------------------
 
-def bd_crreject(joinedfile) :
-    #
-    # if cosmic-ray rejection has already been done on the input bias image,
-    # skip all calstis-related calibration steps
-    #
+def bd_crreject(joinedfile):
+    """ Check if cosmic-ray rejection has been performed on input file
+    
+    if cosmic-ray rejection has already been done on the input bias image,
+    skip all calstis-related calibration steps
+    
+
+    """
+
     import pyfits
     import os
 
@@ -415,7 +455,7 @@ def bd_crreject(joinedfile) :
         print('OK, CR rejection already done')
         os.rename(joinedfile, joinedfile.replace('_joined', '_crj') )
     else:
-        print('crcorr found = '+ crcorr)
+        print('crcorr found = ' + crcorr)
 
     if (nimset <= 1 and not crdone):
         print("Sorry, your input image seems to have only 1 imset, but it isn't cr-rejected.")
@@ -439,6 +479,15 @@ def bd_crreject(joinedfile) :
 #--------------------------------------------------------------------------
 
 def bd_calstis(joinedfile, thebiasfile=None ) :
+    """ Run CalSTIS on the joined file
+
+    Header keywords will be set for ocrreject to work correctly and not 
+    flag regions outside the original aperture:
+    APERTURE --> 50CCD
+    APER_FOV --> '50x50'
+
+    """
+
     import pyfits
     from pyraf import iraf 
     from iraf import stsdas,hst_calib,stis
@@ -446,48 +495,48 @@ def bd_calstis(joinedfile, thebiasfile=None ) :
     import os
     import shutil
 
-
-    #
-    # Change APERTURE to '50CCD' and APER_FOV to '50x50' for ocrreject to work
-    # correctly (i.e., so that it doesn't flag regions outside the original
-    # APERTURE)
     pyfits.setval(joinedfile, 'CRCORR', value='PERFORM')
     pyfits.setval(joinedfile, 'APERTURE', value='50CCD')
     pyfits.setval(joinedfile, 'APER_FOV', value='50x50')
     pyfits.setval(joinedfile, 'DARKCORR', value='OMIT')
     pyfits.setval(joinedfile, 'FLATCORR', value='OMIT')
 
-
     ### This was causing a floating point error in CalSTIS
     ### Perhaps the biasfile i was using was bad?
-
     #if thebiasfile:
-    #   print('Set BIASFILE to thebiasfile ' + thebiasfile)
-    #   print('              in joinedfile ' + joinedfile)
     #   pyfits.setval(joinedfile, 'BIASFILE', value=thebiasfile)
 
-    crj_file = joinedfile.replace('.fits','_crj.fits')
+    crj_file = joinedfile.replace('.fits', '_crj.fits')
 
-    logname = 'dev$null'
     print 'Running CalSTIS on %s' % joinedfile 
     print 'to create: %s' % crj_file
-    iraf.calstis(joinedfile,wavecal="",outroot="",
-                 savetmp=no,verbose=yes)#, Stderr=logname)
+    iraf.calstis(joinedfile, wavecal="", outroot="",
+                 savetmp=no, verbose=yes)
     
     pyfits.setval(crj_file, 'FILENAME', value=os.path.split(crj_file)[1] )
 
 #--------------------------------------------------------------------------
 
 def RemoveIfThere(item):
+    """  Simple copy from OPUSUtils to remove a file if it is there
+
+    """
+
     import os
     if os.path.exists(item):
         os.remove(item)
 
 #--------------------------------------------------------------------------
 
-def refaver( reffiles,combined_name ):
+def refaver( reffiles, combined_name ):
+    """ Average two reference files toghether
+
+    Arithmetic for the combination is done using msarith
+
+    """
+
     from pyraf import iraf
-    from iraf import mstools,stsdas,hst_calib,stis
+    from iraf import mstools
     import os
 
     if not combined_name.endswith('.fits'):
@@ -502,20 +551,15 @@ def refaver( reffiles,combined_name ):
 
     all_subfiles = []
     for subfile in reffiles:
-        outfile = subfile.replace('.fits','_aver.fits')
-        iraf.msarith( subfile,'/',2,outfile,verbose=1 )
+        outfile = subfile.replace('.fits', '_aver.fits')
+        iraf.msarith( subfile, '/', 2, outfile, verbose=1 )
         all_subfiles.append( outfile )
 
-    assert len(all_subfiles) == 2,'Length of subfiles doesnt equal 2'
+    assert len(all_subfiles) == 2, 'Length of subfiles doesnt equal 2'
 
-    iraf.msarith( all_subfiles[0],'+',all_subfiles[1],combined_name,verbose=1)
+    iraf.msarith( all_subfiles[0], '+', all_subfiles[1], combined_name, verbose=1)
 
     for filename in all_subfiles:
         os.remove( filename )
 
 #--------------------------------------------------------------------------
-
-def move_to( directory ):
-    import os
-    os.chdir( directory )
-    iraf.chdir( directory )

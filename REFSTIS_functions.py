@@ -2,6 +2,7 @@ import pyfits
 import numpy as np
 import os
 from scipy.signal import medfilt
+from astropy.time import Time
 
 import support
 
@@ -55,14 +56,14 @@ def update_header_from_input( filename, input_list ):
         frequency = 'Bi-Weekly'
     else:
         raise ValueError( 'Frequency %s not understood' % str( frequency ) )
-
+    data_start, data_end = get_start_and_endtimes(input_list)
     hdu = pyfits.open( filename, mode='update' )
     hdu[0].header['FILENAME'] = os.path.split( filename )[1]
     hdu[0].header['CCDGAIN'] = gain
     hdu[0].header['BINAXIS1'] = xbin
     hdu[0].header['BINAXIS2'] = ybin  
     hdu[0].header['NEXTEND'] = 3
-    hdu[0].header['PEDIGREE'] = 'INFLIGHT'
+    hdu[0].header['PEDIGREE'] = 'INFLIGHT %s %s' %(data_start, data_end)
     hdu[0].header['USEAFTER'] = 'value'
     hdu[0].header['DESCRIP'] = "%s gain=%d %s for STIS CCD data taken after XXX" % (frequency, gain, targname.lower)
     hdu[0].header.add_comment('Reference file created by %s' % __name__ )
@@ -76,6 +77,25 @@ def update_header_from_input( filename, input_list ):
 
     hdu.flush()
     hdu.close()
+
+def get_start_and_endtimes(input_list):
+    times = []
+    for ifile in flist:
+        times.append(pyfits.getval(ifile, 'texpstrt', 0))
+        times.append(pyfits.getval(ifile, 'texpend', 0))
+    times.sort()
+    times = Time(times, format = 'mjd', scale = 'utc', out_subfmt = 'date')
+    
+    start_list = times[0].split('-')
+    end_list = times[0].split('-')
+    
+    #return strings in format mm/dd/yyyy
+    start_str = '%s/%s/%s' %(start_list[1], start_list[0], start_list[2])
+    end_str = '%s/%s/%s' %(end_list[1], end_list[0], end_list[2])
+    
+    return start_str, end_str
+
+    
 
 #---------------------------------------------------------------------------
 

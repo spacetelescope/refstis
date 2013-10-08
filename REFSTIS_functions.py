@@ -80,14 +80,14 @@ def update_header_from_input( filename, input_list ):
 
 def get_start_and_endtimes(input_list):
     times = []
-    for ifile in flist:
+    for ifile in input_list:
         times.append(pyfits.getval(ifile, 'texpstrt', 0))
         times.append(pyfits.getval(ifile, 'texpend', 0))
     times.sort()
-    times = Time(times, format = 'mjd', scale = 'utc', out_subfmt = 'date')
+    times = Time(times, format = 'mjd', scale = 'utc', out_subfmt = 'date').iso
     
     start_list = times[0].split('-')
-    end_list = times[0].split('-')
+    end_list = times[-1].split('-')
     
     #return strings in format mm/dd/yyyy
     start_str = '%s/%s/%s' %(start_list[1], start_list[0], start_list[2])

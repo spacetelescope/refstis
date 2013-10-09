@@ -15,5 +15,7 @@ setup(
                    'Topic :: Scientific/Engineering :: Astronomy',
                    'Topic :: Scientific/Engineering :: Physics',
                    'Topic :: Software Development :: Libraries :: Python Modules'],
+    scripts = ['scripts/basejoint',
+               'scripts/basedark'],
     requires = ['numpy','pyfits'],
     )

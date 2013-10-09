@@ -65,7 +65,7 @@ def update_header_from_input( filename, input_list ):
     hdu[0].header['NEXTEND'] = 3
     hdu[0].header['PEDIGREE'] = 'INFLIGHT %s %s' %(data_start, data_end)
     hdu[0].header['USEAFTER'] = 'value'
-    hdu[0].header['DESCRIP'] = "%s gain=%d %s for STIS CCD data taken after XXX" % (frequency, gain, targname.lower)
+    hdu[0].header['DESCRIP'] = "%s gain=%d %s for STIS CCD data taken after XXX" % (frequency, gain, targname.lower() )
     hdu[0].header.add_comment('Reference file created by %s' % __name__ )
 
     while len( hdu[0].header['DESCRIP'] ) < 67:
@@ -73,7 +73,7 @@ def update_header_from_input( filename, input_list ):
 
     hdu[0].header.add_history('Used input files')
     for item in input_list:
-        hdu[0].header.add_history(item)
+        hdu[0].header.add_history( os.path.split(item)[1] )
 
     hdu.flush()
     hdu.close()

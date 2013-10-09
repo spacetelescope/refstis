@@ -509,6 +509,8 @@ def separate_obs( base_dir, month_begin, month_end  ):
             for item in obs_to_move:
                 print 'Moving ', item,  ' to:', output_path
                 shutil.move( item,  output_path )
+                if 'IMPHTTAB' not in pyfits.getheader(os.path.join(output_path, item.split('/')[-1]), 0).keys():
+                    pyfits.setval(os.path.join(output_path, item.split('/')[-1]), 'IMPHTTAB', ext = 0, value = 'oref$x9r1607mo_imp.fits')
                 obs_list.remove( item )
 
 #-----------------------------------------------------------------------

@@ -64,7 +64,7 @@ def update_header_from_input( filename, input_list ):
     hdu[0].header['NEXTEND'] = 3
     hdu[0].header['PEDIGREE'] = 'INFLIGHT'
     hdu[0].header['USEAFTER'] = 'value'
-    hdu[0].header['DESCRIP'] = "%s gain=%d %s for STIS CCD data taken after XXX" % (frequency, gain, targname.lower)
+    hdu[0].header['DESCRIP'] = "%s gain=%d %s for STIS CCD data taken after XXX" % (frequency, gain, targname.lower() )
     hdu[0].header.add_comment('Reference file created by %s' % __name__ )
 
     while len( hdu[0].header['DESCRIP'] ) < 67:

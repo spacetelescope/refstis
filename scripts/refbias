@@ -2,7 +2,7 @@
 
 import argparse
 import glob
-from refstis.REFSTIS_basebias import make_basebias
+from refstis.REFSTIS_refbias import make_refbias
 
 #------------------------------------------------------------
 
@@ -15,7 +15,7 @@ def parse_args():
     parser.add_argument('files', nargs='*',
                         help='input files to turn into reference file' )
 
-    parser.add_argument('-o', dest='outname', type=str, default='basebias.fits',
+    parser.add_argument('-o', dest='outname', type=str, default='refbias.fits',
                         help='output name for the reference file' )
 
     args = parser.parse_args()

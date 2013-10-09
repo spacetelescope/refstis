@@ -2,7 +2,7 @@
 
 import argparse
 import glob
-from refstis.REFSTIS_basebias import make_basebias
+from refstis.REFSTIS_weekdark import make_weekdark
 
 #------------------------------------------------------------
 
@@ -18,6 +18,12 @@ def parse_args():
     parser.add_argument('-o', dest='outname', type=str, default='basebias.fits',
                         help='output name for the reference file' )
 
+    parser.add_argument('-b', dest='biasname', type=str, default='',
+                        help='Bias file for calibration.' )
+
+    parser.add_argument('-d', dest='darkname', type=str, default='',
+                        help='Dark file for calibration.' )
+
     args = parser.parse_args()
     return args
 
@@ -25,4 +31,4 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
-    make_basebias( args.files, args.outname ) 
+    make_basedark( args.files, args.outname, args.biasname, args.darkname ) 

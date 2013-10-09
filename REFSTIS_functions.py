@@ -72,7 +72,7 @@ def update_header_from_input( filename, input_list ):
 
     hdu[0].header.add_history('Used input files')
     for item in input_list:
-        hdu[0].header.add_history(item)
+        hdu[0].header.add_history( os.path.split(item)[1] )
 
     hdu.flush()
     hdu.close()

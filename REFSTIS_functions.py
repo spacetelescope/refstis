@@ -5,6 +5,10 @@ from scipy.signal import medfilt
 from astropy.time import Time
 import pdb
 import support
+import math
+import sqlite3
+
+
 
 #-------------------------------------------------------------------------------
 
@@ -52,18 +56,20 @@ def update_header_from_input( filename, input_list ):
 
     if gain == 1:
         frequency = 'Weekly'
+        N_period = 4
     elif gain == 4:
         frequency = 'Bi-Weekly'
+        N_period = 2
     else:
         raise ValueError( 'Frequency %s not understood' % str( frequency ) )
-    data_start, data_end = get_start_and_endtimes(input_list)
+    data_start_pedigree, data_end_pedigree, data_start_mjd, data_end_mjd = get_start_and_endtimes(input_list)
     hdu = pyfits.open( filename, mode='update' )
     hdu[0].header['FILENAME'] = os.path.split( filename )[1]
     hdu[0].header['CCDGAIN'] = gain
     hdu[0].header['BINAXIS1'] = xbin
     hdu[0].header['BINAXIS2'] = ybin  
     hdu[0].header['NEXTEND'] = 3
-    hdu[0].header['PEDIGREE'] = 'INFLIGHT %s %s' %(data_start, data_end)
+    hdu[0].header['PEDIGREE'] = 'INFLIGHT %s %s' %(data_start_pedigree, data_end_pedigree)
     hdu[0].header['USEAFTER'] = 'value'
     hdu[0].header['DESCRIP'] = "%s gain=%d %s for STIS CCD data taken after XXX" % (frequency, gain, targname.lower() )
     hdu[0].header.add_comment('Reference file created by %s' % __name__ )
@@ -84,6 +90,8 @@ def get_start_and_endtimes(input_list):
         times.append(pyfits.getval(ifile, 'texpstrt', 0))
         times.append(pyfits.getval(ifile, 'texpend', 0))
     times.sort()
+    start_mjd =times[0]
+    end_mjd = times[-1]
     times = Time(times, format = 'mjd', scale = 'utc', out_subfmt = 'date').iso
 
     start_list = times[0].split('-')
@@ -92,7 +100,7 @@ def get_start_and_endtimes(input_list):
     #return strings in format mm/dd/yyyy
     start_str = '%s/%s/%s' %(start_list[1], start_list[0], start_list[2])
     end_str = '%s/%s/%s' %(end_list[1], end_list[0], end_list[2])
-    return start_str, end_str
+    return start_str, end_str, start_mjd, end_mjd
 
     
 
@@ -306,6 +314,67 @@ def get_keyword( file_list,keyword,ext=0):
 
     return list(kw_set)[0]
 
+
+
+#-----------------------------------------------------------------------
+def get_anneal_month_dates(data_begin, data_end, database_path):
+    '''
+    This function uses the anneal database to get the dates of the anneal
+
+    This is written under the assumption that data_begin and data_end fall
+    in the same anneal period
+
+    data_begin and data_end are the start and end dates of the data and should
+    be in mjd
+    '''
+    assert data_begin > 50000, 'data_begin should be in mjd'
+    assert data_end > 50000, 'data_end should be in mjd'
+
+    db = sqlite3.connect(os.path.join(database_path, 'anneal_info.db'))
+    c = db.cursor()
+    c.execute("""SELECT DISTINCT start, end FROM anneals""")
+    rows = [row for row in c]
+    anneal_start_date = np.array([row[0] for row in rows])
+    anneal_end_date = np.array([row[1] for row in rows])
+
+    start_indx = np.where(data_begin - anneal_end_date > 0)
+    anneal_period_start_indx = start_indx[0][-1] #want to start an anneal month at the end of the anneal
+    end_indx = np.where(anneal_start_date - data_end > 0)
+    anneal_period_end_indx = end_indx[0][0] #want to end an anneal month at the start of the anneal
+    
+    
+
+    anneal_month_start = Time(anneal_end_date[anneal_period_start_indx], format = 'mjd', scale = 'utc')
+    anneal_month_end = Time(anneal_start_date[anneal_period_end_indx], format = 'mjd', scale = 'utc')
+    assert anneal_period_end_indx - anneal_period_start_indx == 1, 'data cannot cross anneals, data date range [%f - %f], anneal month [%f - %f]' %(data_begin, data_end, anneal_month_start.val, anneal_month_end.val)
+    return anneal_month_start, anneal_month_end
+
+#------------------------------------------------------------------------------
+
+def divide_anneal_month(data_begin, data_end, database_path, N_period = 4):
+    '''
+    This function divides an anneal month into anneal weeks and returns
+    tuples of the start and end dates of the anneal weeks
+    '''
+
+    anneal_month_start, anneal_month_end = get_anneal_month_dates(data_begin, data_end, database_path)
+    total_num_days = anneal_month_end.val - anneal_month_start.val #these are in mjd so you get # of days
+    base_num_days = math.floor(total_num_days / N_period) 
+    #For remaining days, add 1 to each week until all days are gone
+    remaining_days = math.floor(total_num_days - base_num_days*N_period)
+    remaining_time = total_num_days - base_num_days*N_period - remaining_days
+    num_days_per_period = np.array([base_num_days for i in xrange(N_period)])
+    num_days_per_period[-1] = num_days_per_period[-1] + remaining_time
+    for i, day in enumerate(range(int(remaining_days))):
+        num_days_per_period[i] += 1
+    anneal_weeks = []
+    wk_end = anneal_month_start.val
+    for period in num_days_per_period:
+        wk_start = wk_end
+        wk_end = wk_start + period
+        anneal_weeks.append((wk_start, wk_end))
+    return anneal_weeks
+    
 #------------------------------------------------------------------------------
 
 def figure_number_of_periods(number_of_days, mode) :

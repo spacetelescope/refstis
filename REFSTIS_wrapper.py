@@ -433,17 +433,17 @@ def collect_new(observations_to_get):
 
     return success
 
+
+
 #-----------------------------------------------------------------------
 
 def separate_obs( base_dir, month_begin, month_end  ):
     all_files = glob.glob( os.path.join( base_dir, '*raw.fits') )
     #all_files = glob.glob( os.path.join( retrieve_directory, '*raw.fits') )
-    N_days_total = int(month_end - month_begin)
-    N_days_remainder = (month_end - month_begin) - N_days_total
 
     print 'Separating', base_dir
     print
-    print 'Period runs from', month_begin, ' to ',  month_end
+    print 'Data run from', month_begin, ' to ',  month_end
 
     mjd_times = np.array( [ pyfits.getval(item, 'EXPSTART', ext=1) for item in all_files ] )
     print 'Data goes from', mjd_times.min(),  ' to ',  mjd_times.max()
@@ -466,23 +466,22 @@ def separate_obs( base_dir, month_begin, month_end  ):
         assert len(gain) == 1, 'ERROR: Not everything has the same gain'
         gain = gain[0]
 
-        N_periods = figure_number_of_periods(N_days_total, mode)
 
-        N_days_per_period = figure_days_in_period(N_periods, N_days_total)
-        N_days_per_period[-1] += N_days_remainder
+        if mode == 'WK':
+            N_periods = 4
+        elif mode == 'BIWK':
+            N_periods = 2
+
+        anneal_weeks = REFSTIS_functions.divide_anneal_month(month_begin, month_end,'/grp/hst/stis/calibration/anneals/', N_periods)
 
         print
-        print file_type, mode, 'will be broken up into %d periods as follows:'%(N_periods), N_days_per_period
+        print file_type, mode, 'will be broken up into %d periods as follows:'%(N_periods)
+        print '\tWeek start, Week end'
+        for a_week in anneal_weeks: print '\t', a_week
         print
 
         for period in range(N_periods):
-            if period == 0:  
-                begin = month_begin
-            else: 
-                begin = end
-            
-            end = begin + N_days_per_period[period]
-
+            begin, end = anneal_weeks[period]
             week = str(period + 1) ##weeks from 1-4, not 0-3
             while len(week) < 2:
                 week = '0'+week            

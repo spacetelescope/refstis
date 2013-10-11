@@ -472,7 +472,7 @@ def separate_obs( base_dir, month_begin, month_end  ):
         elif mode == 'BIWK':
             N_periods = 2
 
-        anneal_weeks = REFSTIS_functions.divide_anneal_month(month_begin, month_end, '/user/bostroem/science/cte/2012_04/', N_periods)
+        anneal_weeks = REFSTIS_functions.divide_anneal_month(month_begin, month_end,'/grp/hst/stis/calibration/anneals/', N_periods)
 
         print
         print file_type, mode, 'will be broken up into %d periods as follows:'%(N_periods)

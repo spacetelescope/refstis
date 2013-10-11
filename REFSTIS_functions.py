@@ -7,7 +7,7 @@ import pdb
 import support
 import math
 import sqlite3
-
+import datetime
 
 
 #-------------------------------------------------------------------------------
@@ -63,6 +63,13 @@ def update_header_from_input( filename, input_list ):
     else:
         raise ValueError( 'Frequency %s not understood' % str( frequency ) )
     data_start_pedigree, data_end_pedigree, data_start_mjd, data_end_mjd = get_start_and_endtimes(input_list)
+    anneal_weeks = divide_anneal_month(data_start_mjd, data_end_mjd, '/grp/hst/stis/calibration/anneals/', N_period)
+    useafter = 'value'
+    for begin, end in anneal_weeks:
+        if (begin < data_start_mjd) and (end > data_end_mjd):
+            begin_time = Time(data_start_mjd, format = 'mjd', scale = 'utc').iso
+            useafter = datetime.datetime.strptime(begin_time.split('.')[0], '%Y-%m-%d %H:%M:%S').strftime('%b %d %Y %X')
+
     hdu = pyfits.open( filename, mode='update' )
     hdu[0].header['FILENAME'] = os.path.split( filename )[1]
     hdu[0].header['CCDGAIN'] = gain
@@ -70,7 +77,7 @@ def update_header_from_input( filename, input_list ):
     hdu[0].header['BINAXIS2'] = ybin  
     hdu[0].header['NEXTEND'] = 3
     hdu[0].header['PEDIGREE'] = 'INFLIGHT %s %s' %(data_start_pedigree, data_end_pedigree)
-    hdu[0].header['USEAFTER'] = 'value'
+    hdu[0].header['USEAFTER'] = useafter
     hdu[0].header['DESCRIP'] = "%s gain=%d %s for STIS CCD data taken after XXX" % (frequency, gain, targname.lower() )
     hdu[0].header.add_comment('Reference file created by %s' % __name__ )
 
@@ -83,6 +90,8 @@ def update_header_from_input( filename, input_list ):
 
     hdu.flush()
     hdu.close()
+    return anneal_weeks
+#---------------------------------------------------------------------------
 
 def get_start_and_endtimes(input_list):
     times = []
@@ -98,8 +107,8 @@ def get_start_and_endtimes(input_list):
     end_list = times[-1].split('-')
     
     #return strings in format mm/dd/yyyy
-    start_str = '%s/%s/%s' %(start_list[1], start_list[0], start_list[2])
-    end_str = '%s/%s/%s' %(end_list[1], end_list[0], end_list[2])
+    start_str = '%s/%s/%s' %( start_list[2], start_list[1], start_list[0])
+    end_str = '%s/%s/%s' %(end_list[2], end_list[1], end_list[0])
     return start_str, end_str, start_mjd, end_mjd
 
     

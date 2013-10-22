@@ -5,7 +5,10 @@ file pipeline.
 """
 
 import shutil
-import pyfits
+try:
+    import pyfits
+except:
+    from astropy.io import fits as pyfits
 from scipy.signal import medfilt
 import numpy as np
 

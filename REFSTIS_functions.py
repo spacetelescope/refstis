@@ -1,4 +1,7 @@
-import pyfits
+try:
+    import pyfits
+except:
+    from astropy.io import fits as pyfits
 import numpy as np
 import os
 from scipy.signal import medfilt
@@ -67,7 +70,7 @@ def update_header_from_input( filename, input_list ):
     useafter = 'value'
     for begin, end in anneal_weeks:
         if (begin < data_start_mjd) and (end > data_end_mjd):
-            begin_time = Time(data_start_mjd, format = 'mjd', scale = 'utc').iso
+            begin_time = Time(begin, format = 'mjd', scale = 'utc').iso  #anneal week start
             useafter = datetime.datetime.strptime(begin_time.split('.')[0], '%Y-%m-%d %H:%M:%S').strftime('%b %d %Y %X')
 
     hdu = pyfits.open( filename, mode='update' )

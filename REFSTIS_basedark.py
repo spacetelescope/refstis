@@ -6,7 +6,11 @@ reference file pipeline
 """
 
 import numpy as np
-import pyfits
+try:
+    import pyfits
+except:
+    from astropy.io import fits as pyfits
+
 import shutil
 
 import REFSTIS_functions

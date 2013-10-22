@@ -9,7 +9,10 @@ import sqlite3
 import glob
 import os
 import sys
-import pyfits
+try:
+    import pyfits
+except:
+    from astropy.io import fits as pyfits
 import argparse
 import textwrap
 import support

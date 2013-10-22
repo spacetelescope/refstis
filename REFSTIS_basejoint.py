@@ -28,7 +28,10 @@ Script to produce a monthly base bias for STIS CCD
 import os
 import sys
 import shutil
-import pyfits
+try:
+    import pyfits
+except:
+    from astropy.io import fits as pyfits
 import numpy as np
 import support
 

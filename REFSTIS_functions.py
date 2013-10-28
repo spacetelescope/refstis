@@ -163,13 +163,14 @@ def normalize_crj( filename ):
     """
 
     import pyfits
-
     hdu = pyfits.open( filename, mode='update' )
 
     exptime = hdu[0].header[ 'TEXPTIME' ]
     gain = hdu[0].header[ 'ATODGAIN' ]
 
-    hdu[ ('sci', 1) ].data /= (float(exptime) / gain)
+    norm_factor = float(exptime)/gain
+    hdu[ ('sci', 1) ].data /= norm_factor
+    hdu[('err', 1)].data /= abs(norm_factor)
 
     hdu[0].header['TEXPTIME'] = 1
 
@@ -608,7 +609,7 @@ def bd_calstis(joinedfile, thebiasfile=None ) :
     print 'Running CalSTIS on %s' % joinedfile 
     print 'to create: %s' % crj_file
     calstis(joinedfile, wavecal="", outroot="",
-                 savetmp=no, verbose=yes)
+                 savetmp=False, verbose=True)
     
     pyfits.setval(crj_file, 'FILENAME', value=os.path.split(crj_file)[1] )
 
@@ -659,4 +660,19 @@ def refaver( reffiles, combined_name ):
     for filename in all_subfiles:
         os.remove( filename )
 
+#--------------------------------------------------------------------------
+def apply_dark_correction(filename, expstart):
+    dark_v_temp = 0.07
+    s2ref_temp = 18.0
+    ofile = pyfits.open(filename, mode = 'update')
+    nextend = ofile[0].header['nextend']
+    for ext in np.arange(1, nextend, 3):
+        occdhtav = ofile[ext].header['OCCDHTAV']
+        factor = 1.0 / (1.0 + dark_v_temp * (float(occdhtav) - s2ref_temp))      
+        ofile[ext].data = ofile[ext].data * factor
+        print 'Scaling data by ', factor, ' for temperature: ', occdhtav
+        ofile[ext+1].data = np.sqrt((ofile[ext+1].data)**2 * (factor**2)) #Modify the error array
+        ofile[ext].header.add_history('File scaled for Side-2 temperature uncertainty by data * (1.0 + %f * (%f - %f)) following description is STIS TIR 2004-01' %(dark_v_temp, occdhtav, s2ref_temp))
+    ofile.flush()
+    ofile.close()
 #--------------------------------------------------------------------------

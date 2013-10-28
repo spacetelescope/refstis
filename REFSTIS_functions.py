@@ -2,8 +2,13 @@ import pyfits
 import numpy as np
 import os
 from scipy.signal import medfilt
-
+from astropy.time import Time
+import pdb
 import support
+import math
+import sqlite3
+import datetime
+
 
 #-------------------------------------------------------------------------------
 
@@ -51,10 +56,19 @@ def update_header_from_input( filename, input_list ):
 
     if gain == 1:
         frequency = 'Weekly'
+        N_period = 4
     elif gain == 4:
         frequency = 'Bi-Weekly'
+        N_period = 2
     else:
         raise ValueError( 'Frequency %s not understood' % str( frequency ) )
+    data_start_pedigree, data_end_pedigree, data_start_mjd, data_end_mjd = get_start_and_endtimes(input_list)
+    anneal_weeks = divide_anneal_month(data_start_mjd, data_end_mjd, '/grp/hst/stis/calibration/anneals/', N_period)
+    useafter = 'value'
+    for begin, end in anneal_weeks:
+        if (begin < data_start_mjd) and (end > data_end_mjd):
+            begin_time = Time(data_start_mjd, format = 'mjd', scale = 'utc').iso
+            useafter = datetime.datetime.strptime(begin_time.split('.')[0], '%Y-%m-%d %H:%M:%S').strftime('%b %d %Y %X')
 
     hdu = pyfits.open( filename, mode='update' )
     hdu[0].header['FILENAME'] = os.path.split( filename )[1]
@@ -62,8 +76,8 @@ def update_header_from_input( filename, input_list ):
     hdu[0].header['BINAXIS1'] = xbin
     hdu[0].header['BINAXIS2'] = ybin  
     hdu[0].header['NEXTEND'] = 3
-    hdu[0].header['PEDIGREE'] = 'INFLIGHT'
-    hdu[0].header['USEAFTER'] = 'value'
+    hdu[0].header['PEDIGREE'] = 'INFLIGHT %s %s' %(data_start_pedigree, data_end_pedigree)
+    hdu[0].header['USEAFTER'] = useafter
     hdu[0].header['DESCRIP'] = "%s gain=%d %s for STIS CCD data taken after XXX" % (frequency, gain, targname.lower() )
     hdu[0].header.add_comment('Reference file created by %s' % __name__ )
 
@@ -76,6 +90,28 @@ def update_header_from_input( filename, input_list ):
 
     hdu.flush()
     hdu.close()
+    return anneal_weeks
+#---------------------------------------------------------------------------
+
+def get_start_and_endtimes(input_list):
+    times = []
+    for ifile in input_list:
+        times.append(pyfits.getval(ifile, 'texpstrt', 0))
+        times.append(pyfits.getval(ifile, 'texpend', 0))
+    times.sort()
+    start_mjd =times[0]
+    end_mjd = times[-1]
+    times = Time(times, format = 'mjd', scale = 'utc', out_subfmt = 'date').iso
+
+    start_list = times[0].split('-')
+    end_list = times[-1].split('-')
+    
+    #return strings in format mm/dd/yyyy
+    start_str = '%s/%s/%s' %( start_list[2], start_list[1], start_list[0])
+    end_str = '%s/%s/%s' %(end_list[2], end_list[1], end_list[0])
+    return start_str, end_str, start_mjd, end_mjd
+
+    
 
 #---------------------------------------------------------------------------
 
@@ -165,9 +201,8 @@ def msjoin( imset_list, out_name='joined_out.fits' ):
 def crreject( input_file, workdir=None) :
     import pyfits
     import os
-    from pyraf import iraf
-    from iraf import stsdas,hst_calib,stis
-    from pyraf.irafglobals import *
+    from stistools.basic2d import basic2d
+    from stistools.ocrreject import ocrreject
 
     if not 'oref' in os.environ:
         os.environ['oref'] = '/grp/hst/cdbs/oref/'
@@ -208,18 +243,18 @@ def crreject( input_file, workdir=None) :
         if (blevcorr != 'COMPLETE') :
             print('Performing BLEVCORR')
             pyfits.setval(input_file, 'BLEVCORR', value='PERFORM')
-            iraf.basic2d(input_file, output_blev,
-                         outblev = '', dqicorr = 'perform', atodcorr = 'omit',
+            basic2d(input_file, output_blev,
+                         outblev = '', dqicorr = 'perform', 
                          blevcorr = 'perform', doppcorr = 'omit', lorscorr = 'omit',
                          glincorr = 'omit', lflgcorr = 'omit', biascorr = 'omit',
-                         darkcorr = 'omit', flatcorr = 'omit', shadcorr = 'omit',
-                         photcorr = 'omit', statflag = no, verb=no, Stdout='dev$null')
+                         darkcorr = 'omit', flatcorr = 'omit', 
+                         photcorr = 'omit', statflag = False, verbose = False)
         else:
             print('Blevcorr alread Performed')
             shutil.copy(input_file,output_blev)
 
         print('Performing OCRREJECT')
-        iraf.ocrreject(input=output_blev, output=output_crj, verb=no)
+        ocrreject(input=output_blev, output=output_crj, verbose=False)
 
     elif (crcorr == "COMPLETE"):
         print "CR rejection already done"
@@ -288,6 +323,67 @@ def get_keyword( file_list,keyword,ext=0):
 
     return list(kw_set)[0]
 
+
+
+#-----------------------------------------------------------------------
+def get_anneal_month_dates(data_begin, data_end, database_path):
+    '''
+    This function uses the anneal database to get the dates of the anneal
+
+    This is written under the assumption that data_begin and data_end fall
+    in the same anneal period
+
+    data_begin and data_end are the start and end dates of the data and should
+    be in mjd
+    '''
+    assert data_begin > 50000, 'data_begin should be in mjd'
+    assert data_end > 50000, 'data_end should be in mjd'
+
+    db = sqlite3.connect(os.path.join(database_path, 'anneal_info.db'))
+    c = db.cursor()
+    c.execute("""SELECT DISTINCT start, end FROM anneals""")
+    rows = [row for row in c]
+    anneal_start_date = np.array([row[0] for row in rows])
+    anneal_end_date = np.array([row[1] for row in rows])
+
+    start_indx = np.where(data_begin - anneal_end_date > 0)
+    anneal_period_start_indx = start_indx[0][-1] #want to start an anneal month at the end of the anneal
+    end_indx = np.where(anneal_start_date - data_end > 0)
+    anneal_period_end_indx = end_indx[0][0] #want to end an anneal month at the start of the anneal
+    
+    
+
+    anneal_month_start = Time(anneal_end_date[anneal_period_start_indx], format = 'mjd', scale = 'utc')
+    anneal_month_end = Time(anneal_start_date[anneal_period_end_indx], format = 'mjd', scale = 'utc')
+    assert anneal_period_end_indx - anneal_period_start_indx == 1, 'data cannot cross anneals, data date range [%f - %f], anneal month [%f - %f]' %(data_begin, data_end, anneal_month_start.val, anneal_month_end.val)
+    return anneal_month_start, anneal_month_end
+
+#------------------------------------------------------------------------------
+
+def divide_anneal_month(data_begin, data_end, database_path, N_period = 4):
+    '''
+    This function divides an anneal month into anneal weeks and returns
+    tuples of the start and end dates of the anneal weeks
+    '''
+
+    anneal_month_start, anneal_month_end = get_anneal_month_dates(data_begin, data_end, database_path)
+    total_num_days = anneal_month_end.val - anneal_month_start.val #these are in mjd so you get # of days
+    base_num_days = math.floor(total_num_days / N_period) 
+    #For remaining days, add 1 to each week until all days are gone
+    remaining_days = math.floor(total_num_days - base_num_days*N_period)
+    remaining_time = total_num_days - base_num_days*N_period - remaining_days
+    num_days_per_period = np.array([base_num_days for i in xrange(N_period)])
+    num_days_per_period[-1] = num_days_per_period[-1] + remaining_time
+    for i, day in enumerate(range(int(remaining_days))):
+        num_days_per_period[i] += 1
+    anneal_weeks = []
+    wk_end = anneal_month_start.val
+    for period in num_days_per_period:
+        wk_start = wk_end
+        wk_end = wk_start + period
+        anneal_weeks.append((wk_start, wk_end))
+    return anneal_weeks
+    
 #------------------------------------------------------------------------------
 
 def figure_number_of_periods(number_of_days, mode) :
@@ -489,9 +585,7 @@ def bd_calstis(joinedfile, thebiasfile=None ) :
     """
 
     import pyfits
-    from pyraf import iraf 
-    from iraf import stsdas,hst_calib,stis
-    from pyraf.irafglobals import *
+    from stistools.calstis import calstis
     import os
     import shutil
 
@@ -510,7 +604,7 @@ def bd_calstis(joinedfile, thebiasfile=None ) :
 
     print 'Running CalSTIS on %s' % joinedfile 
     print 'to create: %s' % crj_file
-    iraf.calstis(joinedfile, wavecal="", outroot="",
+    calstis(joinedfile, wavecal="", outroot="",
                  savetmp=no, verbose=yes)
     
     pyfits.setval(crj_file, 'FILENAME', value=os.path.split(crj_file)[1] )

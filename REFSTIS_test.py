@@ -29,8 +29,11 @@ def copy_file_to_testing_dir(data_dir, testing_dir, filename = '*raw.fits'):
     Consider in the future copying wav files
     '''
     flist = glob.glob(os.path.join(data_dir, filename))
+    filenames = []
     for ifile in flist:
         shutil.copy(ifile, os.path.join(testing_dir, ifile.split('/')[-1]))
+        filenames.append(ifile.split('/')[-1])
+    return filenames
 
 def calibrate(calstis_func, filename, reffile_keyword, reffile_name, commandline_options = ''):
     '''
@@ -95,25 +98,22 @@ def examine_stdev(date_flt, stdev_flt, date_raw, stdev_raw, savefig = False, fig
             print '\nWARNING: Standard Deviation for at least one file was larger in the FLT than in the RAW\n'
     return
 
-def delete_calibration_products(testing_dir):
+def delete_calibration_products(flist, testing_dir):
     '''
     This function deletes all flt files so CalSTIS will create new products.
     At some point we may want to consider
     extending this to other calibration products
     '''
-
-    flist = glob.glob(os.path.join(testing_dir, '*'))
     for ifile in flist:
-        if ifile.endswith('_flt.fits'):
-            os.remove(ifile)
+        if os.path.exists(os.path.join(testing_dir, ifile.replace('raw', 'flt'))):
+            os.remove(os.path.join(testing_dir, ifile.replace('raw', 'flt')))
 
 def calibrate_bias_data(testing_dir, cur_dir, data_dir, reffile_dir, reffile_name, ax):
 
-    copy_file_to_testing_dir(data_dir, testing_dir)
+    flist = copy_file_to_testing_dir(data_dir, testing_dir)
     copy_file_to_testing_dir(reffile_dir, testing_dir, filename = reffile_name)
     os.chdir(testing_dir)
-    flist = glob.glob('*raw.fits')
-    delete_calibration_products(testing_dir)
+    delete_calibration_products(flist, testing_dir)
     for ifile in flist:
         calibrate('cs1.e', ifile, 'BIASFILE', reffile_name, '-blev -bias -dqi')
 
@@ -137,6 +137,10 @@ if __name__ == "__main__":
     ax = fig.add_subplot(1,1,1)
     os.chdir('/user/bostroem/science/cte/2012_04')
     cur_dir= os.getcwd()
-    test_bias(cur_dir, '/user/bostroem/science/cte/2012_04/bias/biases/1-1x1/wk01', '/user/bostroem/science/cte/2012_04/bias/biases/1-1x1/wk01', 'refbias__wk01.fits', ax)
+    test_bias(cur_dir, '/user/bostroem/science/cte/2012_04/bias/biases/1-1x1/wk01', '/user/bostroem/science/cte/2012_04/bias/biases/1-1x1/wk01', 'refbias__wk01.fits', ax, calibrate = True)
+    test_bias(cur_dir, '/user/bostroem/science/cte/2012_04/bias/biases/1-1x1/wk02', '/user/bostroem/science/cte/2012_04/bias/biases/1-1x1/wk02', 'refbias__wk02.fits', ax, calibrate = True)
+    test_bias(cur_dir, '/user/bostroem/science/cte/2012_04/bias/biases/1-1x1/wk03', '/user/bostroem/science/cte/2012_04/bias/biases/1-1x1/wk03', 'refbias__wk03.fits', ax, calibrate = True)
+    test_bias(cur_dir, '/user/bostroem/science/cte/2012_04/bias/biases/1-1x1/wk04', '/user/bostroem/science/cte/2012_04/bias/biases/1-1x1/wk04', 'refbias__wk04.fits', ax, calibrate = True)
+
     raw_input('Pause before existing to view plot')
     

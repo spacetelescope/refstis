@@ -676,3 +676,18 @@ def apply_dark_correction(filename, expstart):
     ofile.flush()
     ofile.close()
 #--------------------------------------------------------------------------
+def bias_subtract_data(filename):  
+    if os.path.exists(filename.replace('raw', 'flc')):
+        input_list[i] = filename.replace('raw', 'flc')
+        filename = filename.replace('raw', 'flc')
+        assert pyfits.getval(filename, 'CRCORR', 0) != 'COMPLETE', 'CR Rejection should not be performed on %s' %(filename)
+    elif os.path.exists(filename.replace('raw', 'flt')):
+        input_list[i] == filename.replace('raw', 'flt')
+        filename = filename.replace('raw', 'flt')
+        assert pyfits.getval(filename, 'CRCORR', 0) != 'COMPLETE', 'CR Rejection should not be performed on %s' %(filename)
+    else:  
+        stistools.basic2d.basic2d(filename, dqicorr = 'perform', blevcorr = 'perform', biascorr = 'perform',
+            atodcorr = 'omit', doppcorr = 'omit', lorscorr = 'omit', glincorr = 'omit', lflgcorr = 'omit', 
+            darkcorr = 'omit', flatcorr = 'omit', shadcorr = 'omit', photcorr = 'omit')
+        input_list[i] = filename.replace('raw', 'flt')
+        filename = filename.replace('raw', 'flt')

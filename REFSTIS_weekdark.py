@@ -53,15 +53,15 @@ def create_superdark( crj_filename, basedark ):
 
 #-------------------------------------------------------------------------------
 
-def make_weekdark( input_list, refdark_name, thebiasfile, thebasedark ):
+def make_weekdark( input_list, refdark_name, thebasedark , thebiasfile = None):
     """
-    1- split all raw images into their imsets
-    2- join imsets together into a single file
-    3- combine and cr-reject
-    4- normalize to e/s by dividing by (exptime/gain)
-    5- do hot pixel things
-    6- 
-    7- 
+    1- If not already done, run basic2d with blevcorr, biascorr, and dqicorr set to perform 
+    2- Apply temperature correction to the data
+    3- split all raw images into their imsets
+    4- join imsets together into a single file
+    5- combine and cr-reject
+    6- normalize to e/s by dividing by (exptime/gain)
+    7- do hot pixel things
 
     # Update ERR extension of new superdark by assigning the ERR values of the
     # basedark except for the new hot pixels that are updated from the weekly
@@ -73,10 +73,17 @@ def make_weekdark( input_list, refdark_name, thebiasfile, thebasedark ):
     print '#        Running weekdark       #'
     print '#-------------------------------#'
     print 'Making weekdark %s' % (refdark_name)
+    if not thebiasfile:
+        thebiasfile = pyfits.getval(input_list[0], 'biasfile', 0)
     print 'With : %s' % (thebiasfile)
     print '     : %s' % (thebasedark)
     joined_out = refdark_name.replace('.fits', '_joined.fits' )
-
+    for i, filename in enumerate(input_list):
+        REFSTIS_functions.bias_subtract_data(filename)
+        #Side 1 operations ended on May 16, 2001. Side 2 operations started on July 10, 2001, 52091.0 corresponds to July 1, 2001
+        if pyfits.getval(filename, 'texpstrt', 0) > 52091.0:
+            REFSTIS_functions.apply_dark_correction(filename, pyfits.getval(filename, 'texpstrt', 0))
+    REFSTIS_functions.bias_subtract_data(input_list)
     print 'Joining images to %s' % joined_out
     REFSTIS_functions.msjoin( input_list, joined_out)
 

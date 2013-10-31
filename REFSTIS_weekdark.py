@@ -14,6 +14,7 @@ import numpy as np
 
 import support
 import REFSTIS_functions
+import pdb
 
 #-------------------------------------------------------------------------------
 
@@ -26,31 +27,59 @@ def create_superdark( crj_filename, basedark ):
     # This creates the science portion of the forthcoming reference dark. "
     """
     crj_hdu = pyfits.open( crj_filename, mode='update' )
+
+    ## Perform iterative statistics on this normalized superdark 
+    #imstat(img,fields="mean,stddev,npix,midpt,mode,min,max",lower=ll,upper=ul,for-) | scan(mn,sig,nx,med,mod,min,max)
     data_median, data_mean, data_std = support.sigma_clip( crj_hdu[ ('sci', 1) ].data , sigma=3, iterations=40 )
-    ### Not used:  five_sigma = data_median + 5 * data_sigma
 
+    #	p_fivesig = med + (5*sig)
+    #p_five_sigma = data_median + (5*data_std)
+    p_five_sigma = 0.10718061
+    print 'hot pixels are defined as above: ', p_five_sigma
     basedark_hdu = pyfits.open( basedark )
-    basedark_med = medfilt( basedark_hdu[('sci', 1)].data, (5, 5) )
+    #imstat(img,fields="mean,midpt,stddev,npix",lower=lower,upper=upper,for-) | scan(basemn,basemed,basesig,npx)
     base_median, base_mean, base_std = support.sigma_clip( basedark_hdu[ ('sci', 1) ].data, sigma=3, iterations=40 )
-    five_sigma = base_median + 5 * base_std
-
+    base_median =  0.01490736
+    #   imarith (theoutfile//"_sci.fits", "-", basemed, "zerodark.fits")
     zerodark = crj_hdu[ ('sci', 1) ].data - base_median
-    only_hotpix = np.where( basedark_hdu[ ('sci', 1) ].data >= five_sigma, zerodark, 0 )
 
-    only_dark = np.where( basedark_hdu[ ('sci', 1) ].data >= five_sigma, basedark_med, basedark_hdu[ ('sci', 1) ].data )
+    # imcalc (theoutfile//"_sci.fits[0],zerodark.fits[0]", "only_hotpix.fits", \ 
+	#"if im1 .ge. "//p_fivesig//" then im2 else 0.0", pixtype="old", nullval=0., verbose-) 
+    only_hotpix = np.where( crj_hdu[ ('sci', 1) ].data >= p_five_sigma, zerodark, 0.0 )
 
-    superdark_im = only_dark + only_hotpix
+    #median (thebasedark//".fits[sci]", "basedrk_med.fits", xwindow=5, ywindow=5, verb-)
+    basedark_med = medfilt( basedark_hdu[('sci', 1)].data, (5, 5) )
 
-    crj_hdu[ ('sci', 1) ].data = superdark_im
+    #imcalc (thebasedark//"_sci.fits[0],basedrk_med.fits[0]", "only_dark.fits", \
+	#"if im1 .ge. "//p_fivesig//" then im2 else im1", pixtype="old", nullval=0., verbose-)
+    only_dark = np.where( basedark_hdu[ ('sci', 1) ].data >= p_five_sigma, basedark_med, basedark_hdu[ ('sci', 1) ].data )
+
+    #imarith ("only_dark.fits[0]", "+", "only_hotpix.fits[0]", "superdark.fits", verbose-)
+    crj_hdu[ ('sci', 1) ].data = only_dark + only_hotpix
+
+    #divide error by the sqrt of number of combined images
+    #imcalc (s3//"[err]", "refERR.fits", "im1/sqrt("//ncombine//")", \
+    #	pixtype="old", nullval=0., verbose-)
+    #!!!!Very early data may not have ncombine
+    #This doesn't appear to be used in the final xstis analysis
+    #crj_hdu[('err', 1)].data /= np.sqrt(crj_hdu[1].header['ncombine'])
 
     #- update DQ extension 
-    index = np.where( only_hotpix >= five_sigma )[0]
-    crj_hdu[ ('dq', 1) ].data[index] = 16
+    #imcalc (theoutfile//"_dq.fits[0],only_hotpix.fits[0]", "refDQ.fits", \
+	#"if im2 .ge. "//p_fivesig//" then 16 else im1", \
+	#pixtype="old", nullval=0., verbose-)
+    crj_hdu[ ('dq', 1) ].data = np.where( only_hotpix >= p_five_sigma, 16, crj_hdu[('dq', 1)].data)
 
     #- Update Error
-    index_to_replace = np.where( only_hotpix == 0 )
-    crj_hdu[ ('err', 1) ].data[ index_to_replace ] = basedark_hdu[ ('err', 1) ].data[ index_to_replace ]
+    #imcalc (thebasedark//"_err.fits[0],only_hotpix.fits[0],"//theoutfile//"_err.fits[0]", \
+	#"ERR_new.fits", "if im2 .eq. 0.0 then im1 else im3", \
+	#pixtype="old", nullval=0., verbose-)
+    
 
+    crj_hdu[ ('err', 1) ].data = np.where(only_hotpix == 0, basedark_hdu[ ('err', 1) ].data, crj_hdu[('err', 1)].data)
+    pdb.set_trace()
+    crj_hdu.flush()
+    crj_hdu.close()
 #-------------------------------------------------------------------------------
 
 def make_weekdark( input_list, refdark_name, thebasedark , thebiasfile = None):
@@ -79,11 +108,12 @@ def make_weekdark( input_list, refdark_name, thebasedark , thebiasfile = None):
     print '     : %s' % (thebasedark)
     joined_out = refdark_name.replace('.fits', '_joined.fits' )
     for i, filename in enumerate(input_list):
-        REFSTIS_functions.bias_subtract_data(filename)
+        filename = REFSTIS_functions.bias_subtract_data(filename)
+        input_list[i] = filename
         #Side 1 operations ended on May 16, 2001. Side 2 operations started on July 10, 2001, 52091.0 corresponds to July 1, 2001
         if pyfits.getval(filename, 'texpstrt', 0) > 52091.0:
             REFSTIS_functions.apply_dark_correction(filename, pyfits.getval(filename, 'texpstrt', 0))
-    REFSTIS_functions.bias_subtract_data(input_list)
+    
     print 'Joining images to %s' % joined_out
     REFSTIS_functions.msjoin( input_list, joined_out)
 
@@ -91,19 +121,18 @@ def make_weekdark( input_list, refdark_name, thebasedark , thebiasfile = None):
     print "## crdone is ", crdone
     if (not crdone):
         REFSTIS_functions.bd_calstis(joined_out, thebiasfile)
-
     crj_filename = joined_out.replace('.fits', '_crj.fits')
-    REFSTIS_functions.normalize_crj( crj_filename )
-
-    create_superdark( crj_filename, thebasedark )
-    
     shutil.copy( crj_filename, refdark_name )
+    REFSTIS_functions.normalize_crj( refdark_name )
+
+    
+    create_superdark( refdark_name, thebasedark )
 
     REFSTIS_functions.update_header_from_input( refdark_name, input_list )
 
     print 'Cleaning up...'
-    REFSTIS_functions.RemoveIfThere( crj_filename )
-    REFSTIS_functions.RemoveIfThere( joined_out )
+    #REFSTIS_functions.RemoveIfThere( crj_filename )
+    #REFSTIS_functions.RemoveIfThere( joined_out )
 
     print 'Weekdark done'
 

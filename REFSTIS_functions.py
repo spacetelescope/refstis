@@ -11,6 +11,7 @@ import support
 import math
 import sqlite3
 import datetime
+import stistools
 
 
 #-------------------------------------------------------------------------------
@@ -169,6 +170,7 @@ def normalize_crj( filename ):
     gain = hdu[0].header[ 'ATODGAIN' ]
 
     norm_factor = float(exptime)/gain
+    print 'Normalizing by ', norm_factor
     hdu[ ('sci', 1) ].data /= norm_factor
     hdu[('err', 1)].data /= abs(norm_factor)
 
@@ -665,29 +667,33 @@ def apply_dark_correction(filename, expstart):
     dark_v_temp = 0.07
     s2ref_temp = 18.0
     ofile = pyfits.open(filename, mode = 'update')
-    nextend = ofile[0].header['nextend']
-    for ext in np.arange(1, nextend, 3):
-        occdhtav = ofile[ext].header['OCCDHTAV']
-        factor = 1.0 / (1.0 + dark_v_temp * (float(occdhtav) - s2ref_temp))      
-        ofile[ext].data = ofile[ext].data * factor
-        print 'Scaling data by ', factor, ' for temperature: ', occdhtav
-        ofile[ext+1].data = np.sqrt((ofile[ext+1].data)**2 * (factor**2)) #Modify the error array
-        ofile[ext].header.add_history('File scaled for Side-2 temperature uncertainty by data * (1.0 + %f * (%f - %f)) following description is STIS TIR 2004-01' %(dark_v_temp, occdhtav, s2ref_temp))
+    if 'tempcorr' not in ofile[0].header:
+        nextend = ofile[0].header['nextend']
+        for ext in np.arange(1, nextend, 3):
+            occdhtav = ofile[ext].header['OCCDHTAV']
+            factor = 1.0 / (1.0 + dark_v_temp * (float(occdhtav) - s2ref_temp))      
+            ofile[ext].data = ofile[ext].data * factor
+            print 'Scaling data by ', factor, ' for temperature: ', occdhtav
+            ofile[ext+1].data = np.sqrt((ofile[ext+1].data)**2 * (factor**2)) #Modify the error array
+            ofile[ext].header.add_history('File scaled for Side-2 temperature uncertainty by data * (1.0 + %f * (%f - %f)) following description is STIS TIR 2004-01' %(dark_v_temp, occdhtav, s2ref_temp))
+        ofile[0].header['tempcorr'] = 'COMPLETE'
+    else:
+        print 'TEMPCORR = %s, not temperature correction applied to filename' %(ofile[0].header['tempcorr'])
+    
     ofile.flush()
     ofile.close()
 #--------------------------------------------------------------------------
 def bias_subtract_data(filename):  
+
     if os.path.exists(filename.replace('raw', 'flc')):
-        input_list[i] = filename.replace('raw', 'flc')
         filename = filename.replace('raw', 'flc')
         assert pyfits.getval(filename, 'CRCORR', 0) != 'COMPLETE', 'CR Rejection should not be performed on %s' %(filename)
     elif os.path.exists(filename.replace('raw', 'flt')):
-        input_list[i] == filename.replace('raw', 'flt')
         filename = filename.replace('raw', 'flt')
         assert pyfits.getval(filename, 'CRCORR', 0) != 'COMPLETE', 'CR Rejection should not be performed on %s' %(filename)
     else:  
         stistools.basic2d.basic2d(filename, dqicorr = 'perform', blevcorr = 'perform', biascorr = 'perform',
             atodcorr = 'omit', doppcorr = 'omit', lorscorr = 'omit', glincorr = 'omit', lflgcorr = 'omit', 
             darkcorr = 'omit', flatcorr = 'omit', shadcorr = 'omit', photcorr = 'omit')
-        input_list[i] = filename.replace('raw', 'flt')
         filename = filename.replace('raw', 'flt')
+    return filename

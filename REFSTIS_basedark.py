@@ -65,7 +65,8 @@ def make_basedark( input_list, refdark_name='basedark.fits', bias_file=None ):
 
     #bias subtract data if not already done
     for i, filename in enumerate(input_list):
-        REFSTIS_functions.bias_subtract_data(filename)
+        filename = REFSTIS_functions.bias_subtract_data(filename)
+        input_list[i] = filename
         #Side 1 operations ended on May 16, 2001. Side 2 operations started on July 10, 2001, 52091.0 corresponds to July 1, 2001
         if pyfits.getval(filename, 'texpstrt', 0) > 52091.0:
             REFSTIS_functions.apply_dark_correction(filename, pyfits.getval(filename, 'texpstrt', 0))

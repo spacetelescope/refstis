@@ -33,28 +33,17 @@ def create_superdark( crj_filename, basedark ):
     data_median, data_mean, data_std = support.sigma_clip( crj_hdu[ ('sci', 1) ].data , sigma=3, iterations=40 )
 
     #	p_fivesig = med + (5*sig)
-    #p_five_sigma = data_median + (5*data_std)
-    p_five_sigma = 0.10718061
+    p_five_sigma = data_median + (5*data_std)
     print 'hot pixels are defined as above: ', p_five_sigma
     basedark_hdu = pyfits.open( basedark )
-    #imstat(img,fields="mean,midpt,stddev,npix",lower=lower,upper=upper,for-) | scan(basemn,basemed,basesig,npx)
     base_median, base_mean, base_std = support.sigma_clip( basedark_hdu[ ('sci', 1) ].data, sigma=3, iterations=40 )
-    base_median =  0.01490736
-    #   imarith (theoutfile//"_sci.fits", "-", basemed, "zerodark.fits")
-    zerodark = crj_hdu[ ('sci', 1) ].data - base_median
 
-    # imcalc (theoutfile//"_sci.fits[0],zerodark.fits[0]", "only_hotpix.fits", \ 
-	#"if im1 .ge. "//p_fivesig//" then im2 else 0.0", pixtype="old", nullval=0., verbose-) 
+    zerodark = crj_hdu[ ('sci', 1) ].data - base_median
     only_hotpix = np.where( crj_hdu[ ('sci', 1) ].data >= p_five_sigma, zerodark, 0.0 )
 
-    #median (thebasedark//".fits[sci]", "basedrk_med.fits", xwindow=5, ywindow=5, verb-)
     basedark_med = medfilt( basedark_hdu[('sci', 1)].data, (5, 5) )
-
-    #imcalc (thebasedark//"_sci.fits[0],basedrk_med.fits[0]", "only_dark.fits", \
-	#"if im1 .ge. "//p_fivesig//" then im2 else im1", pixtype="old", nullval=0., verbose-)
     only_dark = np.where( basedark_hdu[ ('sci', 1) ].data >= p_five_sigma, basedark_med, basedark_hdu[ ('sci', 1) ].data )
 
-    #imarith ("only_dark.fits[0]", "+", "only_hotpix.fits[0]", "superdark.fits", verbose-)
     crj_hdu[ ('sci', 1) ].data = only_dark + only_hotpix
 
     #divide error by the sqrt of number of combined images
@@ -65,9 +54,6 @@ def create_superdark( crj_filename, basedark ):
     #crj_hdu[('err', 1)].data /= np.sqrt(crj_hdu[1].header['ncombine'])
 
     #- update DQ extension 
-    #imcalc (theoutfile//"_dq.fits[0],only_hotpix.fits[0]", "refDQ.fits", \
-	#"if im2 .ge. "//p_fivesig//" then 16 else im1", \
-	#pixtype="old", nullval=0., verbose-)
     crj_hdu[ ('dq', 1) ].data = np.where( only_hotpix >= p_five_sigma, 16, crj_hdu[('dq', 1)].data)
 
     #- Update Error

@@ -288,9 +288,10 @@ def crreject( input_file, workdir=None) :
     out_div = output_crj.replace('.fits','_div.fits')
 
     #this used to be a call to MSARITH, is anything else needed?
-    #modifying the error too, etc?
+    #modifying the error too (done), etc?
     hdu = pyfits.open( output_crj )
-    hdu[1].data /= ncombine
+    hdu[('sci', 1)].data /= ncombine
+    hdu[('err', 1)].data /= ncombine
     hdu.writeto( out_div )
 
     os.remove( output_blev )

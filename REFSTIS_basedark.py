@@ -65,20 +65,8 @@ def make_basedark( input_list, refdark_name='basedark.fits', bias_file=None ):
 
     #bias subtract data if not already done
     for i, filename in enumerate(input_list):
-        if os.path.exists(filename.replace('raw', 'flc')):
-            input_list[i] = filename.replace('raw', 'flc')
-            filename = filename.replace('raw', 'flc')
-            assert pyfits.getval(filename, 'CRCORR', 0) != 'COMPLETE', 'CR Rejection should not be performed on %s' %(filename)
-        elif os.path.exists(filename.replace('raw', 'flt')):
-            input_list[i] == filename.replace('raw', 'flt')
-            filename = filename.replace('raw', 'flt')
-            assert pyfits.getval(filename, 'CRCORR', 0) != 'COMPLETE', 'CR Rejection should not be performed on %s' %(filename)
-        else:  
-            stistools.basic2d.basic2d(filename, dqicorr = 'perform', blevcorr = 'perform', biascorr = 'perform',
-                atodcorr = 'omit', doppcorr = 'omit', lorscorr = 'omit', glincorr = 'omit', lflgcorr = 'omit', 
-                darkcorr = 'omit', flatcorr = 'omit', shadcorr = 'omit', photcorr = 'omit')
-            input_list[i] = filename.replace('raw', 'flt')
-            filename = filename.replace('raw', 'flt')
+        filename = REFSTIS_functions.bias_subtract_data(filename)
+        input_list[i] = filename
         #Side 1 operations ended on May 16, 2001. Side 2 operations started on July 10, 2001, 52091.0 corresponds to July 1, 2001
         if pyfits.getval(filename, 'texpstrt', 0) > 52091.0:
             REFSTIS_functions.apply_dark_correction(filename, pyfits.getval(filename, 'texpstrt', 0))
@@ -86,7 +74,7 @@ def make_basedark( input_list, refdark_name='basedark.fits', bias_file=None ):
     joined_filename = refdark_name.replace('.fits', '_joined.fits') 
     crj_filename = joined_filename.replace('.fits', '_crj.fits')
 
-    if not bias_file: raise IOError( 'No biasfile specified, this task needs one to run' )
+    #if not bias_file: raise IOError( 'No biasfile specified, this task needs one to run' )
 
     print 'Joining images'
     REFSTIS_functions.msjoin( input_list, joined_filename  )

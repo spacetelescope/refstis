@@ -344,7 +344,7 @@ def make_ref_files( root_folder, clean=False ):
             else:
                 weekbias_name = os.path.join( root_folder, 'biases/1-1x1', wk, 'refbias_%s_%s.fits'%(proposal, wk) ) ### probably need to be final file, either week* or ref*
                 basedark_name = os.path.join( folder.replace(wk, 'all'), 'basedark.fits' )
-                REFSTIS_weekdark.make_weekdark( raw_files, weekdark_name, weekbias_name , basedark_name)
+                REFSTIS_weekdark.make_weekdark( raw_files, weekdark_name, basedark_name, weekbias_name )
     
 
 #-------------------------------------------------------------------------------

@@ -34,14 +34,18 @@ import REFSTIS_functions
 
 products_directory = '/user/ely/STIS/refstis/darks_biases/'
 retrieve_directory = '/user/ely/STIS/refstis/requested/'
+for location in [products_directory, retrieve_directory]:
+    if not os.path.isdir( location ):
+        os.makedirs( location )
+
 
 #dark_proposals = [7600, 7601, 8408, 8437, 8837, 8864, 8901, 8902, 9605, 9606, 
 #                  10017, 10018, 11844, 11845, 12401, 12402, 12741, 12742]
 #bias_proposals = [7600, 7601, 8409, 8439, 8838, 8865, 8903, 8904, 9607, 9608, 
 #                  10019, 10020, 11846, 11847, 12403, 12404, 12743, 12744]
 
-dark_proposals = [ 11844, 11845, 12400, 12401, 12741, 12742, 13131, 13132]
-bias_proposals = [ 11846, 11847, 12402, 12403, 12743, 12744, 13133, 13134]
+dark_proposals = [ 11844, 11845, 12400, 12401, 12741, 12742, 13131, 13132, 13518, 13519]
+bias_proposals = [ 11846, 11847, 12402, 12403, 12743, 12744, 13133, 13134, 13535, 13536]
 
 
 #-------------------------------------------------------------------------------
@@ -91,7 +95,7 @@ def get_new_periods():
         dirs_to_process.append( products_folder )
 
         if not os.path.exists( products_folder ): 
-            os.mkdir( products_folder )
+            os.makedirs( products_folder )
         
         already_retrieved = []
         for root, dirs, files in os.walk( products_folder ):

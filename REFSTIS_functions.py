@@ -115,8 +115,6 @@ def get_start_and_endtimes(input_list):
     end_str = '%s/%s/%s' %(end_list[2], end_list[1], end_list[0])
     return start_str, end_str, start_mjd, end_mjd
 
-    
-
 #---------------------------------------------------------------------------
 
 def make_resicols_image( residual_image, yfrac=None ):    
@@ -358,16 +356,15 @@ def get_anneal_month_dates(data_begin, data_end, database_path):
     end_indx = np.where(anneal_start_date - data_end > 0)
     anneal_period_end_indx = end_indx[0][0] #want to end an anneal month at the start of the anneal
     
-    
-
     anneal_month_start = Time(anneal_end_date[anneal_period_start_indx], format = 'mjd', scale = 'utc')
     anneal_month_end = Time(anneal_start_date[anneal_period_end_indx], format = 'mjd', scale = 'utc')
-    assert anneal_period_end_indx - anneal_period_start_indx == 1, 'data cannot cross anneals, data date range [%f - %f], anneal month [%f - %f]' %(data_begin, data_end, anneal_month_start.val, anneal_month_end.val)
+    assert anneal_period_end_indx - anneal_period_start_indx == 1, \
+        'data cannot cross anneals, data date range [%f - %f], anneal month [%f - %f]' %(data_begin, data_end, anneal_month_start.val, anneal_month_end.val)
     return anneal_month_start, anneal_month_end
 
 #------------------------------------------------------------------------------
 
-def divide_anneal_month(data_begin, data_end, database_path, N_period = 4):
+def divide_anneal_month(data_begin, data_end, database_path, N_period):
     '''
     This function divides an anneal month into anneal weeks and returns
     tuples of the start and end dates of the anneal weeks

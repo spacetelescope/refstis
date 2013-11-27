@@ -224,7 +224,6 @@ def make_ref_files( root_folder, clean=False ):
 
     gain_folders, week_folders = pull_out_subfolders( root_folder )
         
-
     ######################
     # make the base biases
     ######################
@@ -247,6 +246,7 @@ def make_ref_files( root_folder, clean=False ):
                 print 'Basebias already created, skipping'
     else:
         print 'no folder %s exists, not making a basebias' %(os.path.join(root_folder, 'biases'))
+
     ######################
     # make the base darks
     ######################
@@ -388,20 +388,9 @@ def get_new_obs(file_type, start, end):
 
     OR_part = "".join(["science.sci_pep_id = %d OR "%(proposal) for proposal in proposal_list])[:-3]
 
-    #obs_name_query = "SELECT science.sci_data_set_name FROM science WHERE ( " + OR_part + " ) AND  science.sci_targname ='%s' AND science.sci_actual_duration BETWEEN %d AND %d "%(file_type, MIN_EXPTIME, MAX_EXPTIME)
-    #start_time_query = "SELECT science.sci_start_time FROM science WHERE ( " + OR_part + " ) AND  science.sci_targname ='%s' AND science.sci_actual_duration BETWEEN %d AND %d "%(file_type, MIN_EXPTIME, MAX_EXPTIME)
-
     data_query = "SELECT science.sci_start_time,science.sci_data_set_name FROM science WHERE ( " + OR_part + " ) AND  science.sci_targname ='%s' AND science.sci_actual_duration BETWEEN %d AND %d "%(file_type, MIN_EXPTIME, MAX_EXPTIME)
     query.doQuery(query=data_query)
     new_dict = query.resultAsDict()
- 
-    #query.doQuery(query=obs_name_query)
-    #new_dict = query.resultAsDict()
-    #obs_names = new_dict[new_dict.keys()[0]][2:]  #remove non-obs entries in dictionary
-
-    #query.doQuery(query=start_time_query)
-    #new_dict = query.resultAsDict()
-    #start_times = new_dict[new_dict.keys()[0]][2:]  #remove non-obs entries in dictionary
     
     obs_names = np.array( new_dict['sci_data_set_name'] )
     
@@ -440,8 +429,6 @@ def collect_new(observations_to_get):
 
     return success
 
-
-
 #-----------------------------------------------------------------------
 
 def separate_obs( base_dir, month_begin, month_end  ):
@@ -465,20 +452,16 @@ def separate_obs( base_dir, month_begin, month_end  ):
                                         ['BIAS', 'DARK', 'BIAS'], 
                                         ['WK', 'WK', 'BIWK'] ):
 
-        if len(obs_list) == 0:
+        if not len(obs_list):
             print '%s No obs to move.  Skipping'%(mode)
             continue
         gain = list( set( [ pyfits.getval(item, 'CCDGAIN', ext=0) for item in obs_list ] ) )
-        print obs_list, 'gain = ', gain
+        print mode, len(obs_list), 'files to move', 'gain = ', gain
+
         assert len(gain) == 1, 'ERROR: Not everything has the same gain'
         gain = gain[0]
 
-
-        if mode == 'WK':
-            N_periods = 4
-        elif mode == 'BIWK':
-            N_periods = 2
-
+        N_periods = figure_number_of_periods( month_end - month_begin, mode )
         anneal_weeks = REFSTIS_functions.divide_anneal_month(month_begin, month_end,'/grp/hst/stis/calibration/anneals/', N_periods)
 
         print
@@ -489,15 +472,15 @@ def separate_obs( base_dir, month_begin, month_end  ):
 
         for period in range(N_periods):
             begin, end = anneal_weeks[period]
-            week = str(period + 1) ##weeks from 1-4, not 0-3
+            week = str(period + 1) # weeks from 1-4, not 0-3
             while len(week) < 2:
                 week = '0'+week            
 
             output_path = base_dir
             if file_type == 'BIAS':
-                output_path = os.path.join(output_path, 'biases/%d-1x1/%s%s/'%(gain, mode.lower(), week) )
+                output_path = os.path.join(output_path, 'biases/%d-1x1/%s%s/' % (gain, mode.lower(), week) )
             elif file_type == 'DARK':
-                output_path = os.path.join(output_path, 'darks/%s%s/'%(mode.lower(), week) )
+                output_path = os.path.join(output_path, 'darks/%s%s/' % (mode.lower(), week) )
             else: print 'File Type not recognized'
             
             print output_path
@@ -516,7 +499,7 @@ def separate_obs( base_dir, month_begin, month_end  ):
                 print 'Moving ', item,  ' to:', output_path
                 shutil.move( item,  output_path )
                 if 'IMPHTTAB' not in pyfits.getheader(os.path.join(output_path, item.split('/')[-1]), 0).keys():
-                    pyfits.setval(os.path.join(output_path, item.split('/')[-1]), 'IMPHTTAB', ext = 0, value = 'oref$x9r1607mo_imp.fits')
+                    pyfits.setval(os.path.join(output_path, item.split('/')[-1]), 'IMPHTTAB', ext = 0, value = 'oref$x9r1607mo_imp.fits')   ###Dynamic at some point
                 obs_list.remove( item )
 
 #-----------------------------------------------------------------------

@@ -24,6 +24,12 @@ def regress( folder ):
     for errors in processing
 
     """
+
+    print '#------------------#'
+    print 'Running regression for'
+    print folder
+    print '#------------------#'
+
     monitor_dir = '/grp/hst/stis/darks_biases'
     test_suite = os.path.join( monitor_dir, 'test_suite' )
     test_dark = os.path.join( monitor_dir, 'test_dark' )
@@ -60,21 +66,22 @@ def regress( folder ):
             if os.path.exists(txt_file):
                 os.remove(txt_file)
         
-        for rawfile in raws:
-            pyfits.setval(rawfile, 'DARKFILE', value=dark, ext=0)
-            pyfits.setval(rawfile, 'BIASFILE', value=bias, ext=0)
-        for wavefile in wavs:
-            pyfits.setval(wavefile, 'DARKFILE', value=dark, ext=0)
-            pyfits.setval(wavefile, 'BIASFILE', value=bias, ext=0)
-
         print '#-------------------------------------------#'
         print 'Running CalSTIS with %s %s ' % (dark, bias)
         print '#-------------------------------------------#'
 
-        calstis('*raw.fits', Stdout=dark[5:9] + '_stdout.txt')
+        for rawfile, wavefile in zip( raws, wavs ):
+            pyfits.setval(rawfile, 'DARKFILE', value=dark, ext=0)
+            pyfits.setval(rawfile, 'BIASFILE', value=bias, ext=0)
+            pyfits.setval(wavefile, 'DARKFILE', value=dark, ext=0)
+            pyfits.setval(wavefile, 'BIASFILE', value=bias, ext=0)
 
-        if not check_txt(dark[5:9] + '_stdout.txt'):
-            sys.exit('Calstis Error detected for %s' % (dark[5:9]))
+            status = calstis(rawfile)#, trailer=dark[5:9] + '_stdout.txt')
+
+            if status: sys.exit('Calstis Error detected for %s' % (dark[5:9]))
+
+        #if not check_txt(dark[5:9] + '_stdout.txt'):
+        #    sys.exit('Calstis Error detected for %s' % (dark[5:9]))
 
     ######################################
     # Run checks in the test_dark folder #
@@ -85,26 +92,29 @@ def regress( folder ):
     wavs = glob.glob('*wav.fits')
     print bias_biwk_refs
     for bias in bias_biwk_refs:
+
         remove_products()
         for txt_file in (bias[5:13] + '_err.txt', bias[5:13] + '_stdout.txt'):
             if os.path.exists(txt_file):
                 os.remove(txt_file)
-        
-        for rawfile in raws:
-            pyfits.setval(rawfile, 'BIASFILE', value=bias, ext=0)
-            pyfits.setval(rawfile, 'DARKFILE', value=darkrefs[0], ext=0)
-        for wavefile in wavs:
-            pyfits.setval(wavefile, 'BIASFILE', value=bias, ext=0)
-            pyfits.setval(wavefile, 'DARKFILE', value=biasrefs[0], ext=0)
 
         print '#------------------------------------------#'
         print 'Running CalSTIS with %s' % (bias)
         print '#------------------------------------------#'
 
-        calstis('*raw.fits,*wav.fits', Stdout=bias[5:13] + '_stdout.txt')
+        for rawfile, wavefile in zip( rawfile, wavefile ):
 
-        if not check_txt(bias[5:13] + '_stdout.txt'):
-            sys.exit('Calstis Error detected for {}'.format( bias[5:13] ) )
+            pyfits.setval(rawfile, 'BIASFILE', value=bias, ext=0)
+            pyfits.setval(rawfile, 'DARKFILE', value=darkrefs[0], ext=0)
+            pyfits.setval(wavefile, 'BIASFILE', value=bias, ext=0)
+            pyfits.setval(wavefile, 'DARKFILE', value=biasrefs[0], ext=0)
+
+            status = calstis(input=rawfile, wavecal=wavefile, Stdout=bias[5:13] + '_stdout.txt')
+
+            if status: sys.exit('Calstis Error detected for %s' % (dark[5:9]))
+
+        #if not check_txt(bias[5:13] + '_stdout.txt'):
+        #    sys.exit('Calstis Error detected for {}'.format( bias[5:13] ) )
 
 #----------------------------------------------------------------
 

@@ -1,0 +1,34 @@
+#!/sw/bin/python
+
+import argparse
+import glob
+from refstis.REFSTIS_weekdark import make_weekdark
+
+#------------------------------------------------------------
+
+def parse_args():
+    '''
+    Parse command line arguments.  Returns args object.
+    '''
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('files', nargs='*',
+                        help='input files to turn into reference file' )
+
+    parser.add_argument('-o', dest='outname', type=str, default='basebias.fits',
+                        help='output name for the reference file' )
+
+    parser.add_argument('-b', dest='biasname', type=str, default='',
+                        help='Bias file for calibration.' )
+
+    parser.add_argument('-d', dest='darkname', type=str, default='',
+                        help='Dark file for calibration.' )
+
+    args = parser.parse_args()
+    return args
+
+#------------------------------------------------------------
+
+if __name__ == "__main__":
+    args = parse_args()
+    make_basedark( args.files, args.outname, args.biasname, args.darkname ) 

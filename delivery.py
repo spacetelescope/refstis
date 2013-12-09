@@ -7,134 +7,19 @@ to CDBS
 '''
 
 from astropy.io import fits as pyfits
-import matplotlib.pyplot as plt
-import numpy as np
 import os
 import glob
 import shutil
 import sys
+from datetime import date
 
-from datetime import date, datetime
+from stistools.calstis import calstis
 
-#----------------------------------------------------------------
-
-
-def plot_files():
-    '''
-    Check collapsed columns and rows against last month for irregularities
-    '''
-
-    print '#----------#'
-    print 'Making Plots'
-    print '#----------#'
-    bias = []
-    biwk = []
-    dark = []
-    for top in [last, new]:
-        for root, dirs, files in os.walk(top):
-            if 'delivery' not in root:
-                for ifile in files:
-                    if 'bias_wk' in ifile:
-                        bias.append(root + '/' + ifile)
-                    if 'bias_biwk' in ifile:
-                        biwk.append(root + '/' + ifile)
-                    if 'dark_wk' in ifile:
-                        dark.append(root + '/' + ifile)
-
-    plt.rcParams['figure.subplot.hspace'] = .35
-    plt.figure(figsize=(14, 20))
-    plt.suptitle('Bias: collapsed rows, colums, and means')
-    for i, ifile in enumerate(bias):
-        print ifile
-        data = pyfits.getdata(ifile, 1)
-        plt.subplot(4, 1, 1)
-        plt.plot(collapse_array(data, 0), label=ifile)
-        plt.xlim(0, 1024)
-        plt.ylim(500, 3000)
-        plt.xlabel('X pixels')
-        plt.ylabel('Counts')
-        plt.subplot(4, 1, 2)
-        plt.plot(collapse_array(data, 1), label=ifile)
-        plt.xlim(0, 1024)
-        plt.ylim(500, 3000)
-        plt.xlabel('Y pixels')
-        plt.ylabel('Counts')
-        plt.subplot(4, 1, 3)
-        plt.plot(i + 1, data.mean(), markersize=10, marker='d', label=ifile)
-        plt.xlim(0, 9)
-        plt.xlabel('Dataset')
-        plt.ylabel('Mean')
-        plt.subplot(4, 1, 4)
-        plt.plot(i + 1, data.std(), markersize=10, marker='d', label=ifile)
-        plt.xlim(0, 9)
-        plt.xlabel('Dataset')
-        plt.ylabel('Std')
-    raw_input('Bias all ok?')
-    plt.close()
-
-    plt.figure(figsize=(14, 20))
-    plt.suptitle('Dark: collapsed rows, colums, and means')
-    for i, ifile in enumerate(dark):
-        print ifile
-        data = pyfits.getdata(ifile, 1)
-        plt.subplot(4, 1, 1)
-        plt.plot(collapse_array(data, 0), label=ifile)
-        plt.xlim(0, 1024)
-        plt.ylim(0, 200)
-        plt.xlabel('X pixels')
-        plt.ylabel('Counts')
-        plt.subplot(4, 1, 2)
-        plt.plot(collapse_array(data, 1), label=ifile)
-        plt.xlim(0, 1024)
-        plt.ylim(0, 200)
-        plt.xlabel('Y pixels')
-        plt.ylabel('Counts')
-        plt.subplot(4, 1, 3)
-        plt.plot(i + 1, data.mean(), markersize=10, marker='d', label=ifile)
-        plt.xlim(0, 9)
-        plt.xlabel('Dataset')
-        plt.ylabel('Mean')
-        plt.subplot(4, 1, 4)
-        plt.plot(i + 1, data.std(), markersize=10, marker='d', label=ifile)
-        plt.xlim(0, 9)
-        plt.xlabel('Dataset')
-        plt.ylabel('Std')
-    raw_input('Dark all ok?')
-    plt.close()
-
-    plt.figure(figsize=(14, 20))
-    plt.suptitle('BiWeek bias: collapsed rows, colums, and means')
-    for i, ifile in enumerate(biwk):
-        print ifile
-        data = pyfits.getdata(ifile, 1)
-        plt.subplot(4, 1, 1)
-        plt.plot(collapse_array(data, 0), label=ifile)
-        plt.xlim(0, 1024)
-        plt.ylim(2000, 6000)
-        plt.xlabel('X pixels')
-        plt.ylabel('Counts')
-        plt.subplot(4, 1, 2)
-        plt.plot(collapse_array(data, 1), label=ifile)
-        plt.xlim(0, 1024)
-        plt.ylim(1000, 5000)
-        plt.xlabel('Y pixels')
-        plt.ylabel('Counts')
-        plt.subplot(4, 1, 3)
-        plt.plot(i + 1, data.mean(), markersize=10, marker='d', label=ifile)
-        plt.xlim(0, 5)
-        plt.xlabel('Dataset')
-        plt.ylabel('Mean')
-        plt.subplot(4, 1, 4)
-        plt.plot(i + 1, data.std(), markersize=10, marker='d', label=ifile)
-        plt.xlim(0, 5)
-        plt.xlabel('Dataset')
-        plt.ylabel('Std')
-    raw_input('Biweek bias all ok?')
-    plt.close()
+from refstis.support import send_email
 
 #----------------------------------------------------------------
 
-def calibrate( folder ):
+def regress( folder ):
     """ Run *drk and *bia files in folder through CalSTIS to check
     for errors in processing
 
@@ -143,19 +28,16 @@ def calibrate( folder ):
     test_suite = os.path.join( monitor_dir, 'test_suite' )
     test_dark = os.path.join( monitor_dir, 'test_dark' )
 
-    
     reference_files = glob.glob(os.path.join( folder, '*bia.fits' ) ) + \
-        glob.glob(os.path.join( folder, '*drk.fits' ) )
+                    glob.glob(os.path.join( folder, '*drk.fits' ) )
+    
+    for testing_dir in [test_suite, test_dark]:
+        for oldfile in glob.glob('*_drk.fits') + glob.glob('*_bia.fits'):
+            os.remove( os.path.join( testing_dir, oldfile ) )
 
-    for infile in reference_files:
-        (path, filename) = os.path.split(infile)
-
-        for location in [test_suite, test_dark]:
-            testing_file = os.path.join( location, filename )
-            if os.path.exists( testing_file ):
-                os.remove( testing_file )
-
-            shutil.copy( infile, testing_file )
+    for newfile in reference_files:
+        shutil.copy( newfile, testing_dir )
+    
 
     #######################################
     # Run checks in the test_suite folder #
@@ -168,10 +50,16 @@ def calibrate( folder ):
     biasrefs.sort()
     darkrefs = glob.glob('dark*.fits')
     darkrefs.sort()
+
     raws = glob.glob('*raw.fits')
     wavs = glob.glob('*wav.fits')
+
     for dark, bias in zip(darkrefs, biasrefs):
-        remove()
+        remove_products()
+        for txt_file in (dark[5:9] + '_err.txt', dark[5:9] + '_stdout.txt'):
+            if os.path.exists(txt_file):
+                os.remove(txt_file)
+        
         for rawfile in raws:
             pyfits.setval(rawfile, 'DARKFILE', value=dark, ext=0)
             pyfits.setval(rawfile, 'BIASFILE', value=bias, ext=0)
@@ -183,10 +71,7 @@ def calibrate( folder ):
         print 'Running CalSTIS with %s %s ' % (dark, bias)
         print '#-------------------------------------------#'
 
-        for txt_file in (dark[5:9] + '_err.txt', dark[5:9] + '_stdout.txt'):
-            if os.path.exists(txt_file):
-                os.remove(txt_file)
-        iraf.calstis('*raw.fits', Stdout=dark[5:9] + '_stdout.txt')
+        calstis('*raw.fits', Stdout=dark[5:9] + '_stdout.txt')
 
         if not check_txt(dark[5:9] + '_stdout.txt'):
             sys.exit('Calstis Error detected for %s' % (dark[5:9]))
@@ -200,7 +85,11 @@ def calibrate( folder ):
     wavs = glob.glob('*wav.fits')
     print bias_biwk_refs
     for bias in bias_biwk_refs:
-        remove()
+        remove_products()
+        for txt_file in (bias[5:13] + '_err.txt', bias[5:13] + '_stdout.txt'):
+            if os.path.exists(txt_file):
+                os.remove(txt_file)
+        
         for rawfile in raws:
             pyfits.setval(rawfile, 'BIASFILE', value=bias, ext=0)
             pyfits.setval(rawfile, 'DARKFILE', value=darkrefs[0], ext=0)
@@ -212,20 +101,10 @@ def calibrate( folder ):
         print 'Running CalSTIS with %s' % (bias)
         print '#------------------------------------------#'
 
-        name = str(bias)
-        for txt_file in (name[5:13] + '_err.txt', name[5:13] + '_stdout.txt'):
-            if os.path.exists(txt_file):
-                os.remove(txt_file)
-        iraf.calstis('*raw.fits,*wav.fits', Stdout=name[5:13] + '_stdout.txt')
+        calstis('*raw.fits,*wav.fits', Stdout=bias[5:13] + '_stdout.txt')
 
-        if not check_txt(name[5:13] + '_stdout.txt'):
-            sys.exit('Calstis Error detected for %s' % (name[5:13]))
-
-    print '#-------------------------------------------#'
-    print 'Darks and Bias Monitor complete.  '
-    print 'Please run certify and fitsverify'
-    print 'Please send delievery form to cdbs@stsci.edu.'
-    print '#-------------------------------------------#'
+        if not check_txt(bias[5:13] + '_stdout.txt'):
+            sys.exit('Calstis Error detected for {}'.format( bias[5:13] ) )
 
 #----------------------------------------------------------------
 
@@ -336,12 +215,12 @@ def check_txt(ifile):
 
 #----------------------------------------------------------------
 
-def remove():
+def remove_products():
     ext_list = ['*_crj*', '*_flt*', '*_sx1*', '*_sx2*', '*_x1d*', '*_x2d*', '*_tmp*']
     for ext in ext_list:
         file_list = glob.glob(ext)
         if file_list != []:
-            print 'removing %s files'%(ext)
+            print 'removing {} files'.format( ext )
             for file in file_list:
                 os.remove(file)
 
@@ -360,9 +239,11 @@ def run_cdbs_checks():
 
 
 def check_all():
-    pass
+    print '#-------------------------------------------#'
+    print 'Darks and Bias Monitor complete.  '
+    print 'Please run certify and fitsverify'
+    print 'Please send delievery form to cdbs@stsci.edu.'
+    print '#-------------------------------------------#'
 
 #----------------------------------------------------------------
 
-if __name__ == "__main__":
-    calibrate( sys.argv[1] )

@@ -7,6 +7,8 @@ to CDBS
 '''
 
 from astropy.io import fits as pyfits
+import matplotlib.pyplot as plt
+import numpy as np
 import os
 import glob
 import shutil
@@ -19,12 +21,156 @@ from refstis.support import send_email
 
 #----------------------------------------------------------------
 
+def plot_obset( folder ):
+    '''
+    Check collapsed columns and rows against last month for irregularities
+    '''
+
+    plt.ioff()
+    
+    print '#----------#'
+    print 'Making Plots'
+    print '#----------#'
+    bias = []
+    biwk = []
+    dark = []
+    for filename in glob.glob( os.path.join( folder, '*.fits') ):
+        if 'bias_wk' in filename:
+            bias.append( filename )
+        if 'bias_biwk' in filename:
+            biwk.append( filename )
+        if 'dark_wk' in filename:
+            dark.append( filename )
+
+    plt.rcParams['figure.subplot.hspace'] = .35
+    plt.figure(figsize=(14, 20))
+    plt.suptitle('Bias: collapsed rows, colums, and means')
+    for i, ifile in enumerate(bias):
+        print ifile
+        data = pyfits.getdata(ifile, 1)
+        plt.subplot(4, 1, 1)
+        plt.plot( np.sum(data, axis=0), label=ifile)
+        plt.xlim(0, 1024)
+        plt.ylim(500, 3000)
+        plt.xlabel('X pixels')
+        plt.ylabel('Counts')
+        plt.subplot(4, 1, 2)
+        plt.plot( np.sum(data, axis=1), label=ifile)
+        plt.xlim(0, 1024)
+        plt.ylim(500, 3000)
+        plt.xlabel('Y pixels')
+        plt.ylabel('Counts')
+        plt.subplot(4, 1, 3)
+        plt.plot(i + 1, data.mean(), markersize=10, marker='d', label=ifile)
+        plt.xlim(0, 9)
+        plt.xlabel('Dataset')
+        plt.ylabel('Mean')
+        plt.subplot(4, 1, 4)
+        plt.plot(i + 1, data.std(), markersize=10, marker='d', label=ifile)
+        plt.xlim(0, 9)
+        plt.xlabel('Dataset')
+        plt.ylabel('Std')
+    plt.savefig( os.path.join( folder, 'biases.pdf' ) )
+    plt.close()
+    
+    plt.figure(figsize=(14, 20))
+    plt.suptitle('Dark: collapsed rows, colums, and means')
+    for i, ifile in enumerate(dark):
+        print ifile
+        data = pyfits.getdata(ifile, 1)
+        plt.subplot(4, 1, 1)
+        plt.plot( np.sum(data, axis=0), label=ifile)
+        plt.xlim(0, 1024)
+        plt.ylim(0, 200)
+        plt.xlabel('X pixels')
+        plt.ylabel('Counts')
+        plt.subplot(4, 1, 2)
+        plt.plot( np.sum(data, axis=1), label=ifile)
+        plt.xlim(0, 1024)
+        plt.ylim(0, 200)
+        plt.xlabel('Y pixels')
+        plt.ylabel('Counts')
+        plt.subplot(4, 1, 3)
+        plt.plot(i + 1, data.mean(), markersize=10, marker='d', label=ifile)
+        plt.xlim(0, 9)
+        plt.xlabel('Dataset')
+        plt.ylabel('Mean')
+        plt.subplot(4, 1, 4)
+        plt.plot(i + 1, data.std(), markersize=10, marker='d', label=ifile)
+        plt.xlim(0, 9)
+        plt.xlabel('Dataset')
+        plt.ylabel('Std')
+    plt.savefig( os.path.join( folder, 'darks.pdf' ) )
+    plt.close()
+    
+    plt.figure(figsize=(14, 20))
+    plt.suptitle('BiWeek bias: collapsed rows, colums, and means')
+    for i, ifile in enumerate(biwk):
+        print ifile
+        data = pyfits.getdata(ifile, 1)
+        plt.subplot(4, 1, 1)
+        plt.plot( np.sum(data, axis=0), label=ifile)
+        plt.xlim(0, 1024)
+        plt.ylim(2000, 6000)
+        plt.xlabel('X pixels')
+        plt.ylabel('Counts')
+        plt.subplot(4, 1, 2)
+        plt.plot( np.sum(data, axis=1), label=ifile)
+        plt.xlim(0, 1024)
+        plt.ylim(1000, 5000)
+        plt.xlabel('Y pixels')
+        plt.ylabel('Counts')
+        plt.subplot(4, 1, 3)
+        plt.plot(i + 1, data.mean(), markersize=10, marker='d', label=ifile)
+        plt.xlim(0, 5)
+        plt.xlabel('Dataset')
+        plt.ylabel('Mean')
+        plt.subplot(4, 1, 4)
+        plt.plot(i + 1, data.std(), markersize=10, marker='d', label=ifile)
+        plt.xlim(0, 5)
+        plt.xlabel('Dataset')
+        plt.ylabel('Std')
+    plt.savefig( os.path.join( folder, 'biweeks.pdf' ) )
+    plt.close()
+
+#----------------------------------------------------------------
+
+def set_descrip( folder ):
+    """ Make sure the descriptions are useful.  Should be removed when using
+        the new version of the pipeline.
+    """
+    print 'Making headers pretty'
+    print 'WARNING: Make sure to take this out when using the new refstis'
+    
+    for item in glob.glob( os.path.join(folder, '*.fits') ):
+        hdu = pyfits.open( item )
+    
+        gain = hdu[0].header['CCDGAIN']
+        useafter = hdu[0].header['USEAFTER'][:9]
+    
+        if '_drk' in item:
+            descrip = 'Weekly Dark for STIS CCD data taken after %s'% useafter
+        elif '_bia' in item and hdu[0].header['CCDGAIN'] == 1:
+            descrip = 'Weekly Gain=%d Bias for STIS CCD data taken after %s' % (gain, useafter)
+        elif '_bia' in item and hdu[0].header['CCDGAIN'] == 4:
+                descrip = 'Bi-Weekly Gain=%d Bias for STIS CCD data taken after %s' % (gain, useafter)
+    
+        while len(descrip) < 67:
+            descrip += '-'
+    
+        hdu[0].header['DESCRIP'] = descrip
+        hdu.writeto( item, clobber=True )
+
+#----------------------------------------------------------------
+
 def regress( folder ):
     """ Run *drk and *bia files in folder through CalSTIS to check
     for errors in processing
 
     """
 
+    start_dir = os.getcwd()
+    
     print '#------------------#'
     print 'Running regression for'
     print folder
@@ -34,15 +180,21 @@ def regress( folder ):
     test_suite = os.path.join( monitor_dir, 'test_suite' )
     test_dark = os.path.join( monitor_dir, 'test_dark' )
 
+    print os.path.join( folder, '*bia.fits' )
     reference_files = glob.glob(os.path.join( folder, '*bia.fits' ) ) + \
                     glob.glob(os.path.join( folder, '*drk.fits' ) )
+    assert len(reference_files) >= 1, 'No reference files in folder'
     
+    print 'Copying files and removing old files'
     for testing_dir in [test_suite, test_dark]:
-        for oldfile in glob.glob('*_drk.fits') + glob.glob('*_bia.fits'):
+        for oldfile in glob.glob( os.path.join( testing_dir, '*_drk.fits') ) + \
+                glob.glob( os.path.join( testing_dir, '*_bia.fits') ):
+            print 'removing', oldfile
             os.remove( os.path.join( testing_dir, oldfile ) )
 
-    for newfile in reference_files:
-        shutil.copy( newfile, testing_dir )
+        for newfile in reference_files:
+            print 'moving', newfile, '-->', testing_dir
+            shutil.copy( newfile, testing_dir )
     
 
     #######################################
@@ -50,6 +202,8 @@ def regress( folder ):
     #######################################
 
     os.chdir( test_suite )
+    print os.getcwd()
+
     bias_biwk_refs = glob.glob('*bias_bi*.fits')
     bias_biwk_refs.sort()
     biasrefs = glob.glob('bias*_wk*.fits')
@@ -59,6 +213,10 @@ def regress( folder ):
 
     raws = glob.glob('*raw.fits')
     wavs = glob.glob('*wav.fits')
+
+    print biasrefs
+    print raws
+    print wavs
 
     for dark, bias in zip(darkrefs, biasrefs):
         remove_products()
@@ -88,6 +246,8 @@ def regress( folder ):
     ######################################
 
     os.chdir( test_dark )
+    print os.getcwd()
+
     raws = glob.glob('*raw.fits')
     wavs = glob.glob('*wav.fits')
     print bias_biwk_refs
@@ -116,10 +276,16 @@ def regress( folder ):
         #if not check_txt(bias[5:13] + '_stdout.txt'):
         #    sys.exit('Calstis Error detected for {}'.format( bias[5:13] ) )
 
+    os.chdir( start_dir )
+
 #----------------------------------------------------------------
 
 
-def send_forms():
+def send_forms( folder ):
+    
+    start_dir = os.getcwd()
+    os.chdir( folder )
+    
     today_obj = date.today()
     today = str(today_obj.month) + '/' + \
         str(today_obj.day) + '/' + str(today_obj.year)
@@ -182,7 +348,7 @@ def send_forms():
     message += '\n '
 
     for search_string in ('*drk.fits', 'bias_wk*.fits', 'bias_bi*.fits'):
-        file_list = glob.glob(search_string)
+        file_list = glob.glob( search_string)
         file_list.sort()
         USEAFTER = []
         for item in file_list:
@@ -208,6 +374,8 @@ def send_forms():
     delivery_form.write(message)
 
     send_email(subject='STIS Darks and Bias Delivery Form', message=message)
+
+    os.chdir( start_dir )
 
 #----------------------------------------------------------------
 
@@ -248,7 +416,14 @@ def run_cdbs_checks():
 #----------------------------------------------------------------
 
 
-def check_all():
+def check_all( folder ):
+    ### set_descrip( folder )
+    plot_obset( folder )
+    send_forms( folder )
+    regress( folder )
+    
+    
+    
     print '#-------------------------------------------#'
     print 'Darks and Bias Monitor complete.  '
     print 'Please run certify and fitsverify'

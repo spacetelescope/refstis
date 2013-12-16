@@ -16,5 +16,5 @@ setup(
                    'Topic :: Scientific/Engineering :: Physics',
                    'Topic :: Software Development :: Libraries :: Python Modules'],
     scripts = glob.glob('scripts/*'),
-    requires = ['numpy','pyfits'],
+    requires = ['numpy','astropy','stistools'],
     )

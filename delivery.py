@@ -15,6 +15,7 @@ import shutil
 import sys
 from datetime import date
 
+import stistools
 from stistools.calstis import calstis
 
 from refstis.support import send_email
@@ -180,9 +181,10 @@ def regress( folder ):
     test_suite = os.path.join( monitor_dir, 'test_suite' )
     test_dark = os.path.join( monitor_dir, 'test_dark' )
 
-    print os.path.join( folder, '*bia.fits' )
+    print glob.glob( os.path.join( folder, '*bia.fits' ) )
     reference_files = glob.glob(os.path.join( folder, '*bia.fits' ) ) + \
                     glob.glob(os.path.join( folder, '*drk.fits' ) )
+    print reference_files
     assert len(reference_files) >= 1, 'No reference files in folder'
     
     print 'Copying files and removing old files'
@@ -201,6 +203,7 @@ def regress( folder ):
     # Run checks in the test_suite folder #
     #######################################
 
+
     os.chdir( test_suite )
     print os.getcwd()
 
@@ -212,34 +215,33 @@ def regress( folder ):
     darkrefs.sort()
 
     raws = glob.glob('*raw.fits')
-    wavs = glob.glob('*wav.fits')
 
-    print biasrefs
-    print raws
-    print wavs
+    print 'Setting IMPHTTAB in datasets'
 
     for dark, bias in zip(darkrefs, biasrefs):
         remove_products()
-        for txt_file in (dark[5:9] + '_err.txt', dark[5:9] + '_stdout.txt'):
-            if os.path.exists(txt_file):
-                os.remove(txt_file)
-        
+
         print '#-------------------------------------------#'
         print 'Running CalSTIS with %s %s ' % (dark, bias)
         print '#-------------------------------------------#'
 
-        for rawfile, wavefile in zip( raws, wavs ):
+        for rawfile in raws:
+            if os.path.exists( rawfile.replace('raw.fits', 'wav.fits') ):
+                wavefile = rawfile.replace('raw.fits', 'wav.fits')
+            else:
+                wavefile = ''
+    
             pyfits.setval(rawfile, 'DARKFILE', value=dark, ext=0)
             pyfits.setval(rawfile, 'BIASFILE', value=bias, ext=0)
-            pyfits.setval(wavefile, 'DARKFILE', value=dark, ext=0)
-            pyfits.setval(wavefile, 'BIASFILE', value=bias, ext=0)
+            pyfits.setval(rawfile, 'IMPHTTAB', value='oref$x9r1607mo_imp.fits', ext=0)
+            if wavefile:
+                pyfits.setval(wavefile, 'DARKFILE', value=dark, ext=0)
+                pyfits.setval(wavefile, 'BIASFILE', value=bias, ext=0)
+                pyfits.setval(wavefile, 'IMPHTTAB', value='oref$x9r1607mo_imp.fits', ext=0)
 
-            status = calstis(rawfile)#, trailer=dark[5:9] + '_stdout.txt')
+            status = calstis(rawfile, wavecal=wavefile )
 
             if status: sys.exit('Calstis Error detected for %s' % (dark[5:9]))
-
-        #if not check_txt(dark[5:9] + '_stdout.txt'):
-        #    sys.exit('Calstis Error detected for %s' % (dark[5:9]))
 
     ######################################
     # Run checks in the test_dark folder #
@@ -249,32 +251,28 @@ def regress( folder ):
     print os.getcwd()
 
     raws = glob.glob('*raw.fits')
-    wavs = glob.glob('*wav.fits')
-    print bias_biwk_refs
+
+    print 'Setting IMPHTTAB in datasets'
+    for item in raws:
+        pyfits.setval( item, 'IMPHTTAB', value='oref$x9r1607mo_imp.fits', ext=0)
+
     for bias in bias_biwk_refs:
 
         remove_products()
-        for txt_file in (bias[5:13] + '_err.txt', bias[5:13] + '_stdout.txt'):
-            if os.path.exists(txt_file):
-                os.remove(txt_file)
 
         print '#------------------------------------------#'
         print 'Running CalSTIS with %s' % (bias)
         print '#------------------------------------------#'
 
-        for rawfile, wavefile in zip( rawfile, wavefile ):
+        for rawfile in raws:
 
             pyfits.setval(rawfile, 'BIASFILE', value=bias, ext=0)
             pyfits.setval(rawfile, 'DARKFILE', value=darkrefs[0], ext=0)
-            pyfits.setval(wavefile, 'BIASFILE', value=bias, ext=0)
-            pyfits.setval(wavefile, 'DARKFILE', value=biasrefs[0], ext=0)
 
-            status = calstis(input=rawfile, wavecal=wavefile, Stdout=bias[5:13] + '_stdout.txt')
+            status = calstis(input=rawfile)
 
             if status: sys.exit('Calstis Error detected for %s' % (dark[5:9]))
 
-        #if not check_txt(bias[5:13] + '_stdout.txt'):
-        #    sys.exit('Calstis Error detected for {}'.format( bias[5:13] ) )
 
     os.chdir( start_dir )
 
@@ -319,7 +317,7 @@ def send_forms( folder ):
     message += '\n'
     message += ' 9-Files run through CALXXX or SYNPHOT in the IRAF version of STSDAS and the IRAF* \n'
     message += '   version used by the Archive pipeline? (yes/no): yes \n'
-    message += '   List the versions used:  calstis v 2.36 \n'
+    message += '   List the versions used:  calstis v {} \n'.format( stistools.calstis.__version__ )
     message += '\n'
     message += ' 10-Does it replace an old reference file? (yes/no): no\n'
     message += '\n'
@@ -379,20 +377,6 @@ def send_forms( folder ):
 
 #----------------------------------------------------------------
 
-
-def check_txt(ifile):
-    '''
-    Check text file for any errors or failures.
-    '''
-    lines = open(ifile)
-    'calstis0  failed'
-    for line in lines.readlines():
-        if (('calstis' in line) & ('failed' in line)):
-            return False
-    return True
-
-#----------------------------------------------------------------
-
 def remove_products():
     ext_list = ['*_crj*', '*_flt*', '*_sx1*', '*_sx2*', '*_x1d*', '*_x2d*', '*_tmp*']
     for ext in ext_list:
@@ -417,7 +401,7 @@ def run_cdbs_checks():
 
 
 def check_all( folder ):
-    ### set_descrip( folder )
+    set_descrip( folder )
     plot_obset( folder )
     send_forms( folder )
     regress( folder )

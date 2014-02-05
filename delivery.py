@@ -331,17 +331,20 @@ def send_forms( folder ):
     message += ' 11a-If files are tables, please indicate exactly which rows have changed. Show output \n'
     message += '     of compare_table.pro. N/A\n'
     message += '\n'
-    message += ' 12-Description of how the files were "tested" for correctness: Used calstis v 2.36 \n'
+    message += ' 12-Please indicate which modes (e.g. all the STIS, FUVMAMA, E140L modes) are affected by\n'
+    message += '     the changes in the file.  All CCD modes are affected \n'
+    message += '\n'
+    message += ' 13-Description of how the files were "tested" for correctness: Used calstis v 2.36 \n'
     message += ' to reduce a test suite of CCD data and reduced a test suite of dark images as if \n'
     message += ' they were science images. The reduced darks were significantly lower in median and \n'
     message += ' mean values. The CCD images were reduced to either flt, crj, x1d, x2d, sx1, and sx2 \n'
     message += ' as appropriate. \n'
     message += '\n'
-    message += ' 13-Additional Considerations: Some of the useafter dates DO NOT match the first date \n'
+    message += ' 14-Additional Considerations: Some of the useafter dates DO NOT match the first date \n'
     message += ' in the pedigree. This is fine as the pipeline that creates the superdarks and \n'
     message += ' superbiases pulls the dates and times from the anneal proposal.\n'
     message += '\n'
-    message += ' 14-Reason for delivery: New weekly biases and darks were created for the new anneal \n'
+    message += ' 15-Reason for delivery: New weekly biases and darks were created for the new anneal \n'
     message += ' month and need to be delivered for GO observations. \n'
     message += '\n '
 
@@ -359,7 +362,7 @@ def send_forms( folder ):
                 add_str = name + ' is for dates after ' + USEAFTER[i] + '\n '
             message += add_str
 
-    message += '\n\n 15-Disk location and name of files:\n'
+    message += '\n\n 16-Disk location and name of files:\n'
     message += os.getcwd() + '\n'
     os.system('ls -la *.fits > tmp.txt')
     tmp = open('tmp.txt', 'r')

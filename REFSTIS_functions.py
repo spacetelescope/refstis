@@ -207,6 +207,7 @@ def msjoin( imset_list, out_name='joined_out.fits' ):
 def crreject( input_file, workdir=None) :
     import pyfits
     import os
+    import shutil
     from stistools.basic2d import basic2d
     from stistools.ocrreject import ocrreject
 

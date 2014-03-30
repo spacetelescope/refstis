@@ -8,6 +8,7 @@ setup(
     description = 'Replacement pipeline for STIS superdarks and superbiases',
     author = 'Justin Ely',
     author_email = 'ely@stsci.edu',
+    packages = ['refstis'],
     keywords = ['astronomy'],
     classifiers = ['Programming Language :: Python',
                    'Development Status :: 1 - Planning',

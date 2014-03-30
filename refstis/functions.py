@@ -1,12 +1,8 @@
-try:
-    import pyfits
-except:
-    from astropy.io import fits as pyfits
+from astropy.io import fits as pyfits
 import numpy as np
 import os
 from scipy.signal import medfilt
 from astropy.time import Time
-import pdb
 import support
 import math
 import sqlite3

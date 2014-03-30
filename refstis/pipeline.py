@@ -23,14 +23,14 @@ import numpy as np
 from support import SybaseInterface
 from support import createXmlFile, submitXmlFile
 
-from REFSTIS_functions import figure_days_in_period, figure_number_of_periods, translate_date_string
+from functions import figure_days_in_period, figure_number_of_periods, translate_date_string
 import REFSTIS_pop_db
 import REFSTIS_basedark
 import REFSTIS_weekdark
 import REFSTIS_refbias
 import REFSTIS_weekbias
 import REFSTIS_basejoint
-import REFSTIS_functions
+import functions
 
 products_directory = '/user/ely/STIS/refstis/darks_biases/'
 retrieve_directory = '/user/ely/STIS/refstis/requested/'
@@ -287,14 +287,14 @@ def make_ref_files( root_folder, clean=False ):
         proposal, wk = pull_info( folder )
 
         raw_files = glob.glob( os.path.join( folder, '*raw.fits') )
-        n_imsets = REFSTIS_functions.count_imsets( raw_files )
+        n_imsets = functions.count_imsets( raw_files )
 
         #if n_imsets > 140: 
         #    sys.exit('error, too many imsets found: %d'%(n_imsets) )
         
-        gain = REFSTIS_functions.get_keyword( raw_files, 'CCDGAIN', 0)
-        xbin = REFSTIS_functions.get_keyword( raw_files, 'BINAXIS1', 0)
-        ybin = REFSTIS_functions.get_keyword( raw_files, 'BINAXIS2', 0)
+        gain = functions.get_keyword( raw_files, 'CCDGAIN', 0)
+        xbin = functions.get_keyword( raw_files, 'BINAXIS1', 0)
+        ybin = functions.get_keyword( raw_files, 'BINAXIS2', 0)
         
         if re.search('/biases/', folder):
             filetype = 'bias'
@@ -330,7 +330,7 @@ def make_ref_files( root_folder, clean=False ):
                         print sub_list
                         REFSTIS_refbias.make_refbias( sub_list, subname )
                         all_subnames.append( subname )
-                    REFSTIS_functions.refaver( all_subnames, refbias_name )
+                    functions.refaver( all_subnames, refbias_name )
                 else:
                     REFSTIS_refbias.make_refbias( raw_files, refbias_name )
 
@@ -462,7 +462,7 @@ def separate_obs( base_dir, month_begin, month_end  ):
         gain = gain[0]
 
         N_periods = figure_number_of_periods( month_end - month_begin, mode )
-        anneal_weeks = REFSTIS_functions.divide_anneal_month(month_begin, month_end,'/grp/hst/stis/calibration/anneals/', N_periods)
+        anneal_weeks = functions.divide_anneal_month(month_begin, month_end,'/grp/hst/stis/calibration/anneals/', N_periods)
 
         print
         print file_type, mode, 'will be broken up into %d periods as follows:'%(N_periods)

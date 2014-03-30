@@ -6,15 +6,13 @@ pipeline
 
 import numpy as np
 import shutil
-try:
-    import pyfits
-except:
-    from astropy.io import fits as pyfits
+
+from astropy.io import fits as pyfits
 
 import support
-import REFSTIS_functions
+import functions
 
-#--------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 
 def make_weekbias( input_list, refbias_name, basebias ):
     """ Make 'weekly' bias from list of input bias files
@@ -45,12 +43,12 @@ def make_weekbias( input_list, refbias_name, basebias ):
     print 'Output to %s' % (refbias_name)
 
     joined_out = refbias_name.replace('.fits', '_joined.fits')
-    REFSTIS_functions.msjoin( input_list, joined_out)
+    functions.msjoin( input_list, joined_out)
 
-    crj_filename = REFSTIS_functions.crreject( joined_out )
-    residual_image, median_image = REFSTIS_functions.make_residual( crj_filename )
+    crj_filename = functions.crreject( joined_out )
+    residual_image, median_image = functions.make_residual( crj_filename )
 
-    residual_columns_2d = REFSTIS_functions.make_resicols_image( residual_image )
+    residual_columns_2d = functions.make_resicols_image( residual_image )
     resi_cols_median, resi_cols_mean, resi_cols_std = support.sigma_clip( residual_columns_2d[0], sigma=3, iterations=20 )
     replval = resi_cols_mean + 3.0 * resi_cols_std
     only_hotcols = np.where( residual_columns_2d > replval, residual_image, 0 )
@@ -73,12 +71,12 @@ def make_weekbias( input_list, refbias_name, basebias ):
     del hdu
 
     shutil.copy( crj_filename, refbias_name )
-    REFSTIS_functions.update_header_from_input( refbias_name, input_list )
+    functions.update_header_from_input( refbias_name, input_list )
 
     print 'Cleaning up...'
-    REFSTIS_functions.RemoveIfThere( crj_filename )
-    REFSTIS_functions.RemoveIfThere( joined_out )
+    functions.RemoveIfThere( crj_filename )
+    functions.RemoveIfThere( joined_out )
 
     print 'weekbias done'
 
-#------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------

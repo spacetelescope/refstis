@@ -6,17 +6,13 @@ reference file pipeline
 """
 
 import numpy as np
-try:
-    import pyfits
-except:
-    from astropy.io import fits as pyfits
-
-import shutil
-
-import REFSTIS_functions
-import support
 import os
 import stistools
+import shutil
+from astropy.io import fits as pyfits
+
+import functions
+import support
 
 #--------------------------------------------------------------------------
 
@@ -65,11 +61,11 @@ def make_basedark( input_list, refdark_name='basedark.fits', bias_file=None ):
 
     #bias subtract data if not already done
     for i, filename in enumerate(input_list):
-        filename = REFSTIS_functions.bias_subtract_data(filename)
+        filename = functions.bias_subtract_data(filename)
         input_list[i] = filename
         #Side 1 operations ended on May 16, 2001. Side 2 operations started on July 10, 2001, 52091.0 corresponds to July 1, 2001
         if pyfits.getval(filename, 'texpstrt', 0) > 52091.0:
-            REFSTIS_functions.apply_dark_correction(filename, pyfits.getval(filename, 'texpstrt', 0))
+            functions.apply_dark_correction(filename, pyfits.getval(filename, 'texpstrt', 0))
 
     joined_filename = refdark_name.replace('.fits', '_joined.fits') 
     crj_filename = joined_filename.replace('.fits', '_crj.fits')
@@ -77,24 +73,24 @@ def make_basedark( input_list, refdark_name='basedark.fits', bias_file=None ):
     #if not bias_file: raise IOError( 'No biasfile specified, this task needs one to run' )
 
     print 'Joining images'
-    REFSTIS_functions.msjoin( input_list, joined_filename  )
+    functions.msjoin( input_list, joined_filename  )
 
     print 'CRREJECT'
-    crdone = REFSTIS_functions.bd_crreject( joined_filename )
+    crdone = functions.bd_crreject( joined_filename )
     if (not crdone):
-        REFSTIS_functions.bd_calstis( joined_filename, bias_file )
+        functions.bd_calstis( joined_filename, bias_file )
 
-    REFSTIS_functions.normalize_crj( crj_filename)
+    functions.normalize_crj( crj_filename)
 
     shutil.copy( crj_filename, refdark_name )
 
     find_hotpix( refdark_name )
 
-    REFSTIS_functions.update_header_from_input( refdark_name, input_list )
+    functions.update_header_from_input( refdark_name, input_list )
 
     print 'Cleaning...'
-    REFSTIS_functions.RemoveIfThere( crj_filename )
-    REFSTIS_functions.RemoveIfThere( joined_filename )
+    functions.RemoveIfThere( crj_filename )
+    functions.RemoveIfThere( joined_filename )
 
     print 'basedark done'
     

@@ -18,7 +18,7 @@ from datetime import date
 import stistools
 from stistools.calstis import calstis
 
-from refstis.support import send_email
+from .support import send_email
 
 #----------------------------------------------------------------
 

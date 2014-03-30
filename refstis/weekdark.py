@@ -5,27 +5,25 @@ file pipeline.
 """
 
 import shutil
-try:
-    import pyfits
-except:
-    from astropy.io import fits as pyfits
+from astropy.io import fits as pyfits
 from scipy.signal import medfilt
 import numpy as np
 
 import support
-import REFSTIS_functions
-import pdb
+import functions
 
 #-------------------------------------------------------------------------------
 
-def create_superdark( crj_filename, basedark ):
+def create_superdark(crj_filename, basedark):
     """
 
     files will be updated in place
 
-    # Add 'only baseline dark current' image to 'only hot pixels' image. "
-    # This creates the science portion of the forthcoming reference dark. "
+    # Add 'only baseline dark current' image to 'only hot pixels' image. 
+    # This creates the science portion of the forthcoming reference dark. 
+
     """
+
     crj_hdu = pyfits.open( crj_filename, mode='update' )
 
     ## Perform iterative statistics on this normalized superdark 
@@ -66,11 +64,13 @@ def create_superdark( crj_filename, basedark ):
     pdb.set_trace()
     crj_hdu.flush()
     crj_hdu.close()
+
 #-------------------------------------------------------------------------------
 
-def make_weekdark( input_list, refdark_name, thebasedark , thebiasfile = None):
+def make_weekdark(input_list, refdark_name, thebasedark, thebiasfile = None):
     """
-    1- If not already done, run basic2d with blevcorr, biascorr, and dqicorr set to perform 
+    1- If not already done, run basic2d with blevcorr, biascorr, and dqicorr 
+        set to perform 
     2- Apply temperature correction to the data
     3- split all raw images into their imsets
     4- join imsets together into a single file
@@ -87,38 +87,41 @@ def make_weekdark( input_list, refdark_name, thebasedark , thebiasfile = None):
     print '#-------------------------------#'
     print '#        Running weekdark       #'
     print '#-------------------------------#'
-    print 'Making weekdark %s' % (refdark_name)
     if not thebiasfile:
         thebiasfile = pyfits.getval(input_list[0], 'biasfile', 0)
+
+    print 'Making weekdark %s' % (refdark_name)
     print 'With : %s' % (thebiasfile)
     print '     : %s' % (thebasedark)
+
     joined_out = refdark_name.replace('.fits', '_joined.fits' )
     for i, filename in enumerate(input_list):
-        filename = REFSTIS_functions.bias_subtract_data(filename)
+        filename = functions.bias_subtract_data(filename)
         input_list[i] = filename
-        #Side 1 operations ended on May 16, 2001. Side 2 operations started on July 10, 2001, 52091.0 corresponds to July 1, 2001
+        #Side 1 operations ended on May 16, 2001. 
+        #Side 2 operations started on July 10, 2001, 
+        #52091.0 corresponds to July 1, 2001
         if pyfits.getval(filename, 'texpstrt', 0) > 52091.0:
-            REFSTIS_functions.apply_dark_correction(filename, pyfits.getval(filename, 'texpstrt', 0))
+            functions.apply_dark_correction(filename, pyfits.getval(filename, 'texpstrt', 0))
     
     print 'Joining images to %s' % joined_out
-    REFSTIS_functions.msjoin( input_list, joined_out)
+    functions.msjoin( input_list, joined_out)
 
-    crdone = REFSTIS_functions.bd_crreject( joined_out )
+    crdone = functions.bd_crreject( joined_out )
     print "## crdone is ", crdone
     if (not crdone):
-        REFSTIS_functions.bd_calstis(joined_out, thebiasfile)
+        functions.bd_calstis(joined_out, thebiasfile)
     crj_filename = joined_out.replace('.fits', '_crj.fits')
     shutil.copy( crj_filename, refdark_name )
-    REFSTIS_functions.normalize_crj( refdark_name )
+    functions.normalize_crj( refdark_name )
 
-    
     create_superdark( refdark_name, thebasedark )
 
-    REFSTIS_functions.update_header_from_input( refdark_name, input_list )
+    functions.update_header_from_input( refdark_name, input_list )
 
     print 'Cleaning up...'
-    #REFSTIS_functions.RemoveIfThere( crj_filename )
-    #REFSTIS_functions.RemoveIfThere( joined_out )
+    functions.RemoveIfThere( crj_filename )
+    functions.RemoveIfThere( joined_out )
 
     print 'Weekdark done'
 

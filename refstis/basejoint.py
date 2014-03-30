@@ -25,17 +25,15 @@ Script to produce a monthly base bias for STIS CCD
 
 """
 
+import numpy as np
 import os
 import sys
 import shutil
-try:
-    import pyfits
-except:
-    from astropy.io import fits as pyfits
-import numpy as np
-import support
+from astropy.io import fits as pyfits
 
-import REFSTIS_functions
+import support
+import functions
+
 from pyraf import iraf
 from iraf import stsdas, hst_calib, stis
 from pyraf.irafglobals import *
@@ -115,9 +113,9 @@ def calibrate( input_file ):
 
     print 'Calibrating %s' % (input_file)
     output_blev = input_file.replace('.fits','_blev.fits')
-    REFSTIS_functions.RemoveIfThere( output_blev )
+    functions.RemoveIfThere( output_blev )
     output_crj = input_file.replace('.fits','_crj.fits')
-    REFSTIS_functions.RemoveIfThere( output_crj )
+    functions.RemoveIfThere( output_crj )
 
     hdu = pyfits.open( input_file )
     nimset = hdu[0].header['nextend'] / 3
@@ -182,7 +180,7 @@ def replace_hot_cols( mean_bias, median_image, residual_image, yfrac=None ):
 
     print 'Replacing hot column'
 
-    residual_columns_2d = REFSTIS_functions.make_resicols_image( residual_image, yfrac=yfrac )
+    residual_columns_2d = functions.make_resicols_image( residual_image, yfrac=yfrac )
     
     resi_cols_median, resi_cols_mean, resi_cols_std = support.sigma_clip( residual_columns_2d[0], sigma=3, iterations=40 )
     print 'thresh mean,sigma = {} {}'.format( resi_cols_mean, resi_cols_std )
@@ -243,7 +241,7 @@ def make_basebias( input_list, refbias_name='basebias.fits' ):
     mean_bias, totalweight = average_biases( crj_list )
 
     print 'Replacing hot columns and pixels by median-smoothed values'
-    residual_image, median_image = REFSTIS_functions.make_residual( mean_bias )
+    residual_image, median_image = functions.make_residual( mean_bias )
 
     replace_hot_cols( mean_bias, median_image, residual_image )
     ### for some reason this is done again, but only using the lower 20% of rows
@@ -252,12 +250,12 @@ def make_basebias( input_list, refbias_name='basebias.fits' ):
     shutil.copy( mean_bias, refbias_name )
 
     pyfits.setval( refbias_name, 'NCOMBINE', value=totalweight, ext=1)
-    REFSTIS_functions.update_header_from_input( refbias_name, input_list )
+    functions.update_header_from_input( refbias_name, input_list )
 
     print 'Cleaning up...'
-    REFSTIS_functions.RemoveIfThere( mean_bias )
+    functions.RemoveIfThere( mean_bias )
     for item in crj_list:
-        REFSTIS_functions.RemoveIfThere( item )
+        functions.RemoveIfThere( item )
 
     print 'basejoint done'
 

@@ -25,4 +25,4 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
-    make_basebias( args.files, args.outname ) 
+    make_refbias( args.files, args.outname ) 

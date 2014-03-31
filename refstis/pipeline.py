@@ -9,10 +9,7 @@ import sqlite3
 import glob
 import os
 import sys
-try:
-    import pyfits
-except:
-    from astropy.io import fits as pyfits
+from astropy.io import fits as pyfits
 import argparse
 import textwrap
 import support
@@ -20,16 +17,17 @@ import time
 import shutil
 import re
 import numpy as np
+
 from support import SybaseInterface
 from support import createXmlFile, submitXmlFile
 
 from functions import figure_days_in_period, figure_number_of_periods, translate_date_string
-import REFSTIS_pop_db
-import REFSTIS_basedark
-import REFSTIS_weekdark
-import REFSTIS_refbias
-import REFSTIS_weekbias
-import REFSTIS_basejoint
+import pop_db
+import basedark
+import weekdark
+import refbias
+import weekbias
+import basejoint
 import functions
 
 products_directory = '/user/ely/STIS/refstis/darks_biases/'
@@ -574,7 +572,7 @@ def run():
 
     args = parse_args()
 
-    REFSTIS_pop_db.main()
+    pop_db.main()
 
     all_folders = get_new_periods()
 

@@ -25,7 +25,6 @@ def flag_hot_pixels(refbias_name):
     r_five_sigma = resid_mean + 5.0*resid_std
     print 'Updating DQ values of hot pixels above a level of ', r_five_sigma
     refbias_hdu[('dq', 1)].data = np.where(bias_residual > r_five_sigma, 16, refbias_hdu[('dq', 1)].data)
-    pdb.set_trace()
     refbias_hdu.flush()
     refbias_hdu.close()
 

@@ -2,7 +2,7 @@
 
 import argparse
 import glob
-from refstis.REFSTIS_weekbias import make_weekbias
+from refstis.weekbias import make_weekbias
 
 #------------------------------------------------------------
 

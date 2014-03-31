@@ -2,7 +2,7 @@
 
 import argparse
 import glob
-from refstis.REFSTIS_weekdark import make_weekdark
+from refstis.weekdark import make_weekdark
 
 #------------------------------------------------------------
 

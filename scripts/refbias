@@ -2,7 +2,7 @@
 
 import argparse
 import glob
-from refstis.REFSTIS_refbias import make_refbias
+from refstis.refbias import make_refbias
 
 #------------------------------------------------------------
 

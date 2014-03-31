@@ -2,7 +2,7 @@
 
 import argparse
 import glob
-from refstis.REFSTIS_basedark import make_basedark
+from refstis.basedark import make_basedark
 
 #------------------------------------------------------------
 

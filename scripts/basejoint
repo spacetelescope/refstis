@@ -2,7 +2,7 @@
 
 import argparse
 import glob
-from refstis.REFSTIS_basebias import make_basebias
+from refstis.basebias import make_basebias
 
 #------------------------------------------------------------
 

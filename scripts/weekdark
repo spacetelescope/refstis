@@ -22,7 +22,7 @@ def parse_args():
                         help='Bias file for calibration.' )
 
     parser.add_argument('-d', dest='darkname', type=str, default='',
-                        help='Dark file for calibration.' )
+                        help='base dark file for calibration.' )
 
     args = parser.parse_args()
     return args
@@ -31,4 +31,4 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
-    make_basedark( args.files, args.outname, args.biasname, args.darkname ) 
+    make_weekdark( args.files, args.outname, args.darkname, thebiasfile = args.biasname ) 

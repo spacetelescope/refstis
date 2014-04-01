@@ -61,7 +61,6 @@ def create_superdark(crj_filename, basedark):
     
 
     crj_hdu[ ('err', 1) ].data = np.where(only_hotpix == 0, basedark_hdu[ ('err', 1) ].data, crj_hdu[('err', 1)].data)
-    pdb.set_trace()
     crj_hdu.flush()
     crj_hdu.close()
 

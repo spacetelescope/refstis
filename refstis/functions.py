@@ -414,11 +414,11 @@ def figure_number_of_periods(number_of_days, mode) :
     number_of_periods = -1
 
     # WK mode
-    if ( mode == "WK" ) :
-        for n in xrange( 2, number_of_days) :
+    if mode == "WK":
+        for n in xrange(2, number_of_days) :
             if  number_of_days < 12 :
                 if (number_of_days >  MAX_DAYS_IN_WK or
-                    number_of_days <  MIN_DAYS_IN_WK ) :
+                    number_of_days <  MIN_DAYS_IN_WK) :
                     # raises an ERROR
                     number_of_periods = -1
                     break
@@ -441,8 +441,8 @@ def figure_number_of_periods(number_of_days, mode) :
                 break
 
     # BIWK mode
-    elif ( mode == 'BIWK') : 
-        for n in xrange( 2, number_of_days) :
+    elif mode == 'BIWK': 
+        for n in xrange(2, number_of_days) :
             if number_of_days < MAX_DAYS_IN_BIWK :
                 # raises an ERROR if < MIN_DAYS_IN_BIWK1
                 if number_of_days < MIN_DAYS_IN_BIWK : number_of_periods = -1

@@ -30,8 +30,10 @@ import weekbias
 import basejoint
 import functions
 
-products_directory = '/user/ely/STIS/refstis/darks_biases/'
-retrieve_directory = '/user/ely/STIS/refstis/requested/'
+### products_directory = '/user/ely/STIS/refstis/darks_biases/'
+### retrieve_directory = '/user/ely/STIS/refstis/requested/'
+products_directory = '/grp/hst/stis/darks_biases/refstis_test/'
+retrieve_directory = '/grp/hst/stis/darks_biases/refstis_test/data/'
 for location in [products_directory, retrieve_directory]:
     if not os.path.isdir( location ):
         os.makedirs( location )
@@ -76,7 +78,7 @@ def get_new_periods():
         visit = visit_id_all[i + 1]
         year, month, day, dec_year = support.mjd_to_greg(ref_begin)
         end_year, end_month, end_day, dec_year = support.mjd_to_greg(ref_end)       
- 
+
         if visit < 10:
             visit = '0'+str(visit)
         else:
@@ -89,30 +91,30 @@ def get_new_periods():
         print month, day, year, ' to ', end_month, end_day, end_year
         print '#--------------------------------#'
 
-        products_folder = os.path.join( products_directory, '%d_%d_%s' % (year, proposal, visit) )
-        dirs_to_process.append( products_folder )
+        products_folder = os.path.join(products_directory, '%d_%d_%s' % (year, proposal, visit))
+        dirs_to_process.append(products_folder)
 
-        if not os.path.exists( products_folder ): 
-            os.makedirs( products_folder )
+        if not os.path.exists(products_folder): 
+            os.makedirs(products_folder)
         
         already_retrieved = []
-        for root, dirs, files in os.walk( products_folder ):
+        for root, dirs, files in os.walk(products_folder):
             for filename in files:
                 if filename.endswith('_raw.fits'):
                     already_retrieved.append( filename[:9].upper() )
 
         new_obs = get_new_obs('DARK', ref_begin, ref_end) + get_new_obs('BIAS', ref_begin, ref_end)
-        obs_to_get = [ obs for obs in new_obs if not obs in already_retrieved ]
+        obs_to_get = [obs for obs in new_obs if not obs in already_retrieved]
 
-        if not len( obs_to_get ): 
+        if not len(obs_to_get): 
             print 'No new obs to get, skipping this period\n\n'
             continue
         else: 
             print 'Found new observations for this period'
             print obs_to_get, '\n\n'
 
-        response = collect_new( obs_to_get )
-        move_obs( obs_to_get, products_folder) 
+        ### response = collect_new( obs_to_get )
+        ### move_obs( obs_to_get, products_folder) 
         separate_obs( products_folder, ref_begin, ref_end )
 
     return dirs_to_process
@@ -168,7 +170,7 @@ def pull_out_subfolders( root_folder ):
 
 #-------------------------------------------------------------------------------
 
-def pull_info( foldername ):
+def pull_info(foldername):
     """ Pull proposal and week number from folder name 
 
     A valid proposal is a string of 5 numbers from 0-9
@@ -192,15 +194,17 @@ def pull_info( foldername ):
         proposal = re.search('(_[0-9]{5}_)', foldername ).group().strip('_')
     except:
         proposal = ''
+
     try:
         week = re.search('([bi]*wk0[0-9])', foldername ).group()
     except:
         week = ''
+
     return proposal, week
 
 #-------------------------------------------------------------------------------
 
-def make_ref_files( root_folder, clean=False ):
+def make_ref_files(root_folder, clean=False):
     """ Make all refrence files for a given folder
 
     This functions is very specific to the REFSTIS pipeline, and requires files
@@ -213,14 +217,19 @@ def make_ref_files( root_folder, clean=False ):
     print  root_folder
     print '#-----------------------------#'
 
-    if not os.path.exists( root_folder ): raise IOError( 'Root folder does not exist' )
+    if not os.path.exists(root_folder): raise IOError('Root folder does not exist')
 
-    if clean:  clean_directory( root_folder )
+    if clean:  clean_directory(root_folder)
 
-    bias_threshold = { (1, 1, 1):98,  (1, 1, 2):25,  (1, 2, 1):25,  (1, 2, 2):7, 
-                       (1, 4, 1):7,  (1, 4, 2):4,  (4, 1, 1):1 }
+    bias_threshold = {(1, 1, 1) : 98,  
+                      (1, 1, 2) : 25,  
+                      (1, 2, 1) : 25,  
+                      (1, 2, 2) : 7, 
+                      (1, 4, 1) : 7,  
+                      (1, 4, 2) : 4,  
+                      (4, 1, 1) : 1}
 
-    gain_folders, week_folders = pull_out_subfolders( root_folder )
+    gain_folders, week_folders = pull_out_subfolders(root_folder)
         
     ######################
     # make the base biases
@@ -273,7 +282,6 @@ def make_ref_files( root_folder, clean=False ):
     ####################
     # make the weekly biases and darks
     ####################
-
     for folder in week_folders:
         REFBIAS = False
         WEEKBIAS = False
@@ -429,21 +437,21 @@ def collect_new(observations_to_get):
 
 #-----------------------------------------------------------------------
 
-def separate_obs( base_dir, month_begin, month_end  ):
-    all_files = glob.glob( os.path.join( base_dir, '*raw.fits') )
-    #all_files = glob.glob( os.path.join( retrieve_directory, '*raw.fits') )
+def separate_obs(base_dir, month_begin, month_end):
+    #all_files = glob.glob(os.path.join(base_dir, '*raw.fits'))
+    all_files = glob.glob(os.path.join(retrieve_directory, '*raw.fits'))
 
     print 'Separating', base_dir
     print
-    print 'Data run from', month_begin, ' to ',  month_end
+    print 'Period runs from', month_begin, ' to ',  month_end
 
     mjd_times = np.array( [ pyfits.getval(item, 'EXPSTART', ext=1) for item in all_files ] )
-    print 'Data goes from', mjd_times.min(),  ' to ',  mjd_times.max()
+    print 'All data goes from', mjd_times.min(),  ' to ',  mjd_times.max()
 
     print 'Making Lists'
-    bias_111_list = [item for item in all_files if ( pyfits.getval(item,'TARGNAME', ext=0)=='BIAS') & ( pyfits.getval(item, 'CCDGAIN', ext=0) == 1) ]
-    bias_411_list = [item for item in all_files if ( pyfits.getval(item, 'TARGNAME', ext=0)=='BIAS') & ( pyfits.getval(item, 'CCDGAIN', ext=0) == 4) ]
-    dark_111_list = [item for item in all_files if ( pyfits.getval(item, 'TARGNAME', ext=0)=='DARK') & ( pyfits.getval(item, 'CCDGAIN', ext=0) == 1) ]
+    bias_111_list = [item for item in all_files if (pyfits.getval(item,'TARGNAME', ext=0)=='BIAS') & (pyfits.getval(item, 'CCDGAIN', ext=0) == 1)]
+    bias_411_list = [item for item in all_files if (pyfits.getval(item, 'TARGNAME', ext=0)=='BIAS') & (pyfits.getval(item, 'CCDGAIN', ext=0) == 4)]
+    dark_111_list = [item for item in all_files if (pyfits.getval(item, 'TARGNAME', ext=0)=='DARK') & (pyfits.getval(item, 'CCDGAIN', ext=0) == 1)]
     print 'Done'
 
     for obs_list, file_type, mode in zip( [bias_111_list, dark_111_list, bias_411_list], 
@@ -453,24 +461,27 @@ def separate_obs( base_dir, month_begin, month_end  ):
         if not len(obs_list):
             print '%s No obs to move.  Skipping'%(mode)
             continue
-        gain = list( set( [ pyfits.getval(item, 'CCDGAIN', ext=0) for item in obs_list ] ) )
+
+        gain = list(set([pyfits.getval(item, 'CCDGAIN', ext=0) for item in obs_list]))
         print mode, len(obs_list), 'files to move', 'gain = ', gain
 
         assert len(gain) == 1, 'ERROR: Not everything has the same gain'
         gain = gain[0]
 
-        N_periods = figure_number_of_periods( month_end - month_begin, mode )
+        N_periods = figure_number_of_periods(int(round(month_end - month_begin)), mode)
         anneal_weeks = functions.divide_anneal_month(month_begin, month_end,'/grp/hst/stis/calibration/anneals/', N_periods)
 
         print
         print file_type, mode, 'will be broken up into %d periods as follows:'%(N_periods)
         print '\tWeek start, Week end'
-        for a_week in anneal_weeks: print '\t', a_week
+        for a_week in anneal_weeks: 
+            print '\t', a_week
         print
 
         for period in range(N_periods):
             begin, end = anneal_weeks[period]
-            week = str(period + 1) # weeks from 1-4, not 0-3
+            # weeks from 1-4, not 0-3
+            week = str(period + 1)
             while len(week) < 2:
                 week = '0'+week            
 
@@ -479,11 +490,12 @@ def separate_obs( base_dir, month_begin, month_end  ):
                 output_path = os.path.join(output_path, 'biases/%d-1x1/%s%s/' % (gain, mode.lower(), week) )
             elif file_type == 'DARK':
                 output_path = os.path.join(output_path, 'darks/%s%s/' % (mode.lower(), week) )
-            else: print 'File Type not recognized'
+            else: 
+                print 'File Type not recognized'
             
             print output_path
-            if not os.path.exists( output_path ): 
-                os.makedirs( output_path )
+            if not os.path.exists(output_path): 
+                os.makedirs(output_path)
 
             print 'week goes from: ', begin, end
             obs_to_move = [ item for item in obs_list if 
@@ -505,14 +517,14 @@ def separate_obs( base_dir, month_begin, month_end  ):
 def move_obs(new_obs, base_output_dir):
     print 'Files not yet delivered.'
     delivered_set = set( [ os.path.split(item)[-1][:9].upper() for item in glob.glob( os.path.join(retrieve_directory, '*raw*.fits') ) ] )
-    new_set = set( new_obs )
+    new_set = set(new_obs)
 
-    while not new_set.issubset( delivered_set ):
+    while not new_set.issubset(delivered_set):
         wait_minutes = 2
         time.sleep(wait_minutes * 60) #sleep for 2 min
-        delivered_set = set( [ os.path.split(item)[-1][:9].upper() for item in glob.glob( os.path.join(retrieve_directory, '*raw*.fits') ) ] )
+        delivered_set = set([ os.path.split(item)[-1][:9].upper() for item in glob.glob( os.path.join(retrieve_directory, '*raw*.fits') ) ])
 
-    assert len(new_obs) > 0, 'Empty list of new observations to move'
+    assert len(new_obs) > 0, 'Empty list of new observations to move.'
 
     if not os.path.exists( base_output_dir):
         os.makedirs( base_output_dir )
@@ -577,7 +589,7 @@ def run():
     all_folders = get_new_periods()
 
     for folder in all_folders:
-        make_ref_files( folder, clean=args.redo_all )
+        make_ref_files(folder, clean=args.redo_all)
 
 #-----------------------------------------------------------------------
 

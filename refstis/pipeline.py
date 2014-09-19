@@ -9,7 +9,7 @@ import sqlite3
 import glob
 import os
 import sys
-from astropy.io import fits as pyfits
+from astropy.io import fits
 import argparse
 import textwrap
 import support
@@ -21,7 +21,7 @@ import numpy as np
 from support import SybaseInterface
 from support import createXmlFile, submitXmlFile
 
-from functions import figure_days_in_period, figure_number_of_periods, translate_date_string
+from functions import figure_number_of_periods, translate_date_string
 import pop_db
 import basedark
 import weekdark
@@ -64,7 +64,7 @@ def get_new_periods():
 
     table_id_all = [row[0] for row in all_info]
     proposal_id_all = [row[1] for row in all_info]
-    visit_id_all = [ int(row[2]) for row in all_info ]
+    visit_id_all = [int(row[2]) for row in all_info]
     anneal_start_all = [row[3] for row in all_info]
     anneal_end_all = [row[4] for row in all_info]
 
@@ -74,13 +74,15 @@ def get_new_periods():
         if i == len(table_id_all) - 1: continue
         ref_begin = anneal_end_all[i]
         ref_end = anneal_start_all[i + 1]
-        proposal = proposal_id_all[i + 1]  # defined from proposal of the next anneal
+        #-- defined from proposal of the next anneal
+        proposal = proposal_id_all[i + 1]  
+
         visit = visit_id_all[i + 1]
         year, month, day, dec_year = support.mjd_to_greg(ref_begin)
-        end_year, end_month, end_day, dec_year = support.mjd_to_greg(ref_end)       
+        end_year, end_month, end_day, dec_year = support.mjd_to_greg(ref_end)
 
         if visit < 10:
-            visit = '0'+str(visit)
+            visit = '0' + str(visit)
         else:
             visit = str(visit)
 
@@ -91,7 +93,8 @@ def get_new_periods():
         print month, day, year, ' to ', end_month, end_day, end_year
         print '#--------------------------------#'
 
-        products_folder = os.path.join(products_directory, '%d_%d_%s' % (year, proposal, visit))
+        products_folder = os.path.join(products_directory, 
+                                       '%d_%d_%s' % (year, proposal, visit))
         dirs_to_process.append(products_folder)
 
         if not os.path.exists(products_folder): 
@@ -103,7 +106,9 @@ def get_new_periods():
                 if filename.endswith('_raw.fits'):
                     already_retrieved.append( filename[:9].upper() )
 
-        new_obs = get_new_obs('DARK', ref_begin, ref_end) + get_new_obs('BIAS', ref_begin, ref_end)
+        new_obs = get_new_obs('DARK', ref_begin, ref_end) + \
+            get_new_obs('BIAS', ref_begin, ref_end)
+
         obs_to_get = [obs for obs in new_obs if not obs in already_retrieved]
 
         if not len(obs_to_get): 
@@ -121,21 +126,22 @@ def get_new_periods():
 
 #-------------------------------------------------------------------------------
 
-def split_files(  all_files ):
-    all_info = [ ( pyfits.getval(filename,'EXPSTART', 1), filename ) for filename in all_files ]
+def split_files(all_files):
+    all_info = [(fits.getval(filename,'EXPSTART', 1), filename) 
+                for filename in all_files]
     all_info.sort()
-    all_files = [ line[1] for line in all_info ]
+    all_files = [line[1] for line in all_info]
 
     halfway = len(all_files)//2
 
-    super_list = [ all_files[:halfway],
-                   all_files[halfway:] ]
+    super_list = [all_files[:halfway],
+                   all_files[halfway:]]
 
     return super_list
 
 #-------------------------------------------------------------------------------
 
-def pull_out_subfolders( root_folder ):
+def pull_out_subfolders(root_folder):
     """ Walk through input folder and use regular expressions to return lists of
     the folders for each gain and for each week
 
@@ -156,15 +162,15 @@ def pull_out_subfolders( root_folder ):
 
     gain_folders = []
     week_folders = []
-    for root, dirs, files in os.walk( root_folder ):
-        tail = os.path.split( root )[-1]
+    for root, dirs, files in os.walk(root_folder):
+        tail = os.path.split(root)[-1]
 
         if 'wk' in tail:     
-            week_folders.append( root )
+            week_folders.append(root)
         
         # ex: 1-1x1 or 4-1x1
-        if re.search( '([0-4]-[0-4]x[0-4])', tail):
-            gain_folders.append( root )
+        if re.search('([0-4]-[0-4]x[0-4])', tail):
+            gain_folders.append(root)
 
     return gain_folders, week_folders
 
@@ -189,7 +195,9 @@ def pull_info(foldername):
 
     week
         string, week of the anneal (wk01, etc)
+
     """
+
     try:
         proposal = re.search('(_[0-9]{5}_)', foldername ).group().strip('_')
     except:
@@ -217,9 +225,11 @@ def make_ref_files(root_folder, clean=False):
     print  root_folder
     print '#-----------------------------#'
 
-    if not os.path.exists(root_folder): raise IOError('Root folder does not exist')
+    if not os.path.exists(root_folder): 
+        raise IOError('Root folder does not exist')
 
-    if clean:  clean_directory(root_folder)
+    if clean:  
+        clean_directory(root_folder)
 
     bias_threshold = {(1, 1, 1) : 98,  
                       (1, 1, 2) : 25,  
@@ -236,48 +246,51 @@ def make_ref_files(root_folder, clean=False):
     ######################
     if os.path.exists(os.path.join(root_folder, 'biases')):
         for folder in gain_folders:
-            all_dir = os.path.join( folder, 'all' )
-            if not os.path.exists( all_dir ):  os.mkdir( all_dir )
+            all_dir = os.path.join(folder, 'all')
+            if not os.path.exists(all_dir): 
+                os.mkdir(all_dir)
 
-            for root, dirs, files in os.walk( folder ):
+            for root, dirs, files in os.walk(folder):
                 if root.endswith('all'): continue
                 for filename in files:
                     if filename.endswith('_raw.fits'):
-                        shutil.copy( os.path.join( root, filename), all_dir )
+                        shutil.copy(os.path.join(root, filename), all_dir)
 
-            all_files = glob.glob( os.path.join( all_dir, '*_raw.fits') )
-            basebias_name = os.path.join( all_dir, 'basebias.fits' )
-            if not os.path.exists( basebias_name ):
-                REFSTIS_basejoint.make_basebias( all_files , basebias_name )
+            all_files = glob.glob(os.path.join( all_dir, '*_raw.fits'))
+            basebias_name = os.path.join(all_dir, 'basebias.fits')
+            if not os.path.exists(basebias_name):
+                basejoint.make_basebias(all_files , basebias_name)
             else:
                 print 'Basebias already created, skipping'
     else:
-        print 'no folder %s exists, not making a basebias' %(os.path.join(root_folder, 'biases'))
+        print 'no folder {} exists, not making a basebias'.format(os.path.join(root_folder, 'biases'))
 
     ######################
     # make the base darks
     ######################
     if os.path.exists(os.path.join(root_folder, 'darks')):
-        dark_folder = os.path.join( root_folder, 'darks' )
-        all_dir = os.path.join( dark_folder, 'all' )
-        if not os.path.exists( all_dir ):  os.mkdir( all_dir )
+        dark_folder = os.path.join(root_folder, 'darks')
+        all_dir = os.path.join(dark_folder, 'all')
+        if not os.path.exists(all_dir):  os.mkdir(all_dir)
 
-        for root, dirs, files in os.walk( dark_folder ):
+        for root, dirs, files in os.walk(dark_folder):
             if root.endswith('all'): continue
             for filename in files:
                 if filename.endswith('_raw.fits'):
-                    shutil.copy( os.path.join( root, filename), all_dir )
+                    shutil.copy( os.path.join(root, filename), all_dir)
 
-        all_files = glob.glob( os.path.join( all_dir, '*_raw.fits') )
+        all_files = glob.glob(os.path.join(all_dir, '*_raw.fits'))
 
-        basebias_name = os.path.join( root_folder, 'biases/1-1x1/all/', 'basebias.fits' )
-        basedark_name = os.path.join( all_dir, 'basedark.fits' )
-        if not os.path.exists( basedark_name ):
-            REFSTIS_basedark.make_basedark( all_files , basedark_name, basebias_name )
+        basebias_name = os.path.join(root_folder, 
+                                     'biases/1-1x1/all/', 
+                                     'basebias.fits' )
+        basedark_name = os.path.join(all_dir, 'basedark.fits')
+        if not os.path.exists(basedark_name):
+            basedark.make_basedark(all_files , basedark_name, basebias_name)
         else:
             print 'Basedark already created, skipping'
     else:
-        print 'no folder %s exists, not making a basedark' %(os.path.join(root_folder, 'darks'))
+        print 'no folder {} exists, not making a basedark'.format(os.path.join(root_folder, 'darks'))
     
     ####################
     # make the weekly biases and darks
@@ -290,23 +303,23 @@ def make_ref_files(root_folder, clean=False):
         WEEKDARK = False
         print 'Processing %s'%(folder)
         
-        proposal, wk = pull_info( folder )
+        proposal, wk = pull_info(folder)
 
-        raw_files = glob.glob( os.path.join( folder, '*raw.fits') )
-        n_imsets = functions.count_imsets( raw_files )
+        raw_files = glob.glob(os.path.join(folder, '*raw.fits'))
+        n_imsets = functions.count_imsets(raw_files)
 
         #if n_imsets > 140: 
         #    sys.exit('error, too many imsets found: %d'%(n_imsets) )
         
-        gain = functions.get_keyword( raw_files, 'CCDGAIN', 0)
-        xbin = functions.get_keyword( raw_files, 'BINAXIS1', 0)
-        ybin = functions.get_keyword( raw_files, 'BINAXIS2', 0)
+        gain = functions.get_keyword(raw_files, 'CCDGAIN', 0)
+        xbin = functions.get_keyword(raw_files, 'BINAXIS1', 0)
+        ybin = functions.get_keyword(raw_files, 'BINAXIS2', 0)
         
         if re.search('/biases/', folder):
             filetype = 'bias'
             REFBIAS = True
 
-            if n_imsets < bias_threshold[ (gain, xbin, ybin) ]:
+            if n_imsets < bias_threshold[(gain, xbin, ybin)]:
                 WEEKBIAS = True
 
         elif re.search('/darks/', folder):
@@ -323,43 +336,54 @@ def make_ref_files(root_folder, clean=False):
         print '%d files found with %d imsets'%(len(raw_files), n_imsets)
 
         if REFBIAS: 
-            refbias_name = os.path.join( folder, 'refbias_%s_%s.fits'%(proposal, wk) )
-            if os.path.exists( refbias_name ):
+            refbias_name = os.path.join(folder, 
+                                        'refbias_%s_%s.fits'%(proposal, wk))
+            if os.path.exists(refbias_name):
                 print 'Refbias already created, skipping'
             else:
                 if n_imsets > 120:
-                    super_list = split_files( raw_files )
+                    super_list = split_files(raw_files)
                     all_subnames = []
-                    for i, sub_list in enumerate( super_list ):
-                        subname = refbias_name.replace('.fits', '_grp0'+str(i+1)+'.fits')
+                    for i, sub_list in enumerate(super_list):
+                        subname = refbias_name.replace('.fits', 
+                                                       '_grp0'+str(i+1)+'.fits')
                         print 'Making sub-file for datasets'
                         print sub_list
-                        REFSTIS_refbias.make_refbias( sub_list, subname )
-                        all_subnames.append( subname )
-                    functions.refaver( all_subnames, refbias_name )
+                        refbias.make_refbias(sub_list, subname)
+                        all_subnames.append(subname)
+                    functions.refaver(all_subnames, refbias_name)
                 else:
-                    REFSTIS_refbias.make_refbias( raw_files, refbias_name )
+                    refbias.make_refbias(raw_files, refbias_name)
 
         if WEEKBIAS:
-            weekbias_name = os.path.join( folder, 'weekbias_%s_%s.fits'%(proposal, wk) )
-            if os.path.exists( weekbias_name ):
+            weekbias_name = os.path.join(folder, 
+                                         'weekbias_%s_%s.fits'%(proposal, wk))
+            if os.path.exists(weekbias_name):
                 print 'Weekbias already created, skipping'
             else:
-                REFSTIS_refbias.make_refbias( raw_files, weekbias_name, basebias_name )
+                refbias.make_refbias(raw_files, weekbias_name, basebias_name)
  
         if WEEKDARK:
-            weekdark_name = os.path.join( folder, 'weekdark_%s_%s.fits'%(proposal, wk) )
+            weekdark_name = os.path.join(folder, 
+                                         'weekdark_%s_%s.fits'%(proposal, wk))
             if os.path.exists( weekdark_name ):
                 print 'Weekdark already created, skipping'
             else:
-                weekbias_name = os.path.join( root_folder, 'biases/1-1x1', wk, 'refbias_%s_%s.fits'%(proposal, wk) ) ### probably need to be final file, either week* or ref*
-                basedark_name = os.path.join( folder.replace(wk, 'all'), 'basedark.fits' )
-                REFSTIS_weekdark.make_weekdark( raw_files, weekdark_name, basedark_name, weekbias_name )
-    
+                ### probably need to be final file, either week* or ref*
+                weekbias_name = os.path.join(root_folder, 
+                                             'biases/1-1x1',
+                                             wk, 
+                                             'refbias_%s_%s.fits'%(proposal, wk))
+                basedark_name = os.path.join(folder.replace(wk, 'all'), 
+                                             'basedark.fits')
+                weekdark.make_weekdark(raw_files, 
+                                       weekdark_name, 
+                                       basedark_name, 
+                                       weekbias_name )  
 
 #-------------------------------------------------------------------------------
 
-def clean_directory( root_path ):
+def clean_directory(root_path):
     """ Cleans directory of any fits files that do not end in _raw.fits 
 
     This WILL remove ANY files that do not match *_raw.fits.  This includes
@@ -369,11 +393,11 @@ def clean_directory( root_path ):
 
     """
 
-    for root, dirs, files in os.walk( root_path ):
+    for root, dirs, files in os.walk(root_path):
         for filename in files:
             if not filename.endswith('_raw.fits'):
                 print 'Removing: ', filename
-                os.remove( os.path.join( root, filename ) )
+                os.remove(os.path.join( root, filename))
 
 #-------------------------------------------------------------------------------
 
@@ -445,16 +469,23 @@ def separate_obs(base_dir, month_begin, month_end):
     print
     print 'Period runs from', month_begin, ' to ',  month_end
 
-    mjd_times = np.array( [ pyfits.getval(item, 'EXPSTART', ext=1) for item in all_files ] )
+    mjd_times = np.array([fits.getval(item, 'EXPSTART', ext=1) 
+                          for item in all_files])
     print 'All data goes from', mjd_times.min(),  ' to ',  mjd_times.max()
 
     print 'Making Lists'
-    bias_111_list = [item for item in all_files if (pyfits.getval(item,'TARGNAME', ext=0)=='BIAS') & (pyfits.getval(item, 'CCDGAIN', ext=0) == 1)]
-    bias_411_list = [item for item in all_files if (pyfits.getval(item, 'TARGNAME', ext=0)=='BIAS') & (pyfits.getval(item, 'CCDGAIN', ext=0) == 4)]
-    dark_111_list = [item for item in all_files if (pyfits.getval(item, 'TARGNAME', ext=0)=='DARK') & (pyfits.getval(item, 'CCDGAIN', ext=0) == 1)]
+    bias_111_list = [item for item in all_files if 
+                     (fits.getval(item,'TARGNAME', ext=0)=='BIAS') &
+                     (fits.getval(item, 'CCDGAIN', ext=0) == 1)]
+    bias_411_list = [item for item in all_files if 
+                     (fits.getval(item, 'TARGNAME', ext=0)=='BIAS') & 
+                     (fits.getval(item, 'CCDGAIN', ext=0) == 4)]
+    dark_111_list = [item for item in all_files if
+                     (fits.getval(item, 'TARGNAME', ext=0)=='DARK') & 
+                     (fits.getval(item, 'CCDGAIN', ext=0) == 1)]
     print 'Done'
 
-    for obs_list, file_type, mode in zip( [bias_111_list, dark_111_list, bias_411_list], 
+    for obs_list, file_type, mode in zip([bias_111_list, dark_111_list, bias_411_list], 
                                         ['BIAS', 'DARK', 'BIAS'], 
                                         ['WK', 'WK', 'BIWK'] ):
 
@@ -462,14 +493,17 @@ def separate_obs(base_dir, month_begin, month_end):
             print '%s No obs to move.  Skipping'%(mode)
             continue
 
-        gain = list(set([pyfits.getval(item, 'CCDGAIN', ext=0) for item in obs_list]))
+        gain = list(set([fits.getval(item, 'CCDGAIN', ext=0) for item in obs_list]))
         print mode, len(obs_list), 'files to move', 'gain = ', gain
 
         assert len(gain) == 1, 'ERROR: Not everything has the same gain'
         gain = gain[0]
 
         N_periods = figure_number_of_periods(int(round(month_end - month_begin)), mode)
-        anneal_weeks = functions.divide_anneal_month(month_begin, month_end,'/grp/hst/stis/calibration/anneals/', N_periods)
+        anneal_weeks = functions.divide_anneal_month(month_begin,
+                                                     month_end,
+                                                     '/grp/hst/stis/calibration/anneals/',
+                                                     N_periods)
 
         print
         print file_type, mode, 'will be broken up into %d periods as follows:'%(N_periods)
@@ -487,9 +521,11 @@ def separate_obs(base_dir, month_begin, month_end):
 
             output_path = base_dir
             if file_type == 'BIAS':
-                output_path = os.path.join(output_path, 'biases/%d-1x1/%s%s/' % (gain, mode.lower(), week) )
+                output_path = os.path.join(output_path, 
+                                           'biases/%d-1x1/%s%s/'%(gain, mode.lower(),week) )
             elif file_type == 'DARK':
-                output_path = os.path.join(output_path, 'darks/%s%s/' % (mode.lower(), week) )
+                output_path = os.path.join(output_path, 
+                                           'darks/%s%s/'%(mode.lower(), week) )
             else: 
                 print 'File Type not recognized'
             
@@ -499,8 +535,8 @@ def separate_obs(base_dir, month_begin, month_end):
 
             print 'week goes from: ', begin, end
             obs_to_move = [ item for item in obs_list if 
-                            ( (pyfits.getval(item, 'EXPSTART', ext=1) >= begin) and 
-                              (pyfits.getval(item, 'EXPSTART', ext=1) < end) ) ]
+                            ( (fits.getval(item, 'EXPSTART', ext=1) >= begin) and 
+                              (fits.getval(item, 'EXPSTART', ext=1) < end) ) ]
             print begin, end,  obs_to_move
             if not len(obs_to_move):
                 print 'error, empty list to move'
@@ -508,21 +544,26 @@ def separate_obs(base_dir, month_begin, month_end):
             for item in obs_to_move:
                 print 'Moving ', item,  ' to:', output_path
                 shutil.move( item,  output_path )
-                if 'IMPHTTAB' not in pyfits.getheader(os.path.join(output_path, item.split('/')[-1]), 0).keys():
-                    pyfits.setval(os.path.join(output_path, item.split('/')[-1]), 'IMPHTTAB', ext = 0, value = 'oref$x9r1607mo_imp.fits')   ###Dynamic at some point
+                if 'IMPHTTAB' not in fits.getheader(os.path.join(output_path, 
+                                                                 item.split('/')[-1]), 0).keys():
+                    ###Dynamic at some point
+                    fits.setval(os.path.join(output_path, item.split('/')[-1]), 
+                                'IMPHTTAB', ext = 0, value = 'oref$x9r1607mo_imp.fits') 
                 obs_list.remove( item )
 
 #-----------------------------------------------------------------------
 
 def move_obs(new_obs, base_output_dir):
     print 'Files not yet delivered.'
-    delivered_set = set( [ os.path.split(item)[-1][:9].upper() for item in glob.glob( os.path.join(retrieve_directory, '*raw*.fits') ) ] )
+    delivered_set = set( [ os.path.split(item)[-1][:9].upper() for
+                           item in glob.glob( os.path.join(retrieve_directory, '*raw*.fits') ) ] )
     new_set = set(new_obs)
 
     while not new_set.issubset(delivered_set):
         wait_minutes = 2
         time.sleep(wait_minutes * 60) #sleep for 2 min
-        delivered_set = set([ os.path.split(item)[-1][:9].upper() for item in glob.glob( os.path.join(retrieve_directory, '*raw*.fits') ) ])
+        delivered_set = set([ os.path.split(item)[-1][:9].upper() for 
+                              item in glob.glob( os.path.join(retrieve_directory, '*raw*.fits') ) ])
 
     assert len(new_obs) > 0, 'Empty list of new observations to move.'
 

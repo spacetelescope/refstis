@@ -33,7 +33,7 @@ def iterclip( in_array, sigma, maxiter ):
 
 #---------------------------------------------------------------------------
 
-def update_header_from_input( filename, input_list ):
+def update_header_from_input(filename, input_list):
     """  Updates header of output file using keywords from the input data
     
     If a header keyword is not consistent in this step, an error will be 
@@ -41,11 +41,11 @@ def update_header_from_input( filename, input_list ):
 
     """
 
-    gain = get_keyword( input_list, 'CCDGAIN', 0)
-    xbin = get_keyword( input_list, 'BINAXIS1', 0)
-    ybin = get_keyword( input_list, 'BINAXIS2', 0)
-    amp = get_keyword( input_list, 'CCDAMP', 0)
-    targname = get_keyword( input_list, 'TARGNAME', 0)
+    gain = get_keyword(input_list, 'CCDGAIN', 0)
+    xbin = get_keyword(input_list, 'BINAXIS1', 0)
+    ybin = get_keyword(input_list, 'BINAXIS2', 0)
+    amp = get_keyword(input_list, 'CCDAMP', 0)
+    targname = get_keyword(input_list, 'TARGNAME', 0)
     
     if targname == 'BIAS':
         filetype = 'CCD BIAS IMAGE'
@@ -62,13 +62,14 @@ def update_header_from_input( filename, input_list ):
         N_period = 2
     else:
         raise ValueError( 'Frequency %s not understood' % str( frequency ) )
+
     data_start_pedigree, data_end_pedigree, data_start_mjd, data_end_mjd = get_start_and_endtimes(input_list)
-    anneal_weeks = divide_anneal_month(data_start_mjd, data_end_mjd, '/grp/hst/stis/calibration/anneals/', N_period)
-    useafter = 'value'
-    for begin, end in anneal_weeks:
-        if (begin < data_start_mjd) and (end > data_end_mjd):
-            begin_time = Time(begin, format = 'mjd', scale = 'utc').iso  #anneal week start
-            useafter = datetime.datetime.strptime(begin_time.split('.')[0], '%Y-%m-%d %H:%M:%S').strftime('%b %d %Y %X')
+    #anneal_weeks = divide_anneal_month(data_start_mjd, data_end_mjd, '/grp/hst/stis/calibration/anneals/', N_period)
+    #useafter = 'value'
+    #for begin, end in anneal_weeks:
+    #    if (begin < data_start_mjd) and (end > data_end_mjd):
+    #        begin_time = Time(begin, format = 'mjd', scale = 'utc').iso  #anneal week start
+    #        useafter = datetime.datetime.strptime(begin_time.split('.')[0], '%Y-%m-%d %H:%M:%S').strftime('%b %d %Y %X')
 
     hdu = pyfits.open( filename, mode='update' )
     hdu[0].header['FILENAME'] = os.path.split( filename )[1]
@@ -77,7 +78,7 @@ def update_header_from_input( filename, input_list ):
     hdu[0].header['BINAXIS2'] = ybin  
     hdu[0].header['NEXTEND'] = 3
     hdu[0].header['PEDIGREE'] = 'INFLIGHT %s %s' %(data_start_pedigree, data_end_pedigree)
-    hdu[0].header['USEAFTER'] = useafter
+    #hdu[0].header['USEAFTER'] = useafter
     hdu[0].header['DESCRIP'] = "%s gain=%d %s for STIS CCD data taken after XXX" % (frequency, gain, targname.lower() )
     hdu[0].header.add_comment('Reference file created by %s' % __name__ )
 
@@ -90,7 +91,7 @@ def update_header_from_input( filename, input_list ):
 
     hdu.flush()
     hdu.close()
-    return anneal_weeks
+
 #---------------------------------------------------------------------------
 
 def get_start_and_endtimes(input_list):
@@ -494,7 +495,7 @@ def figure_days_in_period(N_periods, N_days):
 
     assert (sum(period_lengths)) == N_days, 'ERROR: extra days not spread around correctly'
 
-    return period_lengths
+    return period_lengths   
 
 #-------------------------------------------------------------------------------
 
@@ -658,6 +659,7 @@ def refaver( reffiles, combined_name ):
         os.remove( filename )
 
 #--------------------------------------------------------------------------
+
 def apply_dark_correction(filename, expstart):
     dark_v_temp = 0.07
     s2ref_temp = 18.0
@@ -677,7 +679,9 @@ def apply_dark_correction(filename, expstart):
     
     ofile.flush()
     ofile.close()
+
 #--------------------------------------------------------------------------
+
 def bias_subtract_data(filename):  
 
     if os.path.exists(filename.replace('raw', 'flc')):
@@ -687,8 +691,16 @@ def bias_subtract_data(filename):
         filename = filename.replace('raw', 'flt')
         assert pyfits.getval(filename, 'CRCORR', 0) != 'COMPLETE', 'CR Rejection should not be performed on %s' %(filename)
     else:  
-        stistools.basic2d.basic2d(filename, dqicorr = 'perform', blevcorr = 'perform', biascorr = 'perform',
-            atodcorr = 'omit', doppcorr = 'omit', lorscorr = 'omit', glincorr = 'omit', lflgcorr = 'omit', 
-            darkcorr = 'omit', flatcorr = 'omit', shadcorr = 'omit', photcorr = 'omit')
+        stistools.basic2d.basic2d(filename, 
+                                  dqicorr = 'perform',
+                                  blevcorr = 'perform', 
+                                  biascorr = 'perform',
+                                  doppcorr = 'omit', 
+                                  lorscorr = 'omit', 
+                                  glincorr = 'omit', 
+                                  lflgcorr = 'omit', 
+                                  darkcorr = 'omit', 
+                                  flatcorr = 'omit', 
+                                  photcorr = 'omit')
         filename = filename.replace('raw', 'flt')
     return filename

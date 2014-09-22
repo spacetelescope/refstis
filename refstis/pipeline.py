@@ -35,8 +35,8 @@ import functions
 products_directory = '/grp/hst/stis/darks_biases/refstis_test/'
 retrieve_directory = '/grp/hst/stis/darks_biases/refstis_test/data/'
 for location in [products_directory, retrieve_directory]:
-    if not os.path.isdir( location ):
-        os.makedirs( location )
+    if not os.path.isdir(location):
+        os.makedirs(location)
 
 
 #dark_proposals = [7600, 7601, 8408, 8437, 8837, 8864, 8901, 8902, 9605, 9606, 
@@ -94,12 +94,12 @@ def get_new_periods():
         print '#--------------------------------#'
 
         products_folder = os.path.join(products_directory, 
-                                       '%d_%d_%s' % (year, proposal, visit))
+                                       '%d_%s' % (proposal, visit))
         dirs_to_process.append(products_folder)
 
         if not os.path.exists(products_folder): 
             os.makedirs(products_folder)
-        
+        '''
         already_retrieved = []
         for root, dirs, files in os.walk(products_folder):
             for filename in files:
@@ -120,8 +120,8 @@ def get_new_periods():
 
         ### response = collect_new( obs_to_get )
         ### move_obs( obs_to_get, products_folder) 
-        separate_obs( products_folder, ref_begin, ref_end )
-
+        separate_obs(products_folder, ref_begin, ref_end)
+        '''
     return dirs_to_process
 
 #-------------------------------------------------------------------------------
@@ -212,6 +212,35 @@ def pull_info(foldername):
 
 #-------------------------------------------------------------------------------
 
+def get_anneal_month(proposal_id, anneal_id):
+    
+    db = sqlite3.connect( "anneal_info.db" )
+    c = db.cursor()
+    table = 'anneals'
+
+
+    c.execute("""SELECT id,start FROM {} WHERE proposid={} AND visit={}""".format(table,
+                                                                                  proposal_id,
+                                                                                  anneal_id))
+
+    all_info = [row for row in c]
+    if len(all_info) > 1:
+        raise ValueError("Too many values returned: {}".format(all_info))
+    pri_key, anneal_end = all_info[0]
+
+
+
+    c.execute("""SELECT end FROM {} WHERE id={}""".format(table, pri_key - 1))
+
+    all_info = [row for row in c]
+    if len(all_info) > 1:
+        raise ValueError("Too many values returned: {}".format(all_info))
+    anneal_start = all_info[0][0]
+
+    return anneal_start, anneal_end
+
+#-------------------------------------------------------------------------------
+
 def make_ref_files(root_folder, clean=False):
     """ Make all refrence files for a given folder
 
@@ -239,8 +268,18 @@ def make_ref_files(root_folder, clean=False):
                       (1, 4, 2) : 4,  
                       (4, 1, 1) : 1}
 
+    #-- Find the premade folders if they exist
     gain_folders, week_folders = pull_out_subfolders(root_folder)
-        
+    
+    if not len(gain_folders) or not len(week_folders):
+        proposal_id, anneal_id = os.path.split(os.path.realpath(root_folder))[-1].split('_')
+        anneal_start, anneal_stop = get_anneal_month(proposal_id, anneal_id)
+        print anneal_start, anneal_stop
+        datasets = glob.glob(os.path.join(root_folder, '*_raw.fits'))
+        separate_obs(root_folder, anneal_start, anneal_stop, datasets)
+
+        gain_folders, week_folders = pull_out_subfolders(root_folder)
+
     ######################
     # make the base biases
     ######################
@@ -307,9 +346,6 @@ def make_ref_files(root_folder, clean=False):
 
         raw_files = glob.glob(os.path.join(folder, '*raw.fits'))
         n_imsets = functions.count_imsets(raw_files)
-
-        #if n_imsets > 140: 
-        #    sys.exit('error, too many imsets found: %d'%(n_imsets) )
         
         gain = functions.get_keyword(raw_files, 'CCDGAIN', 0)
         xbin = functions.get_keyword(raw_files, 'BINAXIS1', 0)
@@ -319,6 +355,7 @@ def make_ref_files(root_folder, clean=False):
             filetype = 'bias'
             REFBIAS = True
 
+            ### What does this mean?
             if n_imsets < bias_threshold[(gain, xbin, ybin)]:
                 WEEKBIAS = True
 
@@ -328,8 +365,7 @@ def make_ref_files(root_folder, clean=False):
             WEEKDARK = True
 
         else:
-            print 'ERROR', folder
-            sys.exit()
+            raise ValueError("{} doesn't conform with standards".format(folder)
 
 
         print 'Making REFFILE for ', filetype
@@ -461,9 +497,9 @@ def collect_new(observations_to_get):
 
 #-----------------------------------------------------------------------
 
-def separate_obs(base_dir, month_begin, month_end):
-    #all_files = glob.glob(os.path.join(base_dir, '*raw.fits'))
-    all_files = glob.glob(os.path.join(retrieve_directory, '*raw.fits'))
+def separate_obs(base_dir, month_begin, month_end, all_files=None):
+    if not all_files:
+        all_files = glob.glob(os.path.join(retrieve_directory, '*raw.fits'))
 
     print 'Separating', base_dir
     print
@@ -472,38 +508,32 @@ def separate_obs(base_dir, month_begin, month_end):
     mjd_times = np.array([fits.getval(item, 'EXPSTART', ext=1) 
                           for item in all_files])
     print 'All data goes from', mjd_times.min(),  ' to ',  mjd_times.max()
+    
+    select_gain = {'WK' : 1,
+                   'BIWK' : 4}
 
-    print 'Making Lists'
-    bias_111_list = [item for item in all_files if 
-                     (fits.getval(item,'TARGNAME', ext=0)=='BIAS') &
-                     (fits.getval(item, 'CCDGAIN', ext=0) == 1)]
-    bias_411_list = [item for item in all_files if 
-                     (fits.getval(item, 'TARGNAME', ext=0)=='BIAS') & 
-                     (fits.getval(item, 'CCDGAIN', ext=0) == 4)]
-    dark_111_list = [item for item in all_files if
-                     (fits.getval(item, 'TARGNAME', ext=0)=='DARK') & 
-                     (fits.getval(item, 'CCDGAIN', ext=0) == 1)]
-    print 'Done'
+    for file_type, mode in zip(['BIAS', 'DARK', 'BIAS'], 
+                               ['WK', 'WK', 'BIWK']):
 
-    for obs_list, file_type, mode in zip([bias_111_list, dark_111_list, bias_411_list], 
-                                        ['BIAS', 'DARK', 'BIAS'], 
-                                        ['WK', 'WK', 'BIWK'] ):
+        gain = select_gain[mode]
+
+        obs_list = []
+        for item in all_files:
+            with fits.open(item) as hdu:
+                if (hdu[0].header['TARGNAME'] == file_type) and (hdu[0].header['CCDGAIN'] == gain):
+                    obs_list.append(item)
 
         if not len(obs_list):
             print '%s No obs to move.  Skipping'%(mode)
             continue
 
-        gain = list(set([fits.getval(item, 'CCDGAIN', ext=0) for item in obs_list]))
-        print mode, len(obs_list), 'files to move', 'gain = ', gain
+        print file_type,  mode, len(obs_list), 'files to move, ', 'gain = ', gain
 
-        assert len(gain) == 1, 'ERROR: Not everything has the same gain'
-        gain = gain[0]
-
-        N_periods = figure_number_of_periods(int(round(month_end - month_begin)), mode)
-        anneal_weeks = functions.divide_anneal_month(month_begin,
-                                                     month_end,
-                                                     '/grp/hst/stis/calibration/anneals/',
-                                                     N_periods)
+        N_days = int(round(month_end - month_begin))
+        N_periods = figure_number_of_periods(N_days, mode)
+        week_lengths = functions.figure_days_in_period(N_periods, N_days)
+        
+        anneal_weeks = [(month_begin + item - week_lengths[0], month_begin + item) for item in np.cumsum(week_lengths)]
 
         print
         print file_type, mode, 'will be broken up into %d periods as follows:'%(N_periods)
@@ -512,7 +542,7 @@ def separate_obs(base_dir, month_begin, month_end):
             print '\t', a_week
         print
 
-        for period in range(N_periods):
+        for period in xrange(N_periods):
             begin, end = anneal_weeks[period]
             # weeks from 1-4, not 0-3
             week = str(period + 1)
@@ -522,10 +552,12 @@ def separate_obs(base_dir, month_begin, month_end):
             output_path = base_dir
             if file_type == 'BIAS':
                 output_path = os.path.join(output_path, 
-                                           'biases/%d-1x1/%s%s/'%(gain, mode.lower(),week) )
+                                           'biases/%d-1x1/%s%s/'%(gain, 
+                                                                  mode.lower(),
+                                                                  week))
             elif file_type == 'DARK':
                 output_path = os.path.join(output_path, 
-                                           'darks/%s%s/'%(mode.lower(), week) )
+                                           'darks/%s%s/'%(mode.lower(), week))
             else: 
                 print 'File Type not recognized'
             
@@ -534,22 +566,23 @@ def separate_obs(base_dir, month_begin, month_end):
                 os.makedirs(output_path)
 
             print 'week goes from: ', begin, end
-            obs_to_move = [ item for item in obs_list if 
-                            ( (fits.getval(item, 'EXPSTART', ext=1) >= begin) and 
-                              (fits.getval(item, 'EXPSTART', ext=1) < end) ) ]
-            print begin, end,  obs_to_move
+            obs_to_move = [item for item in obs_list if 
+                            ((fits.getval(item, 'EXPSTART', ext=1) >= begin) and 
+                             (fits.getval(item, 'EXPSTART', ext=1) < end))]
+
             if not len(obs_to_move):
                 print 'error, empty list to move'
 
             for item in obs_to_move:
                 print 'Moving ', item,  ' to:', output_path
-                shutil.move( item,  output_path )
-                if 'IMPHTTAB' not in fits.getheader(os.path.join(output_path, 
-                                                                 item.split('/')[-1]), 0).keys():
+                shutil.move(item,  output_path)
+                if not 'IMPHTTAB' in fits.getheader(os.path.join(output_path, 
+                                                                 item.split('/')[-1]), 0):
                     ###Dynamic at some point
                     fits.setval(os.path.join(output_path, item.split('/')[-1]), 
                                 'IMPHTTAB', ext = 0, value = 'oref$x9r1607mo_imp.fits') 
-                obs_list.remove( item )
+                obs_list.remove(item)
+                all_files.remove(item)
 
 #-----------------------------------------------------------------------
 
@@ -621,7 +654,7 @@ Procedure
 #-----------------------------------------------------------------------
 
 def run():
-    """ Run the reference file pipeline """
+    """Run the reference file pipeline """
 
     args = parse_args()
 

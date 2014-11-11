@@ -41,7 +41,7 @@ def make_weekbias(input_list, refbias_name, basebias):
         list of STIS bias files
     refbias_name : str
         filename of the output reference file
-    basbias : str
+    basebias : str
         filename of the monthly basebias
 
     """

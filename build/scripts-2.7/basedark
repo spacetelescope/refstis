@@ -1,8 +1,8 @@
-#!/sw/bin/python
+#!/Users/lockwood/STScI/ssbx/variants/common/bin/python
 
 import argparse
 import glob
-from refstis.REFSTIS_basedark import make_basedark
+from refstis.basedark import make_basedark
 
 #------------------------------------------------------------
 

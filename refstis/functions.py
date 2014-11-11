@@ -139,7 +139,7 @@ def make_residual( mean_bias ):
 
 
     """
-    import pyfits
+    from astropy.io import fits as pyfits
     
     mean_hdu = pyfits.open( mean_bias )
     mean_image = mean_hdu[ ('sci', 1) ].data
@@ -158,7 +158,7 @@ def normalize_crj( filename ):
 
     """
 
-    import pyfits
+    from astropy.io import fits as pyfits
     hdu = pyfits.open( filename, mode='update' )
 
     exptime = hdu[0].header[ 'TEXPTIME' ]
@@ -181,7 +181,7 @@ def msjoin( imset_list, out_name='joined_out.fits' ):
 
     """
 
-    import pyfits
+    from astropy.io import fits as pyfits
 
     hdu = pyfits.open( imset_list[0] )
     
@@ -200,7 +200,7 @@ def msjoin( imset_list, out_name='joined_out.fits' ):
 #-------------------------------------------------------------------------------
 
 def crreject( input_file, workdir=None) :
-    import pyfits
+    from astropy.io import fits as pyfits
     import os
     import shutil
     from stistools.basic2d import basic2d
@@ -240,6 +240,7 @@ def crreject( input_file, workdir=None) :
             pyfits.setval(input_file,'CRSPLIT',value=1)
 
         pyfits.setval(input_file, 'CRCORR', value='PERFORM')
+        #pyfits.setval(input_file, 'DQICORR', value='PERFORM')
         pyfits.setval(input_file, 'APERTURE', value='50CCD')
         pyfits.setval(input_file, 'APER_FOV', value='50x50')
         if (blevcorr != 'COMPLETE') :
@@ -252,7 +253,7 @@ def crreject( input_file, workdir=None) :
                          darkcorr = 'omit', flatcorr = 'omit', 
                          photcorr = 'omit', statflag = False, verbose = False)
         else:
-            print('Blevcorr alread Performed')
+            print('Blevcorr already Performed')
             shutil.copy(input_file,output_blev)
 
         print('Performing OCRREJECT')
@@ -303,7 +304,7 @@ def count_imsets( file_list ):
 
     """
 
-    import pyfits
+    from astropy.io import fits as pyfits
     total = 0
     for item in file_list:
         total += pyfits.getval(item,'NEXTEND',ext=0) / 3
@@ -319,7 +320,7 @@ def get_keyword( file_list,keyword,ext=0):
     
     """
 
-    import pyfits
+    from astropy.io import fits as pyfits
 
     kw_set = set( [pyfits.getval(item,keyword,ext=ext) for item in file_list] )
     assert len(kw_set) == 1,' multiple values found for kw: % s'% (keyword)
@@ -537,7 +538,7 @@ def bd_crreject(joinedfile):
 
     """
 
-    import pyfits
+    from astropy.io import fits as pyfits
     import os
 
     print joinedfile
@@ -586,7 +587,7 @@ def bd_calstis(joinedfile, thebiasfile=None ) :
 
     """
 
-    import pyfits
+    from astropy.io import fits as pyfits
     from stistools.calstis import calstis
     import os
     import shutil

@@ -1,8 +1,8 @@
-#!/sw/bin/python
+#!/Users/lockwood/STScI/ssbx/variants/common/bin/python
 
 import argparse
 import glob
-from refstis.REFSTIS_basebias import make_basebias
+from refstis.basejoint import make_basebias
 
 #------------------------------------------------------------
 

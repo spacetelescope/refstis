@@ -1,8 +1,8 @@
-#!/sw/bin/python
+#!/Users/lockwood/STScI/ssbx/variants/common/bin/python
 
 import argparse
 import glob
-from refstis.REFSTIS_weekbias import make_weekbias
+from refstis.weekbias import make_weekbias
 
 #------------------------------------------------------------
 
@@ -28,4 +28,4 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
-    make_basebias( args.files, args.outname, args.basebias ) 
+    make_weekbias( args.files, args.outname, args.basebias )

@@ -365,7 +365,7 @@ def make_ref_files(root_folder, clean=False):
             WEEKDARK = True
 
         else:
-            raise ValueError("{} doesn't conform with standards".format(folder)
+            raise ValueError("{} doesn't conform with standards".format(folder))
 
 
         print 'Making REFFILE for ', filetype

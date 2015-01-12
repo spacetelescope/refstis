@@ -1,5 +1,5 @@
 """
-Script to populate database with STIS anneal month start and end times.  
+Script to populate database with STIS anneal month start and end times.
 
 This is used by the STIS darks and bias reference file pipeline to determine
 the start and end of each anneal period, and to retrieve the appropriate dark
@@ -32,7 +32,7 @@ def get_directories():
 
     directories = []
     for year in range(2011, 2020):   #change back to 1996 to create older darks
-        for month in ('01', '02', '03', '04', '05', '06', 
+        for month in ('01', '02', '03', '04', '05', '06',
                       '07', '08', '09', '10', '11', '12'):
             for last in ('/', 'a/', 'b/'):
                 path = anneal_dir + str(year) + '_' + month + last
@@ -121,7 +121,7 @@ def pop_database(anneal_info):
 def main():
     """ Main function to retrieve anneal info and populate database """
     anneal_stats = grab_anneal_mjds()
-    pop_database( anneal_stats )
+    pop_database(anneal_stats)
 
 #-------------------------------------------------------------------------------
 

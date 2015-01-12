@@ -14,10 +14,10 @@ import stistools
 
 def iterclip( in_array, sigma, maxiter ):
     skpix = indata.reshape( indata.size, )
- 
+
     ct = indata.size
     iter = 0; c1 = 1.0 ; c2 = 0.0
- 
+
     while (c1 >= c2) and (iter < maxiter):
         lastct = ct
         medval = numpy.median(skpix)
@@ -26,7 +26,7 @@ def iterclip( in_array, sigma, maxiter ):
         ct = len(wsm[0])
         if ct > 0:
             skpix = skpix[wsm]
- 
+
         c1 = abs(ct - lastct)
         c2 = converge_num * lastct
         iter += 1
@@ -35,8 +35,8 @@ def iterclip( in_array, sigma, maxiter ):
 
 def update_header_from_input(filename, input_list):
     """  Updates header of output file using keywords from the input data
-    
-    If a header keyword is not consistent in this step, an error will be 
+
+    If a header keyword is not consistent in this step, an error will be
     raised
 
     """
@@ -46,7 +46,7 @@ def update_header_from_input(filename, input_list):
     ybin = get_keyword(input_list, 'BINAXIS2', 0)
     amp = get_keyword(input_list, 'CCDAMP', 0)
     targname = get_keyword(input_list, 'TARGNAME', 0)
-    
+
     if targname == 'BIAS':
         filetype = 'CCD BIAS IMAGE'
     elif targname == 'DARK':
@@ -75,7 +75,7 @@ def update_header_from_input(filename, input_list):
     hdu[0].header['FILENAME'] = os.path.split( filename )[1]
     hdu[0].header['CCDGAIN'] = gain
     hdu[0].header['BINAXIS1'] = xbin
-    hdu[0].header['BINAXIS2'] = ybin  
+    hdu[0].header['BINAXIS2'] = ybin
     hdu[0].header['NEXTEND'] = 3
     hdu[0].header['PEDIGREE'] = 'INFLIGHT %s %s' %(data_start_pedigree, data_end_pedigree)
     #hdu[0].header['USEAFTER'] = useafter
@@ -106,7 +106,7 @@ def get_start_and_endtimes(input_list):
 
     start_list = times[0].split('-')
     end_list = times[-1].split('-')
-    
+
     #return strings in format mm/dd/yyyy
     start_str = '%s/%s/%s' %( start_list[2], start_list[1], start_list[0])
     end_str = '%s/%s/%s' %(end_list[2], end_list[1], end_list[0])
@@ -114,7 +114,7 @@ def get_start_and_endtimes(input_list):
 
 #---------------------------------------------------------------------------
 
-def make_resicols_image( residual_image, yfrac=None ):    
+def make_resicols_image( residual_image, yfrac=None ):
 
     import numpy as np
 
@@ -140,7 +140,7 @@ def make_residual( mean_bias ):
 
     """
     from astropy.io import fits as pyfits
-    
+
     mean_hdu = pyfits.open( mean_bias )
     mean_image = mean_hdu[ ('sci', 1) ].data
 
@@ -154,7 +154,7 @@ def make_residual( mean_bias ):
 #-------------------------------------------------------------------------------
 
 def normalize_crj( filename ):
-    """ Normalize the input filename by exptim/gain and flush hdu 
+    """ Normalize the input filename by exptim/gain and flush hdu
 
     """
 
@@ -184,7 +184,7 @@ def msjoin( imset_list, out_name='joined_out.fits' ):
     from astropy.io import fits as pyfits
 
     hdu = pyfits.open( imset_list[0] )
-    
+
     ext_count = 0
     n_offset = (len( hdu[1:] ) // 3) + 1
     for dataset in imset_list[1:]:
@@ -211,10 +211,10 @@ def crreject( input_file, workdir=None) :
 
     output_blev = input_file.replace('.fits','_blev.fits')
     output_crj = input_file.replace('.fits','_crj.fits')
-    # 
-    # between the long file paths and not being able to find EPC files, 
+    #
+    # between the long file paths and not being able to find EPC files,
     # need IRAF to run in the work dir
-    # 
+    #
     #os.chdir( workdir )
     #
     # if cosmic-ray rejection has already been done on the input bias image,
@@ -247,10 +247,10 @@ def crreject( input_file, workdir=None) :
             print('Performing BLEVCORR')
             pyfits.setval(input_file, 'BLEVCORR', value='PERFORM')
             basic2d(input_file, output_blev,
-                         outblev = '', dqicorr = 'perform', 
+                         outblev = '', dqicorr = 'perform',
                          blevcorr = 'perform', doppcorr = 'omit', lorscorr = 'omit',
                          glincorr = 'omit', lflgcorr = 'omit', biascorr = 'omit',
-                         darkcorr = 'omit', flatcorr = 'omit', 
+                         darkcorr = 'omit', flatcorr = 'omit',
                          photcorr = 'omit', statflag = False, verbose = False)
         else:
             print('Blevcorr already Performed')
@@ -262,10 +262,10 @@ def crreject( input_file, workdir=None) :
     elif (crcorr == "COMPLETE"):
         print "CR rejection already done"
         os.rename(input_file, output_crj )
-  
+
     pyfits.setval(output_crj, 'FILENAME',
                   value=output_crj)
-  
+
     fd = pyfits.open(output_crj)
     gain    = fd[0].header['atodgain']
     ccdgain = fd[0].header['ccdgain']
@@ -279,7 +279,7 @@ def crreject( input_file, workdir=None) :
         ncombine = fd[1].header['ncombine']
     fd.close()
     del fd
-  
+
     print('Number of combined imsets is '+str(ncombine)+' while number of imsets is '+str(nimset ) )
     print('Dividing cosmic-ray-rejected image by '+str(ncombine)+'...')
     out_div = output_crj.replace('.fits','_div.fits')
@@ -297,7 +297,7 @@ def crreject( input_file, workdir=None) :
     return out_div
 
 #-------------------------------------------------------------------------------
-                     
+
 def count_imsets( file_list ):
     """ Count the total number of imsets in a file list by dividing the number
     of extensions (NEXTEND) by 3
@@ -314,10 +314,10 @@ def count_imsets( file_list ):
 
 def get_keyword( file_list,keyword,ext=0):
     """ return the value from a header keyword over a list of files
-    
+
     if the value is not consistent accross the input files, an assertion error
     will be raised
-    
+
     """
 
     from astropy.io import fits as pyfits
@@ -354,7 +354,7 @@ def get_anneal_month_dates(data_begin, data_end, database_path):
     anneal_period_start_indx = start_indx[0][-1] #want to start an anneal month at the end of the anneal
     end_indx = np.where(anneal_start_date - data_end > 0)
     anneal_period_end_indx = end_indx[0][0] #want to end an anneal month at the start of the anneal
-    
+
     anneal_month_start = Time(anneal_end_date[anneal_period_start_indx], format = 'mjd', scale = 'utc')
     anneal_month_end = Time(anneal_start_date[anneal_period_end_indx], format = 'mjd', scale = 'utc')
     assert anneal_period_end_indx - anneal_period_start_indx == 1, \
@@ -371,7 +371,7 @@ def divide_anneal_month(data_begin, data_end, database_path, N_period):
 
     anneal_month_start, anneal_month_end = get_anneal_month_dates(data_begin, data_end, database_path)
     total_num_days = anneal_month_end.val - anneal_month_start.val #these are in mjd so you get # of days
-    base_num_days = math.floor(total_num_days / N_period) 
+    base_num_days = math.floor(total_num_days / N_period)
     #For remaining days, add 1 to each week until all days are gone
     remaining_days = math.floor(total_num_days - base_num_days*N_period)
     remaining_time = total_num_days - base_num_days*N_period - remaining_days
@@ -386,28 +386,28 @@ def divide_anneal_month(data_begin, data_end, database_path, N_period):
         wk_end = wk_start + period
         anneal_weeks.append((wk_start, wk_end))
     return anneal_weeks
-    
+
 #------------------------------------------------------------------------------
 
 def figure_number_of_periods(number_of_days, mode) :
     """ Determines the number of periods ('weeks') that the anneal
-    'month' should be split into.  
+    'month' should be split into.
 
     Takes the number of days in the period and the mode ('WK' or 'BIWK')
-    and returns the total number of periods. 
- 
+    and returns the total number of periods.
+
     """
 
     #print "periods(", number_of_days,", ",mode,") called ..."
-    nm = 'periods' 
+    nm = 'periods'
     msg  = "called w/ (number_of_days="+str(number_of_days)
     msg += ", mode="+mode+") "
 
     # set upper limits for period lengths
-    MIN_DAYS_IN_WK = 6 
-    MAX_DAYS_IN_WK = 9 
-    MIN_DAYS_IN_BIWK = 11 
-    MAX_DAYS_IN_BIWK = 22 
+    MIN_DAYS_IN_WK = 6
+    MAX_DAYS_IN_WK = 9
+    MIN_DAYS_IN_BIWK = 11
+    MAX_DAYS_IN_BIWK = 22
 
     DELTA_WK   =  9
     DELTA_BIWK = 18
@@ -425,7 +425,7 @@ def figure_number_of_periods(number_of_days, mode) :
                     number_of_periods = -1
                     break
                 else :
-                    number_of_periods = PERIOD_NUMBER_START 
+                    number_of_periods = PERIOD_NUMBER_START
                     break
 
             elif number_of_days <= DELTA_WK * n :
@@ -433,17 +433,17 @@ def figure_number_of_periods(number_of_days, mode) :
                 # For easier comparison to periods.py
                 if number_of_days > 72 :
                     msg = "length of anneal month = " +str(number_of_days)+ "; For real? "
-    
+
                     # Do we really need to set this to 0?  What's wrong with a bigger number?
                     msg  = "I give it "+str(number_of_periods)+" (WKs). "
                     msg += "Is this bad? "
                     msg += "Code would usually give such a large difference "
                     msg += "number_of_periods = 0, but why?  "
- 
+
                 break
 
     # BIWK mode
-    elif mode == 'BIWK': 
+    elif mode == 'BIWK':
         for n in xrange(2, number_of_days) :
             if number_of_days < MAX_DAYS_IN_BIWK :
                 # raises an ERROR if < MIN_DAYS_IN_BIWK1
@@ -482,13 +482,13 @@ def figure_days_in_period(N_periods, N_days):
 
     Returns:
        list of days/period: e.g. [8,8,8,7]
-    
+
     """
 
     base_length = N_days // N_periods
     N_extra_days = N_days - N_periods * base_length
 
-    period_lengths = [ base_length for item in xrange(N_periods) ]
+    period_lengths = [base_length for item in xrange(N_periods)]
 
     for i in range(N_extra_days):
         index = i % N_periods
@@ -496,7 +496,7 @@ def figure_days_in_period(N_periods, N_days):
 
     assert (sum(period_lengths)) == N_days, 'ERROR: extra days not spread around correctly'
 
-    return period_lengths   
+    return period_lengths
 
 #-------------------------------------------------------------------------------
 
@@ -511,13 +511,13 @@ def translate_date_string(input_string):
     month = month_dict[ date_list[0] ]
     day = int( date_list[1] )
     year = int( date_list[2] )
-    
+
     hour = int( time_list[0] )
     minute = int( time_list[1] )
     second = int( time_list[2] )
 
     if time_list[3].endswith('PM'): hour += 12
- 
+
     a = (14-month)/12
     y = year + 4800 - a
     m = month + 12*a - 3
@@ -531,10 +531,10 @@ def translate_date_string(input_string):
 
 def bd_crreject(joinedfile):
     """ Check if cosmic-ray rejection has been performed on input file
-    
+
     if cosmic-ray rejection has already been done on the input bias image,
     skip all calstis-related calibration steps
-    
+
 
     """
 
@@ -568,7 +568,7 @@ def bd_crreject(joinedfile):
         if (nrptexp != nimset):
             pyfits.setval( joinedfile,'NRPTEXP',value=nimset)
             pyfits.setval( joinedfile,'CRSPLIT',value=1)
-            
+
             print('>>>> Updated keyword NRPTEXP to '+str(nimset) )
             print('    (and set keyword CRSPLIT to 1)' )
             print('     in ' + joinedfile )
@@ -577,10 +577,10 @@ def bd_crreject(joinedfile):
 
 #--------------------------------------------------------------------------
 
-def bd_calstis(joinedfile, thebiasfile=None ) :
+def bd_calstis(joinedfile, thebiasfile=None):
     """ Run CalSTIS on the joined file
 
-    Header keywords will be set for ocrreject to work correctly and not 
+    Header keywords will be set for ocrreject to work correctly and not
     flag regions outside the original aperture:
     APERTURE --> 50CCD
     APER_FOV --> '50x50'
@@ -592,25 +592,31 @@ def bd_calstis(joinedfile, thebiasfile=None ) :
     import os
     import shutil
 
-    pyfits.setval(joinedfile, 'CRCORR', value='PERFORM')
-    pyfits.setval(joinedfile, 'APERTURE', value='50CCD')
-    pyfits.setval(joinedfile, 'APER_FOV', value='50x50')
-    pyfits.setval(joinedfile, 'DARKCORR', value='OMIT')
-    pyfits.setval(joinedfile, 'FLATCORR', value='OMIT')
 
-    ### This was causing a floating point error in CalSTIS
-    ### Perhaps the biasfile i was using was bad?
-    #if thebiasfile:
-    #   pyfits.setval(joinedfile, 'BIASFILE', value=thebiasfile)
+    with pyfits.open(joinedfile, 'update') as hdu:
+
+        hdu[0].header['CRCORR'] = 'PERFORM'
+        hdu[0].header['APERTURE'] = '50CCD'
+        hdu[0].header['APER_FOV'] = '50x50'
+        hdu[0].header['DARKCORR'] = 'OMIT'
+        hdu[0].header['FLATCORR'] = 'OMIT'
+
+        ### This was causing a floating point error in CalSTIS
+        ### Perhaps the biasfile i was using was bad?
+        if thebiasfile:
+            hdu[0].header['BIASFILE'] = thebiasfile
 
     crj_file = joinedfile.replace('.fits', '_crj.fits')
 
-    print 'Running CalSTIS on %s' % joinedfile 
+    print 'Running CalSTIS on %s' % joinedfile
     print 'to create: %s' % crj_file
-    calstis(joinedfile, wavecal="", outroot="",
-                 savetmp=False, verbose=True)
-    
-    pyfits.setval(crj_file, 'FILENAME', value=os.path.split(crj_file)[1] )
+    calstis(joinedfile,
+            wavecal="",
+            outroot="",
+            savetmp=False,
+            verbose=True)
+
+    pyfits.setval(crj_file, 'FILENAME', value=os.path.split(crj_file)[1])
 
 #--------------------------------------------------------------------------
 
@@ -669,7 +675,7 @@ def apply_dark_correction(filename, expstart):
         nextend = ofile[0].header['nextend']
         for ext in np.arange(1, nextend, 3):
             occdhtav = ofile[ext].header['OCCDHTAV']
-            factor = 1.0 / (1.0 + dark_v_temp * (float(occdhtav) - s2ref_temp))      
+            factor = 1.0 / (1.0 + dark_v_temp * (float(occdhtav) - s2ref_temp))
             ofile[ext].data = ofile[ext].data * factor
             print 'Scaling data by ', factor, ' for temperature: ', occdhtav
             ofile[ext+1].data = np.sqrt((ofile[ext+1].data)**2 * (factor**2)) #Modify the error array
@@ -677,13 +683,13 @@ def apply_dark_correction(filename, expstart):
         ofile[0].header['tempcorr'] = 'COMPLETE'
     else:
         print 'TEMPCORR = %s, not temperature correction applied to filename' %(ofile[0].header['tempcorr'])
-    
+
     ofile.flush()
     ofile.close()
 
 #--------------------------------------------------------------------------
 
-def bias_subtract_data(filename):  
+def bias_subtract_data(filename):
 
     if os.path.exists(filename.replace('raw', 'flc')):
         filename = filename.replace('raw', 'flc')
@@ -691,17 +697,17 @@ def bias_subtract_data(filename):
     elif os.path.exists(filename.replace('raw', 'flt')):
         filename = filename.replace('raw', 'flt')
         assert pyfits.getval(filename, 'CRCORR', 0) != 'COMPLETE', 'CR Rejection should not be performed on %s' %(filename)
-    else:  
-        stistools.basic2d.basic2d(filename, 
+    else:
+        stistools.basic2d.basic2d(filename,
                                   dqicorr = 'perform',
-                                  blevcorr = 'perform', 
+                                  blevcorr = 'perform',
                                   biascorr = 'perform',
-                                  doppcorr = 'omit', 
-                                  lorscorr = 'omit', 
-                                  glincorr = 'omit', 
-                                  lflgcorr = 'omit', 
-                                  darkcorr = 'omit', 
-                                  flatcorr = 'omit', 
+                                  doppcorr = 'omit',
+                                  lorscorr = 'omit',
+                                  glincorr = 'omit',
+                                  lflgcorr = 'omit',
+                                  darkcorr = 'omit',
+                                  flatcorr = 'omit',
                                   photcorr = 'omit')
         filename = filename.replace('raw', 'flt')
     return filename

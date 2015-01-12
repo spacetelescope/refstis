@@ -19,7 +19,7 @@ def create_superdark(crj_filename, basedark):
 
     files will be updated in place
 
-    # Add 'only baseline dark current' image to 'only hot pixels' image. 
+    # Add 'only baseline dark current' image to 'only hot pixels' image.
     # This creates the science portion of the forthcoming reference dark. 
 
     Parameters:
@@ -34,28 +34,28 @@ def create_superdark(crj_filename, basedark):
 
     with fits.open( crj_filename, mode='update' ) as crj_hdu:
 
-        ## Perform iterative statistics on this normalized superdark 
+        ## Perform iterative statistics on this normalized superdark
         #imstat(img,fields="mean,stddev,npix,midpt,mode,min,max",lower=ll,upper=ul,for-) | scan(mn,sig,nx,med,mod,min,max)
-        data_median, data_mean, data_std = support.sigma_clip(crj_hdu[('sci', 1)].data, 
-                                                              sigma=3, 
+        data_median, data_mean, data_std = support.sigma_clip(crj_hdu[('sci', 1)].data,
+                                                              sigma=3,
                                                               iterations=40)
 
         #	p_fivesig = med + (5*sig)
         p_five_sigma = data_median + (5*data_std)
         print 'hot pixels are defined as above: ', p_five_sigma
         basedark_hdu = fits.open(basedark)
-        base_median, base_mean, base_std = support.sigma_clip(basedark_hdu[('sci', 1) ].data, 
-                                                              sigma=3, 
+        base_median, base_mean, base_std = support.sigma_clip(basedark_hdu[('sci', 1) ].data,
+                                                              sigma=3,
                                                               iterations=40)
 
         zerodark = crj_hdu[('sci', 1)].data - base_median
-        only_hotpix = np.where(crj_hdu[('sci', 1)].data >= p_five_sigma, 
-                               zerodark, 
+        only_hotpix = np.where(crj_hdu[('sci', 1)].data >= p_five_sigma,
+                               zerodark,
                                0.0)
 
         basedark_med = medfilt(basedark_hdu[('sci', 1)].data, (5, 5))
-        only_dark = np.where(basedark_hdu[('sci', 1)].data >= p_five_sigma, 
-                             basedark_med, 
+        only_dark = np.where(basedark_hdu[('sci', 1)].data >= p_five_sigma,
+                             basedark_med,
                              basedark_hdu[('sci', 1)].data)
 
         crj_hdu[('sci', 1)].data = only_dark + only_hotpix
@@ -67,9 +67,9 @@ def create_superdark(crj_filename, basedark):
         #This doesn't appear to be used in the final xstis analysis
         #crj_hdu[('err', 1)].data /= np.sqrt(crj_hdu[1].header['ncombine'])
 
-        #- update DQ extension 
-        crj_hdu[('dq', 1)].data = np.where(only_hotpix >= p_five_sigma, 
-                                           16, 
+        #- update DQ extension
+        crj_hdu[('dq', 1)].data = np.where(only_hotpix >= p_five_sigma,
+                                           16,
                                            crj_hdu[('dq', 1)].data)
 
         #- Update Error
@@ -80,8 +80,8 @@ def create_superdark(crj_filename, basedark):
         #pixtype="old", nullval=0., verbose-)
 
 
-        crj_hdu[('err', 1)].data = np.where(only_hotpix == 0, 
-                                            basedark_hdu[('err', 1) ].data, 
+        crj_hdu[('err', 1)].data = np.where(only_hotpix == 0,
+                                            basedark_hdu[('err', 1) ].data,
                                             crj_hdu[('err', 1)].data)
 
 #-------------------------------------------------------------------------------
@@ -89,8 +89,8 @@ def create_superdark(crj_filename, basedark):
 def make_weekdark(input_list, refdark_name, thebasedark, thebiasfile=None):
     """ Create a weekly dark reference file
 
-    1- If not already done, run basic2d with blevcorr, biascorr, and dqicorr 
-        set to perform 
+    1- If not already done, run basic2d with blevcorr, biascorr, and dqicorr
+        set to perform
     2- Apply temperature correction to the data
     3- split all raw images into their imsets
     4- join imsets together into a single file
@@ -128,13 +128,13 @@ def make_weekdark(input_list, refdark_name, thebasedark, thebiasfile=None):
     for i, filename in enumerate(input_list):
         filename = functions.bias_subtract_data(filename)
         input_list[i] = filename
-        #Side 1 operations ended on May 16, 2001. 
-        #Side 2 operations started on July 10, 2001, 
+        #Side 1 operations ended on May 16, 2001.
+        #Side 2 operations started on July 10, 2001,
         #52091.0 corresponds to July 1, 2001
         texpstrt = fits.getval(filename, 'texpstrt', ext=0)
         if texpstrt > 52091.0:
             functions.apply_dark_correction(filename, texpstrt)
-    
+
     joined_out = refdark_name.replace('.fits', '_joined.fits' )
     print 'Joining images to %s' % joined_out
     functions.msjoin(input_list, joined_out)

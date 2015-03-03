@@ -1,40 +1,22 @@
 from astropy.io import fits as pyfits
 import numpy as np
 import os
+import shutil
 from scipy.signal import medfilt
 from astropy.time import Time
 import support
 import math
 import sqlite3
 import datetime
-import stistools
 
+from stistools.calstis import calstis
+from stistools.ocrreject import ocrreject
+from stistools.basic2d import basic2d
 
-#-------------------------------------------------------------------------------
-
-def iterclip( in_array, sigma, maxiter ):
-    skpix = indata.reshape( indata.size, )
-
-    ct = indata.size
-    iter = 0; c1 = 1.0 ; c2 = 0.0
-
-    while (c1 >= c2) and (iter < maxiter):
-        lastct = ct
-        medval = numpy.median(skpix)
-        sig = numpy.std(skpix)
-        wsm = numpy.where( abs(skpix-medval) < clipsig*sig )
-        ct = len(wsm[0])
-        if ct > 0:
-            skpix = skpix[wsm]
-
-        c1 = abs(ct - lastct)
-        c2 = converge_num * lastct
-        iter += 1
-
-#---------------------------------------------------------------------------
+#------------------------------------------------------------------------
 
 def update_header_from_input(filename, input_list):
-    """  Updates header of output file using keywords from the input data
+    """ Updates header of output file using keywords from the input data
 
     If a header keyword is not consistent in this step, an error will be
     raised
@@ -52,7 +34,7 @@ def update_header_from_input(filename, input_list):
     elif targname == 'DARK':
         filetype = 'DARK IMAGE'
     else:
-        raise ValueError( 'targname %s not understood' % str( targname ) )
+        raise ValueError('targname %s not understood' % str(targname))
 
     if gain == 1:
         frequency = 'Weekly'
@@ -61,7 +43,7 @@ def update_header_from_input(filename, input_list):
         frequency = 'Bi-Weekly'
         N_period = 2
     else:
-        raise ValueError( 'Frequency %s not understood' % str( frequency ) )
+        raise ValueError( 'Frequency %s not understood' % str(frequency))
 
     data_start_pedigree, data_end_pedigree, data_start_mjd, data_end_mjd = get_start_and_endtimes(input_list)
     #anneal_weeks = divide_anneal_month(data_start_mjd, data_end_mjd, '/grp/hst/stis/calibration/anneals/', N_period)
@@ -71,28 +53,25 @@ def update_header_from_input(filename, input_list):
     #        begin_time = Time(begin, format = 'mjd', scale = 'utc').iso  #anneal week start
     #        useafter = datetime.datetime.strptime(begin_time.split('.')[0], '%Y-%m-%d %H:%M:%S').strftime('%b %d %Y %X')
 
-    hdu = pyfits.open( filename, mode='update' )
-    hdu[0].header['FILENAME'] = os.path.split( filename )[1]
-    hdu[0].header['CCDGAIN'] = gain
-    hdu[0].header['BINAXIS1'] = xbin
-    hdu[0].header['BINAXIS2'] = ybin
-    hdu[0].header['NEXTEND'] = 3
-    hdu[0].header['PEDIGREE'] = 'INFLIGHT %s %s' %(data_start_pedigree, data_end_pedigree)
-    #hdu[0].header['USEAFTER'] = useafter
-    hdu[0].header['DESCRIP'] = "%s gain=%d %s for STIS CCD data taken after XXX" % (frequency, gain, targname.lower() )
-    hdu[0].header.add_comment('Reference file created by %s' % __name__ )
+    with pyfits.open(filename, mode='update') as hdu:
+        hdu[0].header['FILENAME'] = os.path.split(filename)[1]
+        hdu[0].header['CCDGAIN'] = gain
+        hdu[0].header['BINAXIS1'] = xbin
+        hdu[0].header['BINAXIS2'] = ybin
+        hdu[0].header['NEXTEND'] = 3
+        hdu[0].header['PEDIGREE'] = 'INFLIGHT %s %s' % (data_start_pedigree, data_end_pedigree)
+        hdu[0].header['USEAFTER'] = data_start_pedigree
+        hdu[0].header['DESCRIP'] = "%s gain=%d %s for STIS CCD data taken after XXX" % (frequency, gain, targname.lower() )
+        hdu[0].header.add_comment('Reference file created by %s' % __name__ )
 
-    while len( hdu[0].header['DESCRIP'] ) < 67:
-        hdu[0].header['DESCRIP'] = hdu[0].header['DESCRIP'] + '-'
+        while len( hdu[0].header['DESCRIP'] ) < 67:
+            hdu[0].header['DESCRIP'] = hdu[0].header['DESCRIP'] + '-'
 
-    hdu[0].header.add_history('Used input files')
-    for item in input_list:
-        hdu[0].header.add_history( os.path.split(item)[1] )
+        hdu[0].header.add_history('Used input files')
+        for item in input_list:
+            hdu[0].header.add_history( os.path.split(item)[1] )
 
-    hdu.flush()
-    hdu.close()
-
-#---------------------------------------------------------------------------
+#------------------------------------------------------------------------
 
 def get_start_and_endtimes(input_list):
     times = []
@@ -100,7 +79,7 @@ def get_start_and_endtimes(input_list):
         times.append(pyfits.getval(ifile, 'texpstrt', 0))
         times.append(pyfits.getval(ifile, 'texpend', 0))
     times.sort()
-    start_mjd =times[0]
+    start_mjd = times[0]
     end_mjd = times[-1]
     times = Time(times, format = 'mjd', scale = 'utc', out_subfmt = 'date').iso
 
@@ -112,26 +91,26 @@ def get_start_and_endtimes(input_list):
     end_str = '%s/%s/%s' %(end_list[2], end_list[1], end_list[0])
     return start_str, end_str, start_mjd, end_mjd
 
-#---------------------------------------------------------------------------
+#------------------------------------------------------------------------
 
-def make_resicols_image( residual_image, yfrac=None ):
-
-    import numpy as np
+def make_resicols_image(residual_image, yfrac=None):
+    print "Making residual column image"
 
     if yfrac:
-        ystart = int( (yfrac[0] / 100.0) * residual_image.shape[0] )
-        yend = int( (yfrac[1] / 100.0) * residual_image.shape[0] )
-        residual_columns = np.mean( residual_image[ ystart:yend ], axis=0 )
+        ystart = int((yfrac[0] / 100.0) * residual_image.shape[0])
+        yend = int((yfrac[1] / 100.0) * residual_image.shape[0])
+        print ystart, '-->', yend
+        residual_columns = np.mean(residual_image[ystart:yend+1], axis=0)
     else:
-        residual_columns = np.mean( residual_image, axis=0 )
+        residual_columns = np.mean(residual_image, axis=0)
 
-    residual_columns_image = residual_columns.repeat( residual_image.shape[0] ).reshape( residual_image.shape )
+    residual_columns_image = (residual_columns.repeat(residual_image.shape[0]).reshape(residual_image.shape)).T
 
     return residual_columns_image
 
-#-------------------------------------------------------------------------------
+#------------------------------------------------------------------------
 
-def make_residual( mean_bias ):
+def make_residual(mean_bias):
     """Create residual image
 
     Median filter the median with a 15 x 3 box and subtract from the mean
@@ -139,49 +118,42 @@ def make_residual( mean_bias ):
 
 
     """
-    from astropy.io import fits as pyfits
+    mean_hdu = pyfits.open(mean_bias)
+    mean_image = mean_hdu[('sci', 1)].data
 
-    mean_hdu = pyfits.open( mean_bias )
-    mean_image = mean_hdu[ ('sci', 1) ].data
+    median_image = medfilt(mean_image, (3, 15))
 
-    median_image = medfilt( mean_image, (3, 15) )
-
-    diffmean = support.sigma_clip( mean_image, sigma=3, iterations=40)[1] - support.sigma_clip( median_image, sigma=3, iterations=40 )[1]
+    diffmean = support.sigma_clip(mean_image,
+                                  sigma=3,
+                                  iterations=40)[1] - support.sigma_clip( median_image, sigma=3, iterations=40 )[1]
     residual_image = median_image - diffmean
 
     return residual_image, median_image
 
-#-------------------------------------------------------------------------------
+#------------------------------------------------------------------------
 
-def normalize_crj( filename ):
+def normalize_crj(filename):
     """ Normalize the input filename by exptim/gain and flush hdu
 
     """
 
-    from astropy.io import fits as pyfits
-    hdu = pyfits.open( filename, mode='update' )
+    with pyfits.open(filename, mode='update') as hdu:
+        exptime = hdu[0].header['TEXPTIME']
+        gain = hdu[0].header['ATODGAIN']
 
-    exptime = hdu[0].header[ 'TEXPTIME' ]
-    gain = hdu[0].header[ 'ATODGAIN' ]
+        norm_factor = float(exptime)/gain
+        print 'Normalizing by ', norm_factor
+        hdu[('sci', 1)].data /= norm_factor
+        hdu[('err', 1)].data /= abs(norm_factor)
 
-    norm_factor = float(exptime)/gain
-    print 'Normalizing by ', norm_factor
-    hdu[ ('sci', 1) ].data /= norm_factor
-    hdu[('err', 1)].data /= abs(norm_factor)
+        hdu[0].header['TEXPTIME'] = 1
 
-    hdu[0].header['TEXPTIME'] = 1
+#------------------------------------------------------------------------
 
-    hdu.flush()
-    hdu.close()
-
-#-------------------------------------------------------------------------------
-
-def msjoin( imset_list, out_name='joined_out.fits' ):
+def msjoin(imset_list, out_name='joined_out.fits'):
     """ Replicate msjoin functionality in pure python
 
     """
-
-    from astropy.io import fits as pyfits
 
     hdu = pyfits.open( imset_list[0] )
 
@@ -195,17 +167,11 @@ def msjoin( imset_list, out_name='joined_out.fits' ):
             ext_count += 1
 
     hdu[0].header['NEXTEND'] = len( hdu ) - 1
-    hdu.writeto( out_name )
+    hdu.writeto(out_name)
 
-#-------------------------------------------------------------------------------
+#------------------------------------------------------------------------
 
-def crreject( input_file, workdir=None) :
-    from astropy.io import fits as pyfits
-    import os
-    import shutil
-    from stistools.basic2d import basic2d
-    from stistools.ocrreject import ocrreject
-
+def crreject(input_file, workdir=None):
     if not 'oref' in os.environ:
         os.environ['oref'] = '/grp/hst/cdbs/oref/'
 
@@ -246,25 +212,37 @@ def crreject( input_file, workdir=None) :
         if (blevcorr != 'COMPLETE') :
             print('Performing BLEVCORR')
             pyfits.setval(input_file, 'BLEVCORR', value='PERFORM')
-            basic2d(input_file, output_blev,
-                         outblev = '', dqicorr = 'perform',
-                         blevcorr = 'perform', doppcorr = 'omit', lorscorr = 'omit',
-                         glincorr = 'omit', lflgcorr = 'omit', biascorr = 'omit',
-                         darkcorr = 'omit', flatcorr = 'omit',
-                         photcorr = 'omit', statflag = False, verbose = False)
+            basic2d(input_file,
+                    output_blev,
+                    outblev='',
+                    dqicorr='perform',
+                    blevcorr='perform',
+                    doppcorr='omit',
+                    lorscorr='omit',
+                    glincorr='omit',
+                    lflgcorr='omit',
+                    biascorr='omit',
+                    darkcorr='omit',
+                    flatcorr='omit',
+                    photcorr='omit',
+                    statflag=False,
+                    verbose=False,
+                    trailer="/dev/null")
         else:
             print('Blevcorr already Performed')
             shutil.copy(input_file,output_blev)
 
         print('Performing OCRREJECT')
-        ocrreject(input=output_blev, output=output_crj, verbose=False)
+        ocrreject(input=output_blev,
+                  output=output_crj,
+                  verbose=False,
+                  trailer="/dev/null")
 
     elif (crcorr == "COMPLETE"):
         print "CR rejection already done"
-        os.rename(input_file, output_crj )
+        os.rename(input_file, output_crj)
 
-    pyfits.setval(output_crj, 'FILENAME',
-                  value=output_crj)
+    pyfits.setval(output_crj, 'FILENAME', value=output_crj)
 
     fd = pyfits.open(output_crj)
     gain    = fd[0].header['atodgain']
@@ -273,10 +251,12 @@ def crreject( input_file, workdir=None) :
     ysize   = fd[1].header['naxis2']
     xbin    = fd[0].header['binaxis1']
     ybin    = fd[0].header['binaxis2']
+
     try:
-        ncombine = fd[0].heade['ncombine']
+        ncombine = fd[0].header['ncombine']
     except:
         ncombine = fd[1].header['ncombine']
+
     fd.close()
     del fd
 
@@ -291,12 +271,12 @@ def crreject( input_file, workdir=None) :
     hdu[('err', 1)].data /= ncombine
     hdu.writeto( out_div )
 
-    os.remove( output_blev )
-    os.remove( output_crj )
+    os.remove(output_blev)
+    os.remove(output_crj)
 
     return out_div
 
-#-------------------------------------------------------------------------------
+#------------------------------------------------------------------------
 
 def count_imsets( file_list ):
     """ Count the total number of imsets in a file list by dividing the number
@@ -304,15 +284,14 @@ def count_imsets( file_list ):
 
     """
 
-    from astropy.io import fits as pyfits
     total = 0
     for item in file_list:
         total += pyfits.getval(item,'NEXTEND',ext=0) / 3
     return total
 
-#-------------------------------------------------------------------------------
+#------------------------------------------------------------------------
 
-def get_keyword( file_list,keyword,ext=0):
+def get_keyword(file_list,keyword,ext=0):
     """ return the value from a header keyword over a list of files
 
     if the value is not consistent accross the input files, an assertion error
@@ -320,16 +299,12 @@ def get_keyword( file_list,keyword,ext=0):
 
     """
 
-    from astropy.io import fits as pyfits
-
-    kw_set = set( [pyfits.getval(item,keyword,ext=ext) for item in file_list] )
+    kw_set = set([pyfits.getval(item,keyword,ext=ext) for item in file_list])
     assert len(kw_set) == 1,' multiple values found for kw: % s'% (keyword)
 
     return list(kw_set)[0]
 
-
-
-#-----------------------------------------------------------------------
+#------------------------------------------------------------------------
 def get_anneal_month_dates(data_begin, data_end, database_path):
     '''
     This function uses the anneal database to get the dates of the anneal
@@ -361,7 +336,7 @@ def get_anneal_month_dates(data_begin, data_end, database_path):
         'data cannot cross anneals, data date range [%f - %f], anneal month [%f - %f]' %(data_begin, data_end, anneal_month_start.val, anneal_month_end.val)
     return anneal_month_start, anneal_month_end
 
-#------------------------------------------------------------------------------
+#------------------------------------------------------------------------
 
 def divide_anneal_month(data_begin, data_end, database_path, N_period):
     '''
@@ -387,7 +362,7 @@ def divide_anneal_month(data_begin, data_end, database_path, N_period):
         anneal_weeks.append((wk_start, wk_end))
     return anneal_weeks
 
-#------------------------------------------------------------------------------
+#------------------------------------------------------------------------
 
 def figure_number_of_periods(number_of_days, mode) :
     """ Determines the number of periods ('weeks') that the anneal
@@ -471,19 +446,44 @@ def figure_number_of_periods(number_of_days, mode) :
     #print "return number_of_periods =",  number_of_periods
     return number_of_periods
 
-#-------------------------------------------------------------------------------
+#------------------------------------------------------------------------
 
-def figure_days_in_period(N_periods, N_days):
+def figure_days_in_period(N_periods, N_days, add_remainder=False):
     """Spreads out the extra days among the periods.
 
+    Notes
+    -----
     Extra days will be added to the periods beginning with the first, until there
     are no more, so the lengths may not be perfectly even but will not differ by more
     than a day.
 
-    Returns:
-       list of days/period: e.g. [8,8,8,7]
+    Parameters
+    ----------
+    N_periods : int
+        total number of periods to be split into
+    N_days : float, int
+        total number of days to be divided
+
+    Returns
+    -------
+    periods : list
+        list of days/period: e.g. [8,8,8,7]
+
+    Examples
+    --------
+    >>> figure_days_in_period(4, 28)
+    [7, 7, 7, 7]
+
+    >>> figure_days_in_period(4, 29)
+    [8, 7, 7, 7]
+
+    >>> figure_days_in_period(3, 21)
+    [7, 7, 7]
 
     """
+
+    remainder = N_days - int(N_days)
+    N_days = int(N_days)
 
     base_length = N_days // N_periods
     N_extra_days = N_days - N_periods * base_length
@@ -496,27 +496,41 @@ def figure_days_in_period(N_periods, N_days):
 
     assert (sum(period_lengths)) == N_days, 'ERROR: extra days not spread around correctly'
 
+    if add_remainder:
+        period_lenghts[-1] += remainder
+
     return period_lengths
 
-#-------------------------------------------------------------------------------
+#------------------------------------------------------------------------
 
 def translate_date_string(input_string):
-    month_dict = {'Jan':1, 'Feb':2, 'Mar':3, 'Apr':4, 'May':5, 'Jun':6,
-                  'Jul':7, 'Aug':8, 'Sep':9, 'Oct':10, 'Nov':11, 'Dec':12}
+    month_dict = {'Jan': 1,
+                  'Feb': 2,
+                  'Mar': 3,
+                  'Apr': 4,
+                  'May': 5,
+                  'Jun': 6,
+                  'Jul': 7,
+                  'Aug': 8,
+                  'Sep': 9,
+                  'Oct': 10,
+                  'Nov': 11,
+                  'Dec': 12}
 
 
     date_list = input_string.split()
     time_list = date_list[3].split(':')
 
-    month = month_dict[ date_list[0] ]
-    day = int( date_list[1] )
-    year = int( date_list[2] )
+    month = month_dict[date_list[0]]
+    day = int(date_list[1])
+    year = int(date_list[2])
 
-    hour = int( time_list[0] )
-    minute = int( time_list[1] )
-    second = int( time_list[2] )
+    hour = int(time_list[0])
+    minute = int(time_list[1])
+    second = int(time_list[2])
 
-    if time_list[3].endswith('PM'): hour += 12
+    #if time_list[3].endswith('PM'):
+    #    hour += 12
 
     a = (14-month)/12
     y = year + 4800 - a
@@ -527,7 +541,7 @@ def translate_date_string(input_string):
     MJD = JD - 2400000.5
     return MJD
 
-#---------------------------------------------------------------------------
+#------------------------------------------------------------------------
 
 def bd_crreject(joinedfile):
     """ Check if cosmic-ray rejection has been performed on input file
@@ -537,9 +551,6 @@ def bd_crreject(joinedfile):
 
 
     """
-
-    from astropy.io import fits as pyfits
-    import os
 
     print joinedfile
 
@@ -575,7 +586,7 @@ def bd_crreject(joinedfile):
 
     return crdone
 
-#--------------------------------------------------------------------------
+#------------------------------------------------------------------------
 
 def bd_calstis(joinedfile, thebiasfile=None):
     """ Run CalSTIS on the joined file
@@ -587,14 +598,7 @@ def bd_calstis(joinedfile, thebiasfile=None):
 
     """
 
-    from astropy.io import fits as pyfits
-    from stistools.calstis import calstis
-    import os
-    import shutil
-
-
     with pyfits.open(joinedfile, 'update') as hdu:
-
         hdu[0].header['CRCORR'] = 'PERFORM'
         hdu[0].header['APERTURE'] = '50CCD'
         hdu[0].header['APER_FOV'] = '50x50'
@@ -614,24 +618,24 @@ def bd_calstis(joinedfile, thebiasfile=None):
             wavecal="",
             outroot="",
             savetmp=False,
-            verbose=True)
+            verbose=False,
+            trailer="/dev/null")
 
     pyfits.setval(crj_file, 'FILENAME', value=os.path.split(crj_file)[1])
 
-#--------------------------------------------------------------------------
+#------------------------------------------------------------------------
 
 def RemoveIfThere(item):
-    """  Simple copy from OPUSUtils to remove a file if it is there
+    """Simple copy from OPUSUtils to remove a file if it is there
 
     """
 
-    import os
     if os.path.exists(item):
         os.remove(item)
 
-#--------------------------------------------------------------------------
+#------------------------------------------------------------------------
 
-def refaver( reffiles, combined_name ):
+def refaver(reffiles, combined_name):
     """ Average two reference files toghether
 
     Arithmetic for the combination is done using msarith
@@ -639,8 +643,8 @@ def refaver( reffiles, combined_name ):
     """
 
     from pyraf import iraf
+    from iraf import stsdas
     from iraf import mstools
-    import os
 
     if not combined_name.endswith('.fits'):
         combined_name = combined_name + '.fits'
@@ -655,39 +659,38 @@ def refaver( reffiles, combined_name ):
     all_subfiles = []
     for subfile in reffiles:
         outfile = subfile.replace('.fits', '_aver.fits')
-        iraf.msarith( subfile, '/', 2, outfile, verbose=1 )
-        all_subfiles.append( outfile )
+        iraf.msarith(subfile, '/', 2, outfile, verbose=1)
+        all_subfiles.append(outfile)
 
-    assert len(all_subfiles) == 2, 'Length of subfiles doesnt equal 2'
+    assert len(all_subfiles) == 2, 'Length of subfiles doesnt equal 2: {}'.format(all_subfiles)
 
-    iraf.msarith( all_subfiles[0], '+', all_subfiles[1], combined_name, verbose=1)
+    iraf.msarith(all_subfiles[0], '+', all_subfiles[1], combined_name, verbose=1)
 
     for filename in all_subfiles:
-        os.remove( filename )
+        os.remove(filename)
 
-#--------------------------------------------------------------------------
+#------------------------------------------------------------------------
 
 def apply_dark_correction(filename, expstart):
     dark_v_temp = 0.07
     s2ref_temp = 18.0
-    ofile = pyfits.open(filename, mode = 'update')
-    if 'tempcorr' not in ofile[0].header:
-        nextend = ofile[0].header['nextend']
-        for ext in np.arange(1, nextend, 3):
-            occdhtav = ofile[ext].header['OCCDHTAV']
-            factor = 1.0 / (1.0 + dark_v_temp * (float(occdhtav) - s2ref_temp))
-            ofile[ext].data = ofile[ext].data * factor
-            print 'Scaling data by ', factor, ' for temperature: ', occdhtav
-            ofile[ext+1].data = np.sqrt((ofile[ext+1].data)**2 * (factor**2)) #Modify the error array
-            ofile[ext].header.add_history('File scaled for Side-2 temperature uncertainty by data * (1.0 + %f * (%f - %f)) following description is STIS TIR 2004-01' %(dark_v_temp, occdhtav, s2ref_temp))
-        ofile[0].header['tempcorr'] = 'COMPLETE'
-    else:
-        print 'TEMPCORR = %s, not temperature correction applied to filename' %(ofile[0].header['tempcorr'])
+    with pyfits.open(filename, mode = 'update') as ofile:
+        if 'tempcorr' not in ofile[0].header:
+            nextend = ofile[0].header['nextend']
 
-    ofile.flush()
-    ofile.close()
+            for ext in np.arange(1, nextend, 3):
+                occdhtav = ofile[ext].header['OCCDHTAV']
+                factor = 1.0 / (1.0 + dark_v_temp * (float(occdhtav) - s2ref_temp))
+                ofile[ext].data = ofile[ext].data * factor
+                print 'Scaling data by ', factor, ' for temperature: ', occdhtav
+                ofile[ext+1].data = np.sqrt((ofile[ext+1].data)**2 * (factor**2)) #Modify the error array
+                ofile[ext].header.add_history('File scaled for Side-2 temperature uncertainty by data * (1.0 + %f * (%f - %f)) following description is STIS TIR 2004-01' %(dark_v_temp, occdhtav, s2ref_temp))
 
-#--------------------------------------------------------------------------
+            ofile[0].header['tempcorr'] = 'COMPLETE'
+        else:
+            print 'TEMPCORR = %s, not temperature correction applied to filename' %(ofile[0].header['tempcorr'])
+
+#------------------------------------------------------------------------
 
 def bias_subtract_data(filename):
 
@@ -698,16 +701,21 @@ def bias_subtract_data(filename):
         filename = filename.replace('raw', 'flt')
         assert pyfits.getval(filename, 'CRCORR', 0) != 'COMPLETE', 'CR Rejection should not be performed on %s' %(filename)
     else:
-        stistools.basic2d.basic2d(filename,
-                                  dqicorr = 'perform',
-                                  blevcorr = 'perform',
-                                  biascorr = 'perform',
-                                  doppcorr = 'omit',
-                                  lorscorr = 'omit',
-                                  glincorr = 'omit',
-                                  lflgcorr = 'omit',
-                                  darkcorr = 'omit',
-                                  flatcorr = 'omit',
-                                  photcorr = 'omit')
+        basic2d(filename,
+                dqicorr='perform',
+                blevcorr='perform',
+                biascorr='perform',
+                doppcorr='omit',
+                lorscorr='omit',
+                glincorr='omit',
+                lflgcorr='omit',
+                darkcorr='omit',
+                flatcorr='omit',
+                photcorr='omit',
+                verbose=False,
+                trailer="/dev/null")
         filename = filename.replace('raw', 'flt')
+
     return filename
+
+#------------------------------------------------------------------------

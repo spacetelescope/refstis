@@ -22,26 +22,26 @@ from .support import send_email
 
 #----------------------------------------------------------------
 
-def plot_obset( folder ):
+def plot_obset(folder):
     '''
     Check collapsed columns and rows against last month for irregularities
     '''
 
     plt.ioff()
-    
+
     print '#----------#'
     print 'Making Plots'
     print '#----------#'
     bias = []
     biwk = []
     dark = []
-    for filename in glob.glob( os.path.join( folder, '*.fits') ):
+    for filename in glob.glob(os.path.join(folder, '*.fits')):
         if 'bias_wk' in filename:
-            bias.append( filename )
+            bias.append(filename)
         if 'bias_biwk' in filename:
-            biwk.append( filename )
+            biwk.append(filename)
         if 'dark_wk' in filename:
-            dark.append( filename )
+            dark.append(filename)
 
     plt.rcParams['figure.subplot.hspace'] = .35
     plt.figure(figsize=(14, 20))
@@ -71,9 +71,9 @@ def plot_obset( folder ):
         plt.xlim(0, 9)
         plt.xlabel('Dataset')
         plt.ylabel('Std')
-    plt.savefig( os.path.join( folder, 'biases.pdf' ) )
+    plt.savefig(os.path.join(folder, 'biases.pdf'))
     plt.close()
-    
+
     plt.figure(figsize=(14, 20))
     plt.suptitle('Dark: collapsed rows, colums, and means')
     for i, ifile in enumerate(dark):
@@ -101,9 +101,9 @@ def plot_obset( folder ):
         plt.xlim(0, 9)
         plt.xlabel('Dataset')
         plt.ylabel('Std')
-    plt.savefig( os.path.join( folder, 'darks.pdf' ) )
+    plt.savefig(os.path.join(folder, 'darks.pdf'))
     plt.close()
-    
+
     plt.figure(figsize=(14, 20))
     plt.suptitle('BiWeek bias: collapsed rows, colums, and means')
     for i, ifile in enumerate(biwk):
@@ -131,80 +131,80 @@ def plot_obset( folder ):
         plt.xlim(0, 5)
         plt.xlabel('Dataset')
         plt.ylabel('Std')
-    plt.savefig( os.path.join( folder, 'biweeks.pdf' ) )
+    plt.savefig(os.path.join(folder, 'biweeks.pdf'))
     plt.close()
 
 #----------------------------------------------------------------
 
-def set_descrip( folder ):
+def set_descrip(folder):
     """ Make sure the descriptions are useful.  Should be removed when using
         the new version of the pipeline.
     """
     print 'Making headers pretty'
     print 'WARNING: Make sure to take this out when using the new refstis'
-    
-    for item in glob.glob( os.path.join(folder, '*.fits') ):
-        hdu = pyfits.open( item )
-    
+
+    for item in glob.glob(os.path.join(folder, '*.fits')):
+        hdu = pyfits.open(item)
+
         gain = hdu[0].header['CCDGAIN']
         useafter = hdu[0].header['USEAFTER'][:9]
-    
+
         if '_drk' in item:
             descrip = 'Weekly Dark for STIS CCD data taken after %s'% useafter
         elif '_bia' in item and hdu[0].header['CCDGAIN'] == 1:
             descrip = 'Weekly Gain=%d Bias for STIS CCD data taken after %s' % (gain, useafter)
         elif '_bia' in item and hdu[0].header['CCDGAIN'] == 4:
                 descrip = 'Bi-Weekly Gain=%d Bias for STIS CCD data taken after %s' % (gain, useafter)
-    
+
         while len(descrip) < 67:
             descrip += '-'
-    
+
         hdu[0].header['DESCRIP'] = descrip
-        hdu.writeto( item, clobber=True )
+        hdu.writeto(item, clobber=True)
 
 #----------------------------------------------------------------
 
-def regress( folder ):
+def regress(folder):
     """ Run *drk and *bia files in folder through CalSTIS to check
     for errors in processing
 
     """
 
     start_dir = os.getcwd()
-    
+
     print '#------------------#'
     print 'Running regression for'
     print folder
     print '#------------------#'
 
     monitor_dir = '/grp/hst/stis/darks_biases'
-    test_suite = os.path.join( monitor_dir, 'test_suite' )
-    test_dark = os.path.join( monitor_dir, 'test_dark' )
+    test_suite = os.path.join(monitor_dir, 'test_suite')
+    test_dark = os.path.join(monitor_dir, 'test_dark')
 
-    print glob.glob( os.path.join( folder, '*bia.fits' ) )
-    reference_files = glob.glob(os.path.join( folder, '*bia.fits' ) ) + \
-                    glob.glob(os.path.join( folder, '*drk.fits' ) )
+    print glob.glob(os.path.join(folder, '*bia.fits'))
+    reference_files = glob.glob(os.path.join(folder, '*bia.fits')) + \
+                    glob.glob(os.path.join(folder, '*drk.fits'))
     print reference_files
     assert len(reference_files) >= 1, 'No reference files in folder'
-    
+
     print 'Copying files and removing old files'
     for testing_dir in [test_suite, test_dark]:
-        for oldfile in glob.glob( os.path.join( testing_dir, '*_drk.fits') ) + \
-                glob.glob( os.path.join( testing_dir, '*_bia.fits') ):
+        for oldfile in glob.glob(os.path.join(testing_dir, '*_drk.fits')) + \
+                glob.glob(os.path.join(testing_dir, '*_bia.fits')):
             print 'removing', oldfile
-            os.remove( os.path.join( testing_dir, oldfile ) )
+            os.remove(os.path.join(testing_dir, oldfile))
 
         for newfile in reference_files:
             print 'moving', newfile, '-->', testing_dir
-            shutil.copy( newfile, testing_dir )
-    
+            shutil.copy(newfile, testing_dir)
+
 
     #######################################
     # Run checks in the test_suite folder #
     #######################################
 
 
-    os.chdir( test_suite )
+    os.chdir(test_suite)
     print os.getcwd()
 
     bias_biwk_refs = glob.glob('*bias_bi*.fits')
@@ -230,7 +230,7 @@ def regress( folder ):
                 wavefile = rawfile.replace('raw.fits', 'wav.fits')
             else:
                 wavefile = ''
-    
+
             pyfits.setval(rawfile, 'DARKFILE', value=dark, ext=0)
             pyfits.setval(rawfile, 'BIASFILE', value=bias, ext=0)
             pyfits.setval(rawfile, 'IMPHTTAB', value='oref$x9r1607mo_imp.fits', ext=0)
@@ -239,7 +239,7 @@ def regress( folder ):
                 pyfits.setval(wavefile, 'BIASFILE', value=bias, ext=0)
                 pyfits.setval(wavefile, 'IMPHTTAB', value='oref$x9r1607mo_imp.fits', ext=0)
 
-            status = calstis(rawfile, wavecal=wavefile )
+            status = calstis(rawfile, wavecal=wavefile)
 
             if status: sys.exit('Calstis Error detected for %s' % (dark[5:9]))
 
@@ -247,14 +247,14 @@ def regress( folder ):
     # Run checks in the test_dark folder #
     ######################################
 
-    os.chdir( test_dark )
+    os.chdir(test_dark)
     print os.getcwd()
 
     raws = glob.glob('*raw.fits')
 
     print 'Setting IMPHTTAB in datasets'
     for item in raws:
-        pyfits.setval( item, 'IMPHTTAB', value='oref$x9r1607mo_imp.fits', ext=0)
+        pyfits.setval(item, 'IMPHTTAB', value='oref$x9r1607mo_imp.fits', ext=0)
 
     for bias in bias_biwk_refs:
 
@@ -274,16 +274,16 @@ def regress( folder ):
             if status: sys.exit('Calstis Error detected for %s' % (dark[5:9]))
 
 
-    os.chdir( start_dir )
+    os.chdir(start_dir)
 
 #----------------------------------------------------------------
 
 
-def send_forms( folder ):
-    
+def send_forms(folder):
+
     start_dir = os.getcwd()
-    os.chdir( folder )
-    
+    os.chdir(folder)
+
     today_obj = date.today()
     today = str(today_obj.month) + '/' + \
         str(today_obj.day) + '/' + str(today_obj.year)
@@ -349,7 +349,7 @@ def send_forms( folder ):
     message += '\n '
 
     for search_string in ('*drk.fits', 'bias_wk*.fits', 'bias_bi*.fits'):
-        file_list = glob.glob( search_string)
+        file_list = glob.glob(search_string)
         file_list.sort()
         USEAFTER = []
         for item in file_list:
@@ -376,7 +376,7 @@ def send_forms( folder ):
 
     send_email(subject='STIS Darks and Bias Delivery Form', message=message)
 
-    os.chdir( start_dir )
+    os.chdir(start_dir)
 
 #----------------------------------------------------------------
 
@@ -403,14 +403,12 @@ def run_cdbs_checks():
 #----------------------------------------------------------------
 
 
-def check_all( folder ):
-    set_descrip( folder )
-    plot_obset( folder )
-    send_forms( folder )
-    regress( folder )
-    
-    
-    
+def check_all(folder):
+    set_descrip(folder)
+    plot_obset(folder)
+    send_forms(folder)
+    regress(folder)
+
     print '#-------------------------------------------#'
     print 'Darks and Bias Monitor complete.  '
     print 'Please run certify and fitsverify'
@@ -418,4 +416,3 @@ def check_all( folder ):
     print '#-------------------------------------------#'
 
 #----------------------------------------------------------------
-

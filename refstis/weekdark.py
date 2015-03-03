@@ -20,7 +20,7 @@ def create_superdark(crj_filename, basedark):
     files will be updated in place
 
     # Add 'only baseline dark current' image to 'only hot pixels' image.
-    # This creates the science portion of the forthcoming reference dark. 
+    # This creates the science portion of the forthcoming reference dark.
 
     Parameters:
     -----------
@@ -30,9 +30,8 @@ def create_superdark(crj_filename, basedark):
         basedark name
 
     """
-
-
-    with fits.open( crj_filename, mode='update' ) as crj_hdu:
+    
+    with fits.open(crj_filename, mode='update') as crj_hdu:
 
         ## Perform iterative statistics on this normalized superdark
         #imstat(img,fields="mean,stddev,npix,midpt,mode,min,max",lower=ll,upper=ul,for-) | scan(mn,sig,nx,med,mod,min,max)
@@ -44,7 +43,7 @@ def create_superdark(crj_filename, basedark):
         p_five_sigma = data_median + (5*data_std)
         print 'hot pixels are defined as above: ', p_five_sigma
         basedark_hdu = fits.open(basedark)
-        base_median, base_mean, base_std = support.sigma_clip(basedark_hdu[('sci', 1) ].data,
+        base_median, base_mean, base_std = support.sigma_clip(basedark_hdu[('sci', 1)].data,
                                                               sigma=3,
                                                               iterations=40)
 
@@ -81,7 +80,7 @@ def create_superdark(crj_filename, basedark):
 
 
         crj_hdu[('err', 1)].data = np.where(only_hotpix == 0,
-                                            basedark_hdu[('err', 1) ].data,
+                                            basedark_hdu[('err', 1)].data,
                                             crj_hdu[('err', 1)].data)
 
 #-------------------------------------------------------------------------------
@@ -135,7 +134,7 @@ def make_weekdark(input_list, refdark_name, thebasedark, thebiasfile=None):
         if texpstrt > 52091.0:
             functions.apply_dark_correction(filename, texpstrt)
 
-    joined_out = refdark_name.replace('.fits', '_joined.fits' )
+    joined_out = refdark_name.replace('.fits', '_joined.fits')
     print 'Joining images to %s' % joined_out
     functions.msjoin(input_list, joined_out)
 

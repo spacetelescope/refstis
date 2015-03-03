@@ -25,13 +25,13 @@ def make_weekbias(input_list, refbias_name, basebias):
     update SCI
     **************************************************************************
     the baseline bias rate is taken from the aptly named basebias
-    anything that is "hot" is assumed to be potentially transient and 
+    anything that is "hot" is assumed to be potentially transient and
     is thus taken from the weekly biases.
 
     update err
     **************************************************************************
     Update ERR extension of new superbias by assigning the ERR values of the
-    baseline superbias except for the new hot pixels that are updated from 
+    baseline superbias except for the new hot pixels that are updated from
     the weekly superbias, for which the error extension of the weekly
     superbias is taken. Put the result in temporary ERR image.
 
@@ -58,15 +58,15 @@ def make_weekbias(input_list, refbias_name, basebias):
     residual_image, median_image = functions.make_residual(crj_filename)
 
     resi_columns_2d = functions.make_resicols_image(residual_image)
-    resi_median, resi_mean, resi_std = support.sigma_clip(resi_columns_2d[0], 
-                                                          sigma=3, 
+    resi_median, resi_mean, resi_std = support.sigma_clip(resi_columns_2d[0],
+                                                          sigma=3,
                                                           iterations=20)
     replval = resi_mean + 3.0 * resi_std
     only_hotcols = np.where(resi_columns_2d > replval, residual_image, 0)
 
     with fits.open(crj_filename, mode='update') as hdu:
         #-- update science extension
-        hdu[('sci', 1)].data += only_hotcols 
+        hdu[('sci', 1)].data += only_hotcols
 
         #-- update DQ extension
         hot_index = np.where(only_hotcols > 0)[0]
@@ -75,7 +75,7 @@ def make_weekbias(input_list, refbias_name, basebias):
         #- update ERR
         baseline_err = fits.getdata(basebias, ext=('err', 1))
         no_hot_index = np.where(only_hotcols == 0)[0]
-        hdu[('err', 1)].data[ no_hot_index ] = baseline_err[no_hot_index]
+        hdu[('err', 1)].data[no_hot_index] = baseline_err[no_hot_index]
 
     shutil.copy(crj_filename, refbias_name)
     functions.update_header_from_input(refbias_name, input_list)

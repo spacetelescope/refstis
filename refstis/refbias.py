@@ -18,29 +18,33 @@ import functions
 def flag_hot_pixels(refbias_name):
     """Flag hotpixels in the DQ array
 
-    Parameters:
-    -----------
+    Pixels more than 3 sigma away from the median image
+
+    Notes
+    -----
+    The IRAF version of this pipeline used a 2x15 pixel median filter
+    to calculate the smoothed imaged.  This raises an error in scipy's medfilt,
+    so a 3x5 pixel filter is used instead.
+
+    Parameters
+    ----------
     refbias_name : str
         name of the reference file to flag
 
     """
 
-    with fits.open(refbias_name, mode = 'update') as refbias_hdu:
-        #--iraf used  a 2 pixel binning, but python insists that:
-        #--  ValueError: Each element of kernel_size should be odd.
-        smooth_bias = medfilt(refbias_hdu[('sci', 1)].data,
-                                     (3, 15))
-        smooth_bias_med, smooth_bias_mean, smooth_bias_std = support.sigma_clip(smooth_bias, sigma = 3, iterations = 30)
+    with fits.open(refbias_name, mode='update') as refbias_hdu:
+        smooth_bias = medfilt(refbias_hdu[('sci', 1)].data, (3, 15))
+        
+        smooth_bias_med, smooth_bias_mean, smooth_bias_std = support.sigma_clip(smooth_bias, sigma=3, iterations=30)
+        bias_median, bias_mean, bias_std = support.sigma_clip(refbias_hdu[('sci', 1)].data, sigma=3, iterations=30)
 
-        bias_median, bias_mean, bias_std = support.sigma_clip(refbias_hdu[('sci', 1)].data , sigma=3, iterations=30)
-
-        diff_med = bias_mean - smooth_bias_mean
-        smooth_bias = smooth_bias + diff_med
+        smooth_bias += (bias_mean - smooth_bias_mean)
 
         bias_residual = refbias_hdu[('sci', 1)].data - smooth_bias
         resid_median, resid_mean, resid_std = support.sigma_clip(bias_residual,
-                                                                 sigma = 3,
-                                                                 iterations = 30)
+                                                                 sigma=3,
+                                                                 iterations=30)
         r_five_sigma = resid_mean + 5.0 * resid_std
 
         print 'Updating DQ values of hot pixels above a level of ', r_five_sigma

@@ -1,6 +1,25 @@
 #!/usr/bin/env python
 
-"""Script to fill database with cos anneal month start and end times.
+"""Create STIS Superdarks and Superbiases for the CCD detector.
+
+Biases
+------
+1.  Retrieve new datasets from the archive
+2.  Separate darks and biases anneal "weeks"
+3.  Run refbias
+3a. If fewer than threshold frames, run weekbias
+4.  Create new baseline bias file
+5.  Update headers.
+
+Darks
+-----
+1.  Retrieve new datasets from the archive
+2.  Create basedark
+3.  Create weekly dark using basedark from previous month
+4.  Update headers.
+
+Test reference files and deliver.
+
 """
 
 from __future__ import division
@@ -45,8 +64,8 @@ for location in [products_directory, retrieve_directory]:
 #bias_proposals = [7600, 7601, 8409, 8439, 8838, 8865, 8903, 8904, 9607, 9608,
 #                  10019, 10020, 11846, 11847, 12403, 12404, 12743, 12744]
 
-dark_proposals = [ 11844, 11845, 12400, 12401, 12741, 12742, 13131, 13132, 13518, 13519]
-bias_proposals = [ 11846, 11847, 12402, 12403, 12743, 12744, 13133, 13134, 13535, 13536]
+dark_proposals = [11844, 11845, 12400, 12401, 12741, 12742, 13131, 13132, 13518, 13519]
+bias_proposals = [11846, 11847, 12402, 12403, 12743, 12744, 13133, 13134, 13535, 13536]
 
 
 #-------------------------------------------------------------------------------
@@ -150,16 +169,15 @@ def pull_out_subfolders(root_folder):
     """ Walk through input folder and use regular expressions to return lists of
     the folders for each gain and for each week
 
-    parameters
+    Parameters
     ----------
     root_folder
         string, the folder to walk through
 
-    returns
+    Returns
     -------
     gain_folders
         list, containing folders for each gain
-
     week_folders
         list, containing folders for each week
 
@@ -188,23 +206,22 @@ def pull_info(foldername):
     A valid week is a string of 'wk' + 2 numbers ranging from 0-9.
     A valid biweek is the string 'biwk' + 2 numbers from 0-9.
 
-    parameters
+    Parameters
     ----------
     foldername
         string, name of folder to search in
 
-    returns
+    Returns
     -------
     proposal
         string, proposal number as string
-
     week
         string, week of the anneal (wk01, etc)
 
     """
 
     try:
-        proposal = re.search('_([0-9]{5})_', foldername ).group()
+        proposal = re.search('([0-9]{5})_', foldername ).group()
     except:
         proposal = ''
 
@@ -249,6 +266,9 @@ def get_anneal_month(proposal_id, anneal_id):
 def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
     """Make reference files like the refstis pipeline
 
+    1.  Separate dark and bias datasets into week folders
+    2.
+
     """
 
     bias_threshold = {(1, 1, 1) : 98,
@@ -270,13 +290,9 @@ def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
     # separate raw files in folder into periods
     separate_period(root_folder)
 
-    #-- Find the premade folders if they exist
-    gain_folders, week_folders = pull_out_subfolders(root_folder)
-
-    ###################
-    # make the basebias
-    ###################
-
+    print '###################'
+    print ' make the basebias '
+    print '###################'
     raw_files = []
     for root, dirs, files in os.walk(os.path.join(root_folder, 'biases')):
         if not '1-1x1' in root:
@@ -292,19 +308,9 @@ def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
     else:
         basejoint.make_basebias(raw_files, basebias_name)
 
-    if last_basebias:
-        basebias_name = last_basebias
-
-    # Copy over to the sub-folders
-    #for root, dirs, files in os.walk(os.path.join(root_folder, 'biases')):
-    #   if os.path.split(root)[-1].startswith('wk'):
-    #        shutil.copy(basebias_name, subfolder)
-
-
-    ######################
-    # make the base darks
-    ######################
-
+    print '###################'
+    print ' make the basedarks '
+    print '###################'
     raw_files = []
     for root, dirs, files in os.walk(os.path.join(root_folder, 'darks')):
         for filename in files:
@@ -317,20 +323,19 @@ def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
     else:
         basedark.make_basedark(raw_files, basedark_name, basebias_name)
 
-    if last_basedark:
-        basedark_name = last_basedark
 
-    # Copy over to the sub-folders
-    #for root, dirs, files in os.walk(os.path.join(root_folder, 'dark')):
-    #    if os.path.split(root)[-1].startswith('wk'):
-    #        shutil.copy(basebias_name, subfolder)
+    print '##################################'
+    print ' make the weekly biases and darks '
+    print '##################################'
+    #-- Find the premade folders if they exist
+    gain_folders, week_folders = pull_out_subfolders(root_folder)
 
+    #-- reset basedarks and basebiases to previous months for the weeklies.
+    basebias_name = last_basebias or basebias_name
+    basedark_name = last_basedark or basedark_name
 
-    ####################
-    # make the weekly biases and darks
-    ####################
     for folder in week_folders:
-        print 'Processing %s'%(folder)
+        print 'Processing {}'.format(folder)
 
         proposal, wk = pull_info(folder)
 
@@ -344,18 +349,28 @@ def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
         if re.search('/biases/', folder):
             filetype = 'bias'
 
-            # Always make refbias
-            refbias_name = os.path.join(folder,
-                                        'refbias_%s_%s.fits'%(proposal, wk))
-            refbias.make_refbias(raw_files, refbias_name)
+            weekbias_name = os.path.join(folder,
+                                         'weekbias_%s_%s.fits'%(proposal, wk))
+            if os.path.exists(weekbias_name):
+                print '{} already exists, skipping'
+                continue
 
             #make weekbias if too few imsets
             if n_imsets < bias_threshold[(gain, xbin, ybin)]:
-                weekbias_name = os.path.join(folder,
-                                             'weekbias_%s_%s.fits'%(proposal, wk))
-                basebias_name = os.path.join(root_folder, 'basebias.fits')
-                ### needs to be the previous month basebias
                 weekbias.make_weekbias(raw_files, weekbias_name, basebias_name)
+            else:
+                if n_imsets > 120:
+                    super_list = split_files(raw_files)
+                    all_subnames = []
+                    for i, sub_list in enumerate(super_list):
+                        subname = weekbias_name.replace('.fits', '_grp0'+str(i+1)+'.fits')
+                        print 'Making sub-file for datasets'
+                        print sub_list
+                        refbias.make_refbias(sub_list, subname)
+                        all_subnames.append(subname)
+                    functions.refaver(all_subnames, weekbias_name)
+                else:
+                    refbias.make_refbias(raw_files, weekbias_name)
 
 
         elif re.search('/darks/', folder):
@@ -363,28 +378,21 @@ def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
 
             weekdark_name = os.path.join(folder,
                                          'weekdark_%s_%s.fits'%(proposal, wk))
+            if os.path.exists(weekdark_name):
+                print '{} already exists, skipping'
+                continue
 
-            ### probably need to be final file, either week* or ref*
+
             weekbias_name = os.path.join(root_folder,
                                          'biases/1-1x1',
                                           wk,
                                          'weekbias_%s_%s.fits'%(proposal, wk))
 
-            refbias_name = os.path.join(root_folder,
-                                        'biases/1-1x1',
-                                         wk,
-                                        'refbias_%s_%s.fits'%(proposal, wk))
-
-            if os.path.exists(weekbias_name):
-                biasfile = weekbias_name
-            elif os.path.exists(refbias_name):
-                biasfile = refbias_name
-
             basedark_name = os.path.join(root_folder, 'basedark.fits')
             weekdark.make_weekdark(raw_files,
                                    weekdark_name,
                                    basedark_name,
-                                   biasfile)
+                                   weekbias_name)
 
         else:
             raise ValueError("{} doesn't conform with standards".format(folder))
@@ -633,22 +641,25 @@ def collect_new(observations_to_get):
     Uses modules created by B. York: DADSAll.py and SybaseInterface.py.
     '''
 
-    xml = createXmlFile(ftp_dir= retrieve_directory,
-                        set=observations_to_get, file_type='RAW')
+    xml = createXmlFile(ftp_dir=retrieve_directory,
+                        set=observations_to_get,
+                        file_type='RAW')
 
     response = submitXmlFile(xml, 'dmsops1.stsci.edu')
     if ('SUCCESS' in response):
-        success=True
+        return True
     else:
-        success=False
-    success = True
-
-    return success
+        return False
 
 #-----------------------------------------------------------------------
 
 def separate_period(base_dir):
     """Separate observations in the base dir into needed folders.
+
+    Parameters
+    ----------
+    base_dir, str
+        directory containing darks and biases to be split.
 
     """
 
@@ -689,11 +700,18 @@ def separate_period(base_dir):
         N_periods = figure_number_of_periods(N_days, mode)
         week_lengths = functions.figure_days_in_period(N_periods, N_days)
 
-        remainder = (month_end - month_begin) - N_days
-        week_lengths[-1] += remainder
+        #--Add remainder to end
+        week_lengths[-1] += (month_end - month_begin) - N_days
 
-        anneal_weeks = [(month_begin + item - week_lengths[0], month_begin + item)
-                         for item in np.cumsum(week_lengths)]
+        #-- Translate to MJD
+        anneal_weeks = []
+        start = month_begin
+        end = start + week_lengths[0]
+        anneal_weeks.append((start, end))
+        for item in week_lengths[1:]:
+            start = end
+            end += item
+            anneal_weeks.append((start, end))
 
         print
         print file_type, mode, 'will be broken up into %d periods as follows:'%(N_periods)
@@ -727,8 +745,7 @@ def separate_period(base_dir):
 
             print 'week goes from: ', begin, end
             obs_to_move = [item for item in obs_list if
-                            ((fits.getval(item, 'EXPSTART', ext=1) >= begin) and
-                             (fits.getval(item, 'EXPSTART', ext=1) < end))]
+                           (begin <= fits.getval(item, 'EXPSTART', ext=1) <= end)]
 
             if not len(obs_to_move):
                 raise ValueError('error, empty list to move')
@@ -740,7 +757,10 @@ def separate_period(base_dir):
                                                                  item.split('/')[-1]), 0):
                     ###Dynamic at some point
                     fits.setval(os.path.join(output_path, item.split('/')[-1]),
-                                'IMPHTTAB', ext = 0, value = 'oref$x9r1607mo_imp.fits')
+                                'IMPHTTAB',
+                                ext=0,
+                                value='oref$x9r1607mo_imp.fits')
+
                 obs_list.remove(item)
                 all_files.remove(item)
 
@@ -887,18 +907,31 @@ Procedure
 ------------------------------------
 ''' ) )
 
-    parser.add_argument("-r",  "--redo_all",
-                      action='store_true', dest="redo_all",  default=False,
-                      help="Re-run analysis on all past anneal months.")
-    parser.add_argument("-c",  "--no_collect",
-                      action='store_false', dest="collect_new",  default=True,
-                      help="Turn off data collection function.")
-    parser.add_argument("-p",  "--plots_only",
-                      action='store_true', dest="plots_only", default=False,
-                      help="Only remake plots and update the website.")
-    parser.add_argument("-u", "--user_information",
-                        action='store', dest="user_information", default=None,
+    parser.add_argument("-r",
+                        "--redo_all",
+                        action='store_true',
+                        dest="redo_all",
+                        default=False,
+                        help="Re-run analysis on all past anneal months.")
+    parser.add_argument("-c",
+                        "--no_collect",
+                        action='store_false',
+                        dest="collect_new",
+                        default=True,
+                        help="Turn off data collection function.")
+    parser.add_argument("-p",
+                        "--plots_only",
+                        action='store_true',
+                        dest="plots_only",
+                        default=False,
+                        help="Only remake plots and update the website.")
+    parser.add_argument("-u",
+                        "--user_information",
+                        action='store',
+                        dest="user_information",
+                        default=None,
                         help="info string needed to request data")
+
     return parser.parse_args()
 
 #-----------------------------------------------------------------------

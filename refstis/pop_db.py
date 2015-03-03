@@ -8,10 +8,7 @@ and bias files.
 """
 
 import sqlite3
-try:
-    import pyfits
-except:
-    from astropy.io import fits as pyfits
+from astropy.io import fits as pyfits
 import os
 import glob
 

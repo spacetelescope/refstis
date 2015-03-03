@@ -3,9 +3,9 @@ Script to produce a monthly base bias for STIS CCD
 
  Description:
         Python translation of a python translation
-  of an original IRAF cl script to create superbias 
+  of an original IRAF cl script to create superbias
   reference file from a list of bias frames.
- 
+
   METHOD:
    The input image (with multiple extensions) is overscan-subtracted and
    cosmic-ray-rejected using the CALSTIS algorithms within STSDAS. The
@@ -21,7 +21,7 @@ Script to produce a monthly base bias for STIS CCD
    replaced by those in the median-filtered bias image.
    Plots are made of the row- and column-averaged superbias, with plotting
    scales appropriate to the gain and binning settings of the superbias.
- 
+
 
 """
 
@@ -30,14 +30,10 @@ import numpy as np
 import os
 import shutil
 import sys
+import stistools
 
 import support
 import functions
-
-from pyraf import iraf
-from iraf import stsdas, hst_calib, stis
-from pyraf.irafglobals import *
-
 
 #-------------------------------------------------------------------------------
 
@@ -50,7 +46,7 @@ def average_biases(bias_list):
     -----------
     bias_list : list
         list of the input biases
-    
+
     Returns:
     --------
     mean_file : str
@@ -59,7 +55,7 @@ def average_biases(bias_list):
         sum of the NCOMBINE header keywords from the data
 
     """
-    
+
     assert len(bias_list), 'Bias list is empty'
 
     file_path, file_name = os.path.split(bias_list[0])
@@ -72,11 +68,11 @@ def average_biases(bias_list):
             nimset = hdr0['nextend'] // 3
             ncombine = hdr1['ncombine']
 
-            #-- If input files have more than one imset or 
+            #-- If input files have more than one imset or
             #-- have not been cr-rejected, exit
             if (nimset > 1) | (ncombine <= 1):
                 print('Input files have to be single imset files and have been CR-rejected')
-                print('NIMSET: %d  NCOMBINE: %d'%(nimset, ncombine) )
+                print('NIMSET: %d  NCOMBINE: %d' % (nimset, ncombine))
                 sys.exit(3)
 
             #Otherwise, add image to running sum
@@ -102,10 +98,10 @@ def average_biases(bias_list):
     hdr1['ncombine'] = totalweight
     hdr1['exptime'] = totaltime
 
-    out_hdu0 = fits.PrimaryHDU(header = hdr0)
-    out_hdu1 = fits.ImageHDU(mean_arr, header = hdr1)
-    out_hdu2 = fits.ImageHDU(mean_err_arr, header =  hdu[2].header)
-    out_hdu3 = fits.ImageHDU(dq_arr, header =  hdu[3].header)
+    out_hdu0 = fits.PrimaryHDU(header=hdr0)
+    out_hdu1 = fits.ImageHDU(mean_arr, header=hdr1)
+    out_hdu2 = fits.ImageHDU(mean_err_arr, header=hdu[2].header)
+    out_hdu3 = fits.ImageHDU(dq_arr, header=hdu[3].header)
 
     hdulist = fits.HDUList([out_hdu0, out_hdu1, out_hdu2, out_hdu3])
     hdulist.writeto(mean_file)
@@ -123,9 +119,9 @@ def calibrate(input_file):
         os.environ['oref'] = '/grp/hst/cdbs/oref/'
 
     print 'Calibrating %s' % (input_file)
-    output_blev = input_file.replace('.fits','_blev.fits')
+    output_blev = input_file.replace('.fits', '_blev.fits')
     functions.RemoveIfThere(output_blev)
-    output_crj = input_file.replace('.fits','_crj.fits')
+    output_crj = input_file.replace('.fits', '_crj.fits')
     functions.RemoveIfThere(output_crj)
 
     with fits.open(input_file, mode='update') as hdu:
@@ -144,48 +140,48 @@ def calibrate(input_file):
 
             if (nrptexp != nimset):
                 hdu[0].header['NRPTEXP'] = nimset
-                hdu[0].header['CRSPLIT'] = 1 
+                hdu[0].header['CRSPLIT'] = 1
 
             hdu[0].header['CRCORR'] = 'PERFORM'
             hdu[0].header['APERTURE'] = '50CCD'
             hdu[0].header['APER_FOV'] = '50x50'
 
-            if (blevcorr != 'COMPLETE') :
+            if (blevcorr != 'COMPLETE'):
                 #print('Performing BLEVCORR')
                 hdu[0].header['BLEVCORR'] = 'PERFORM'
-                iraf.basic2d(input_file, 
-                             output_blev,
-                             outblev='', 
-                             dqicorr='perform', 
-                             atodcorr='omit',
-                             blevcorr='perform', 
-                             doppcorr='omit', 
-                             lorscorr='omit',
-                             glincorr='omit', 
-                             lflgcorr='omit',
-                             biascorr='omit',
-                             darkcorr='omit',
-                             flatcorr='omit', 
-                             shadcorr='omit',
-                             photcorr='omit',
-                             statflag=no, 
-                             verb=no, 
-                             Stdout='dev$null')
+                stistools.basic2d.basic2d(input=input_file,
+                                          output=output_blev,
+                                          outblev='',
+                                          dqicorr='perform',
+                                          atodcorr='omit',
+                                          blevcorr='perform',
+                                          doppcorr='omit',
+                                          lorscorr='omit',
+                                          glincorr='omit',
+                                          lflgcorr='omit',
+                                          biascorr='omit',
+                                          darkcorr='omit',
+                                          flatcorr='omit',
+                                          shadcorr='omit',
+                                          photcorr='omit',
+                                          statflag=False,
+                                          verbose=False,
+                                          trailer="/dev/null")
             else:
                 #print('Blevcorr alread Performed')
                 shutil.copy(input_file, output_blev)
 
             #print('Performing OCRREJECT')
-            iraf.ocrreject(input=output_blev, 
-                           output=output_crj, 
-                           verb=no, 
-                           Stdout='dev$null')
+            stistools.ocrreject.ocrreject(input=output_blev,
+                                          output=output_crj,
+                                          verbose=False,
+                                          trailer="/dev/null")
 
         elif (crcorr == "COMPLETE"):
             print "CR rejection already done"
             os.rename(input_file, output_crj)
 
-    fits.setval(output_crj, 'FILENAME', value=os.path.split(output_crj)[1])
+    fits.setval(output_crj, 'FILENAME', value=os.path.split(output_crj)[-1])
 
     os.remove(output_blev)
 
@@ -194,7 +190,7 @@ def calibrate(input_file):
 #-------------------------------------------------------------------------------
 
 def replace_hot_cols(mean_bias, median_image, residual_image, yfrac=None):
-    """ Replace hot columns in the mean_bias as identified from the 
+    """ Replace hot columns in the mean_bias as identified from the
     residual image with values from the bias_median
 
     'hot' is 3* sigma
@@ -204,11 +200,11 @@ def replace_hot_cols(mean_bias, median_image, residual_image, yfrac=None):
     """
 
     print 'Replacing hot column'
-
-    residual_columns_2d = functions.make_resicols_image(residual_image, 
+    residual_columns_2d = functions.make_resicols_image(residual_image,
                                                         yfrac=yfrac)
-    
+
     resi_cols_median, resi_cols_mean, resi_cols_std = support.sigma_clip(residual_columns_2d[0], sigma=3, iterations=40)
+
     print 'thresh mean,sigma = {} {}'.format(resi_cols_mean, resi_cols_std)
     replval = resi_cols_mean + 3.0 * resi_cols_std
     index = np.where(residual_columns_2d >= replval)
@@ -219,13 +215,13 @@ def replace_hot_cols(mean_bias, median_image, residual_image, yfrac=None):
 #-------------------------------------------------------------------------------
 
 def replace_hot_pix(mean_bias, median_image):
-    """ Replace image values in residual single hot pixels 
+    """ Replace image values in residual single hot pixels
 
     defined as those having
     values greater than (mean + 5 sigma of Poisson noise) by those in
     median-filtered bias image. This represents the science extension of the
     final output reference superbias.
-    
+
     mean_bias will be updated in place.
 
     Parameters:
@@ -240,8 +236,8 @@ def replace_hot_pix(mean_bias, median_image):
     print 'Replacing hot pixels'
     residual_image = fits.getdata(mean_bias, ext=('sci', 1)) - median_image
     resi_median, resi_mean, resi_std = support.sigma_clip(residual_image)
-    fivesig = resi_mean + (5.0 * resi_std)
 
+    fivesig = resi_mean + (5.0 * resi_std)
     index = np.where(residual_image >= fivesig)
 
     with fits.open(mean_bias, mode='update') as hdu:
@@ -250,7 +246,7 @@ def replace_hot_pix(mean_bias, median_image):
 #-------------------------------------------------------------------------------
 
 def make_basebias(input_list, refbias_name='basebias.fits'):
-    """ Make the basebias for an anneal month 
+    """ Make the basebias for an anneal month
 
 
     1- Calbrate each bias in the list
@@ -275,14 +271,14 @@ def make_basebias(input_list, refbias_name='basebias.fits'):
     print 'Processing individual files'
     crj_list = [calibrate(item) for item in input_list]
     crj_list = [item for item in crj_list if item != None]
- 
+
     mean_bias, totalweight = average_biases(crj_list)
 
     print 'Replacing hot columns and pixels by median-smoothed values'
     residual_image, median_image = functions.make_residual(mean_bias)
 
     replace_hot_cols(mean_bias, median_image, residual_image)
-    ### for some reason this is done again, but only using the lower 20% of rows
+    #-- for some reason this is done again, but only using the lower 20% of rows
     replace_hot_cols(mean_bias, median_image, residual_image, yfrac=(0, 20))
 
     shutil.copy(mean_bias, refbias_name)
@@ -291,9 +287,9 @@ def make_basebias(input_list, refbias_name='basebias.fits'):
     functions.update_header_from_input(refbias_name, input_list)
 
     print 'Cleaning up...'
-    functions.RemoveIfThere( mean_bias )
+    functions.RemoveIfThere(mean_bias)
     for item in crj_list:
-        functions.RemoveIfThere( item )
+        functions.RemoveIfThere(item)
 
     print 'basejoint done for {}'.format(refbias_name)
 

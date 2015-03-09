@@ -13,6 +13,8 @@ from stistools.calstis import calstis
 from stistools.ocrreject import ocrreject
 from stistools.basic2d import basic2d
 
+__name__ = "J. Ely"
+
 #------------------------------------------------------------------------
 
 def update_header_from_input(filename, input_list):
@@ -22,13 +24,7 @@ def update_header_from_input(filename, input_list):
     raised
 
     """
-
-    gain = get_keyword(input_list, 'CCDGAIN', 0)
-    xbin = get_keyword(input_list, 'BINAXIS1', 0)
-    ybin = get_keyword(input_list, 'BINAXIS2', 0)
-    amp = get_keyword(input_list, 'CCDAMP', 0)
     targname = get_keyword(input_list, 'TARGNAME', 0)
-
     if targname == 'BIAS':
         filetype = 'CCD BIAS IMAGE'
     elif targname == 'DARK':
@@ -36,6 +32,7 @@ def update_header_from_input(filename, input_list):
     else:
         raise ValueError('targname %s not understood' % str(targname))
 
+    gain = get_keyword(input_list, 'CCDGAIN', 0)
     if gain == 1:
         frequency = 'Weekly'
         N_period = 4
@@ -53,23 +50,55 @@ def update_header_from_input(filename, input_list):
     #        begin_time = Time(begin, format = 'mjd', scale = 'utc').iso  #anneal week start
     #        useafter = datetime.datetime.strptime(begin_time.split('.')[0], '%Y-%m-%d %H:%M:%S').strftime('%b %d %Y %X')
 
-    with pyfits.open(filename, mode='update') as hdu:
-        hdu[0].header['FILENAME'] = os.path.split(filename)[1]
-        hdu[0].header['CCDGAIN'] = gain
-        hdu[0].header['BINAXIS1'] = xbin
-        hdu[0].header['BINAXIS2'] = ybin
-        hdu[0].header['NEXTEND'] = 3
-        hdu[0].header['PEDIGREE'] = 'INFLIGHT %s %s' % (data_start_pedigree, data_end_pedigree)
-        hdu[0].header['USEAFTER'] = data_start_pedigree
-        hdu[0].header['DESCRIP'] = "%s gain=%d %s for STIS CCD data taken after XXX" % (frequency, gain, targname.lower() )
-        hdu[0].header.add_comment('Reference file created by %s' % __name__ )
+    month, day, time, year = Time(data_start_mjd, format='mjd').datetime.ctime().split()[1:]
+    useafter = '{:s} {:02d} {:s} {:s}'.format(month, int(day), year, time)
 
-        while len( hdu[0].header['DESCRIP'] ) < 67:
-            hdu[0].header['DESCRIP'] = hdu[0].header['DESCRIP'] + '-'
+    hdu_out = pyfits.HDUList(pyfits.PrimaryHDU())
+    hdu_out[0].header['FILENAME'] = os.path.split(filename)[1]
+    hdu_out[0].header['NEXTEND'] = 3
+    hdu_out[0].header['TELESCOP'] = 'HST'
+    hdu_out[0].header['INSTRUME'] = 'STIS'
+    hdu_out[0].header['DETECTOR'] = ('CCD', 'detector in use: CCD')
+    hdu_out[0].header['CCDAMP'] = get_keyword(input_list, 'CCDAMP', 0)
+    hdu_out[0].header['CCDGAIN'] = gain
+    hdu_out[0].header['CCDOFFST'] = get_keyword(input_list, 'CCDOFFST', 0)
+    hdu_out[0].header['OPT_ELEM'] = 'ANY'
+    hdu_out[0].header['APERTURE'] = 'ANY'
+    hdu_out[0].header['OBSTYPE'] = 'ANY'
+    hdu_out[0].header['BINAXIS1'] = get_keyword(input_list, 'BINAXIS1', 0)
+    hdu_out[0].header['BINAXIS2'] = get_keyword(input_list, 'BINAXIS2', 0)
+    hdu_out[0].header['FILETYPE'] = filetype
+    hdu_out[0].header['PEDIGREE'] = 'INFLIGHT %s %s' % (data_start_pedigree, data_end_pedigree)
+    hdu_out[0].header['USEAFTER'] = useafter
+    hdu_out[0].header['DESCRIP'] = "%s gain=%d %s for STIS CCD data taken after XXX" % (frequency, gain, targname.lower() )
+    while len(hdu_out[0].header['DESCRIP']) < 67:
+        hdu_out[0].header['DESCRIP'] = hdu_out[0].header['DESCRIP'] + '-'
+    hdu_out[0].header.add_comment('Reference file created by %s' % __name__ )
 
-        hdu[0].header.add_history('Used input files')
-        for item in input_list:
-            hdu[0].header.add_history( os.path.split(item)[1] )
+    hdu_out[0].header.add_history('Used input files')
+    for item in input_list:
+        hdu_out[0].header.add_history(os.path.split(item)[1])
+
+    with pyfits.open(filename) as ref:
+        hdu_out.append(pyfits.ImageHDU(data=ref[1].data))
+        hdu_out[1].header['EXTNAME'] = 'SCI'
+        hdu_out[1].header['EXTVER'] = 1
+        hdu_out[1].header['PCOUNT'] = 0
+        hdu_out[1].header['GROUNT'] = 1
+
+        hdu_out.append(pyfits.ImageHDU(data=ref[2].data))
+        hdu_out[2].header['EXTNAME'] = 'ERR'
+        hdu_out[2].header['EXTVER'] = 1
+        hdu_out[2].header['PCOUNT'] = 0
+        hdu_out[2].header['GROUNT'] = 1
+
+        hdu_out.append(pyfits.ImageHDU(data=ref[3].data))
+        hdu_out[3].header['EXTNAME'] = 'DQ'
+        hdu_out[3].header['EXTVER'] = 1
+        hdu_out[3].header['PCOUNT'] = 0
+        hdu_out[3].header['GROUNT'] = 1
+
+    hdu_out.writeto(filename, clobber=True)
 
 #------------------------------------------------------------------------
 
@@ -175,6 +204,10 @@ def crreject(input_file, workdir=None):
     if not 'oref' in os.environ:
         os.environ['oref'] = '/grp/hst/cdbs/oref/'
 
+    path, name = os.path.split(input_file)
+    name, ext = os.path.splitext(name)
+    trailerfile = os.path.join(path, name+'_crreject_log.txt')
+
     output_blev = input_file.replace('.fits','_blev.fits')
     output_crj = input_file.replace('.fits','_crj.fits')
     #
@@ -198,7 +231,7 @@ def crreject(input_file, workdir=None):
         print("Sorry, your input image seems to have only 1 imset, but it isn't cr-rejected.")
         print("This task can only handle 'raw' or 'flt images with the NEXTEND keyword equal to 3*N (N > 1).")
         print("Bye now... better luck next time!")
-        raise ValueError( 'nimset <=1 and CRCORR not complete' )
+        raise ValueError('nimset <=1 and CRCORR not complete')
 
     if (crcorr != "COMPLETE"):
         if (nrptexp != nimset):
@@ -226,8 +259,8 @@ def crreject(input_file, workdir=None):
                     flatcorr='omit',
                     photcorr='omit',
                     statflag=False,
-                    verbose=False,
-                    trailer="/dev/null")
+                    verbose=True,
+                    trailer=trailerfile)
         else:
             print('Blevcorr already Performed')
             shutil.copy(input_file,output_blev)
@@ -235,8 +268,8 @@ def crreject(input_file, workdir=None):
         print('Performing OCRREJECT')
         ocrreject(input=output_blev,
                   output=output_crj,
-                  verbose=False,
-                  trailer="/dev/null")
+                  verbose=True,
+                  trailer=trailerfile)
 
     elif (crcorr == "COMPLETE"):
         print "CR rejection already done"
@@ -612,14 +645,18 @@ def bd_calstis(joinedfile, thebiasfile=None):
 
     crj_file = joinedfile.replace('.fits', '_crj.fits')
 
+    path, name = os.path.split(joinedfile)
+    name, ext = os.path.splitext(name)
+    trailerfile = os.path.join(path, name+'_bd_calstis_log.txt')
+
     print 'Running CalSTIS on %s' % joinedfile
     print 'to create: %s' % crj_file
     calstis(joinedfile,
             wavecal="",
             outroot="",
             savetmp=False,
-            verbose=False,
-            trailer="/dev/null")
+            verbose=True,
+            trailer=trailerfile)
 
     pyfits.setval(crj_file, 'FILENAME', value=os.path.split(crj_file)[1])
 
@@ -688,7 +725,7 @@ def apply_dark_correction(filename, expstart):
 
             ofile[0].header['tempcorr'] = 'COMPLETE'
         else:
-            print 'TEMPCORR = %s, not temperature correction applied to filename' %(ofile[0].header['tempcorr'])
+            print 'TEMPCORR = %s, no temperature correction applied to %s' %(ofile[0].header['tempcorr'], filename)
 
 #------------------------------------------------------------------------
 
@@ -701,6 +738,10 @@ def bias_subtract_data(filename):
         filename = filename.replace('raw', 'flt')
         assert pyfits.getval(filename, 'CRCORR', 0) != 'COMPLETE', 'CR Rejection should not be performed on %s' %(filename)
     else:
+
+        path, name = os.path.split(filename)
+        name, ext = os.path.splitext(name)
+        trailerfile = os.path.join(path, name + '_bias_subtract_log.txt')
         basic2d(filename,
                 dqicorr='perform',
                 blevcorr='perform',
@@ -712,8 +753,8 @@ def bias_subtract_data(filename):
                 darkcorr='omit',
                 flatcorr='omit',
                 photcorr='omit',
-                verbose=False,
-                trailer="/dev/null")
+                verbose=True,
+                trailer=trailerfile)
         filename = filename.replace('raw', 'flt')
 
     return filename

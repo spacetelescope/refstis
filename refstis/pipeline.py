@@ -142,6 +142,7 @@ def get_new_periods():
         ### move_obs( obs_to_get, products_folder)
         separate_obs(products_folder, ref_begin, ref_end)
         '''
+    sys.exit('done')
     return dirs_to_process
 
 #-------------------------------------------------------------------------------
@@ -199,6 +200,18 @@ def pull_out_subfolders(root_folder):
 
 #-------------------------------------------------------------------------------
 
+def grab_between(file_list, mjd_start, mjd_end):
+
+    for filename in file_list:
+        with pyfits.open(filename) as hdu:
+            data_start = hdu[0].header['TEXPSTRT']
+            data_end = hdu[0].header['TEXPEND']
+
+        if mjd_start < data_start < mjd_end:
+            yield filename
+
+#-------------------------------------------------------------------------------
+
 def pull_info(foldername):
     """ Pull proposal and week number from folder name
 
@@ -221,12 +234,12 @@ def pull_info(foldername):
     """
 
     try:
-        proposal = re.search('([0-9]{5})_', foldername ).group()
+        proposal = re.findall('([0-9]{5})_', foldername)[0]
     except:
         proposal = ''
 
     try:
-        week = re.search('([bi]*wk0[0-9])', foldername ).group()
+        week = re.findall('([bi]*wk0[0-9])', foldername)[0]
     except:
         week = ''
 
@@ -270,6 +283,9 @@ def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
     2.
 
     """
+
+    if not 'oref' in os.environ:
+        os.environ['oref'] = '/grp/hst/cdbs/oref/'
 
     bias_threshold = {(1, 1, 1) : 98,
                       (1, 1, 2) : 25,

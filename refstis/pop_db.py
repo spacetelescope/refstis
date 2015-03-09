@@ -34,10 +34,10 @@ def get_directories():
             for last in ('/', 'a/', 'b/'):
                 path = anneal_dir + str(year) + '_' + month + last
                 if os.path.exists(path) and path != anneal_dir+'2010_01/':
-                    print path
                     crj_list = glob.glob(path + '?????????_crj.fits')
                     crj_list.sort()
                     if len(crj_list) == 2:
+                        print path
                         directories.append( path )
     return directories
 

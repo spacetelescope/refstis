@@ -76,7 +76,7 @@ def make_basedark(input_list, refdark_name='basedark.fits', bias_file=None):
 
     #-- bias subtract data if not already done
     for i, filename in enumerate(input_list):
-        filename = functions.bias_subtract_data(filename)
+        filename = functions.bias_subtract_data(filename, bias_file)
         input_list[i] = filename
 
         texpstrt = fits.getval(filename, 'texpstrt', 0)

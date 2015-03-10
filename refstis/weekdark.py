@@ -30,7 +30,7 @@ def create_superdark(crj_filename, basedark):
         basedark name
 
     """
-    
+
     with fits.open(crj_filename, mode='update') as crj_hdu:
 
         ## Perform iterative statistics on this normalized superdark
@@ -125,8 +125,9 @@ def make_weekdark(input_list, refdark_name, thebasedark, thebiasfile=None):
     print '     : %s' % (thebasedark)
 
     for i, filename in enumerate(input_list):
-        filename = functions.bias_subtract_data(filename)
+        filename = functions.bias_subtract_data(filename, thebiasfile)
         input_list[i] = filename
+
         #Side 1 operations ended on May 16, 2001.
         #Side 2 operations started on July 10, 2001,
         #52091.0 corresponds to July 1, 2001

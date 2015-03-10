@@ -42,6 +42,11 @@ def update_header_from_input(filename, input_list):
     else:
         raise ValueError( 'Frequency %s not understood' % str(frequency))
 
+    nimsets = count_imsets(input_list)
+
+    proposals = list(set([pyfits.getval(item, 'PROPOSID') for item in input_list]))
+    prop_titles = list(set([pyfits.getval(item, 'PROPTTL1') for item in input_list]))
+
     data_start_pedigree, data_end_pedigree, data_start_mjd, data_end_mjd = get_start_and_endtimes(input_list)
     #anneal_weeks = divide_anneal_month(data_start_mjd, data_end_mjd, '/grp/hst/stis/calibration/anneals/', N_period)
     #useafter = 'value'
@@ -70,14 +75,82 @@ def update_header_from_input(filename, input_list):
     hdu_out[0].header['FILETYPE'] = filetype
     hdu_out[0].header['PEDIGREE'] = 'INFLIGHT %s %s' % (data_start_pedigree, data_end_pedigree)
     hdu_out[0].header['USEAFTER'] = useafter
-    hdu_out[0].header['DESCRIP'] = "%s gain=%d %s for STIS CCD data taken after XXX" % (frequency, gain, targname.lower() )
+    hdu_out[0].header['DESCRIP'] = "%s gain=%d %s for STIS CCD data taken after %s" % (frequency, gain, targname.lower(), useafter[:9])
     while len(hdu_out[0].header['DESCRIP']) < 67:
         hdu_out[0].header['DESCRIP'] = hdu_out[0].header['DESCRIP'] + '-'
+    if len(hdu_out[0].header['DESCRIP']) > 67:
+        raise ValueError('DESCRIP is too long! {}'.format(hdu_out[0].header['DESCRIP']))
+
     hdu_out[0].header.add_comment('Reference file created by %s' % __name__ )
 
-    hdu_out[0].header.add_history('Used input files')
+    hdu_out[0].header.add_history('Super{} image, combination of {} input {} frames taken in'.format(targname.lower(),
+                                                                                                     nimsets,
+                                                                                                     targname.lower()))
+    hdu_out[0].header.add_history('CCDGAIN={}, BINAXIS1={}, BINAXIS2={} mode.'.format(hdu_out[0].header['CCDGAIN'],
+                                                                                      hdu_out[0].header['BINAXIS1'],
+                                                                                      hdu_out[0].header['BINAXIS2']))
+
+    hdu_out[0].header.add_history('All input frames were from Proposal(s) {}:'.format('/'.join(map(str, proposals))))
+    for item in prop_titles:
+        hdu_out[0].header.add_history(item)
+
+    hdu_out[0].header.add_history('The following input files were used:')
     for item in input_list:
         hdu_out[0].header.add_history(os.path.split(item)[1])
+    hdu_out[0].header.add_history('')
+
+    if targname == 'BIAS':
+        hdu_out[0].header.add_history('The data were split into sub-lists of less than 30 ')
+        hdu_out[0].header.add_history('imsets each. The pyraf script "refbias" was run on the')
+        hdu_out[0].header.add_history('individual sub-lists and then averaged using the script')
+        hdu_out[0].header.add_history('"refaver". The "refbias" procedure works as follows.')
+        hdu_out[0].header.add_history('After joining the files together into a multi-imset')
+        hdu_out[0].header.add_history('file, overscan subtraction is performed for every')
+        hdu_out[0].header.add_history('individual bias frame. The bias frames in the multi-')
+        hdu_out[0].header.add_history('imset file are then combined using ocrreject, which')
+        hdu_out[0].header.add_history('performs a three-step iterative cosmic-ray rejection')
+        hdu_out[0].header.add_history('with rejection thresholds of 5, 4, and 3 sigma,')
+        hdu_out[0].header.add_history('respectively.')
+        hdu_out[0].header.add_history('')
+        hdu_out[0].header.add_history('After cosmic ray rejection, the combined bias was')
+        hdu_out[0].header.add_history('divided by the number of frames combined (ocrreject')
+        hdu_out[0].header.add_history('adds images instead of averaging them), using the ')
+        hdu_out[0].header.add_history('stsdas.toolbox.imgtools.mstools.msarith routine.')
+        hdu_out[0].header.add_history('Subsequently, hot pixels (and columns) were identified ')
+        hdu_out[0].header.add_history('as follows. A median-filtered version of the averaged ')
+        hdu_out[0].header.add_history('bias is created (kernel = 15 x 3 pixels) and')
+        hdu_out[0].header.add_history('subtracted from the averaged bias, leaving a')
+        hdu_out[0].header.add_history('"residual" image containing hot pixels and columns.')
+        hdu_out[0].header.add_history('The pixels hotter than 5 sigma of the effective RMS')
+        hdu_out[0].header.add_history('noise in the residual bias image are then identified,')
+        hdu_out[0].header.add_history('and flagged as such in the Data Quality (DQ)')
+        hdu_out[0].header.add_history('extension of the output reference bias file.')
+
+    elif targname == 'DARK':
+        hdu_out[0].header['REF_TEMP'] = 18
+        hdu_out[0].header['DRK_VS_T'] = 0.07
+
+        hdu_out[0].header.add_history('This superdark image is a combination of 2 images.')
+        hdu_out[0].header.add_history('The first is a "baseline dark" image which is a  ')
+        hdu_out[0].header.add_history('(typically) monthly average of (cosmic-ray-rejected)')
+        hdu_out[0].header.add_history('dark files. The second image is made locally within the')
+        hdu_out[0].header.add_history('"weekdark" script.')
+        hdu_out[0].header.add_history('These gain {} darks are first'.format(hdu_out[0].header['CCDGAIN']))
+        hdu_out[0].header.add_history('corrected for temperature (C) using the factor')
+        hdu_out[0].header.add_history('1.0 / (1.0 + DRK_V_TMP * (OCCDHTAV - S2_REF_TEMP)) and then ')
+        hdu_out[0].header.add_history('combined together (cosmic rays are rejected in the')
+        hdu_out[0].header.add_history('combination) using calstis,')
+        hdu_out[0].header.add_history('and normalized to a dark time of 1 second. After that,')
+        hdu_out[0].header.add_history('hot pixels in that normalized dark are updated into the ')
+        hdu_out[0].header.add_history('baseline dark. These hot pixels have a value higher than ')
+        hdu_out[0].header.add_history('(baseline dark current + 5 sigma of the new dark).')
+        hdu_out[0].header.add_history('The pixels hotter than 0.1 electron/sec in this dark')
+        hdu_out[0].header.add_history('are being assigned a DQ value of 16.')
+        hdu_out[0].header.add_history('Previously hot pixels that have fully annealed out ')
+        hdu_out[0].header.add_history('between the observing dates of the baseline and the')
+        hdu_out[0].header.add_history('new dark are being assigned a value equal to that in')
+        hdu_out[0].header.add_history('a median-filtered (kernel = 5x5 pixels) version of')
+        hdu_out[0].header.add_history('the baseline dark.')
 
     with pyfits.open(filename) as ref:
         hdu_out.append(pyfits.ImageHDU(data=ref[1].data))
@@ -311,7 +384,7 @@ def crreject(input_file, workdir=None):
 
 #------------------------------------------------------------------------
 
-def count_imsets( file_list ):
+def count_imsets(file_list):
     """ Count the total number of imsets in a file list by dividing the number
     of extensions (NEXTEND) by 3
 
@@ -729,7 +802,7 @@ def apply_dark_correction(filename, expstart):
 
 #------------------------------------------------------------------------
 
-def bias_subtract_data(filename):
+def bias_subtract_data(filename, biasfile):
 
     if os.path.exists(filename.replace('raw', 'flc')):
         filename = filename.replace('raw', 'flc')
@@ -742,6 +815,8 @@ def bias_subtract_data(filename):
         path, name = os.path.split(filename)
         name, ext = os.path.splitext(name)
         trailerfile = os.path.join(path, name + '_bias_subtract_log.txt')
+
+        pyfits.setval(filename, 'BIASFILE', value=biasfile)
         basic2d(filename,
                 dqicorr='perform',
                 blevcorr='perform',

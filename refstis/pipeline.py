@@ -150,6 +150,8 @@ def get_new_periods():
 def split_files(all_files):
     """Split file list into two smaller lists for iraf tasks
 
+    Each list will have a selection from both early and late in time.
+
     """
 
     all_info = [(fits.getval(filename,'EXPSTART', 1), filename)
@@ -157,10 +159,8 @@ def split_files(all_files):
     all_info.sort()
     all_files = [line[1] for line in all_info]
 
-    halfway = len(all_files)//2
-
-    super_list = [all_files[:halfway],
-                   all_files[halfway:]]
+    super_list = [all_files[0::2],
+                   all_files[1::2]]
 
     return super_list
 
@@ -234,16 +234,16 @@ def pull_info(foldername):
     """
 
     try:
-        proposal = re.findall('([0-9]{5})_', foldername)[0]
+        proposal, visit = re.findall('([0-9]{5})_([0-9]{2})', foldername)[0]
     except:
-        proposal = ''
+        proposal, visit = '', ''
 
     try:
         week = re.findall('([bi]*wk0[0-9])', foldername)[0]
     except:
         week = ''
 
-    return proposal, week
+    return proposal, week, visit
 
 #-------------------------------------------------------------------------------
 
@@ -346,14 +346,14 @@ def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
     #-- Find the premade folders if they exist
     gain_folders, week_folders = pull_out_subfolders(root_folder)
 
-    #-- reset basedarks and basebiases to previous months for the weeklies.
+    #-- use last basefiles if supplied
     basebias_name = last_basebias or basebias_name
     basedark_name = last_basedark or basedark_name
 
     for folder in week_folders:
         print 'Processing {}'.format(folder)
 
-        proposal, wk = pull_info(folder)
+        proposal, wk, visit = pull_info(folder)
 
         raw_files = glob.glob(os.path.join(folder, '*raw.fits'))
         n_imsets = functions.count_imsets(raw_files)
@@ -366,7 +366,7 @@ def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
             filetype = 'bias'
 
             weekbias_name = os.path.join(folder,
-                                         'weekbias_%s_%s.fits'%(proposal, wk))
+                                         'weekbias_%s_%s_%s.fits'%(proposal, visit, wk))
             if os.path.exists(weekbias_name):
                 print '{} already exists, skipping'
                 continue
@@ -393,7 +393,7 @@ def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
             filetype = 'dark'
 
             weekdark_name = os.path.join(folder,
-                                         'weekdark_%s_%s.fits'%(proposal, wk))
+                                         'weekdark_%s_%s_%s.fits'%(proposal, visit, wk))
             if os.path.exists(weekdark_name):
                 print '{} already exists, skipping'
                 continue
@@ -402,7 +402,7 @@ def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
             weekbias_name = os.path.join(root_folder,
                                          'biases/1-1x1',
                                           wk,
-                                         'weekbias_%s_%s.fits'%(proposal, wk))
+                                         'weekbias_%s_%s_%s.fits'%(proposal, visit, wk))
 
             basedark_name = os.path.join(root_folder, 'basedark.fits')
             weekdark.make_weekdark(raw_files,
@@ -516,7 +516,7 @@ def make_ref_files(root_folder, clean=False):
         WEEKDARK = False
         print 'Processing %s'%(folder)
 
-        proposal, wk = pull_info(folder)
+        proposal, wk, visit = pull_info(folder)
 
         raw_files = glob.glob(os.path.join(folder, '*raw.fits'))
         n_imsets = functions.count_imsets(raw_files)

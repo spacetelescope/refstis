@@ -75,7 +75,7 @@ def update_header_from_input(filename, input_list):
     hdu_out[0].header['FILETYPE'] = filetype
     hdu_out[0].header['PEDIGREE'] = 'INFLIGHT %s %s' % (data_start_pedigree, data_end_pedigree)
     hdu_out[0].header['USEAFTER'] = useafter
-    hdu_out[0].header['DESCRIP'] = "%s gain=%d %s for STIS CCD data taken after %s" % (frequency, gain, targname.lower(), useafter[:9])
+    hdu_out[0].header['DESCRIP'] = "%s gain=%d %s for STIS CCD data taken after %s" % (frequency, gain, targname.lower(), useafter[:11])
     while len(hdu_out[0].header['DESCRIP']) < 67:
         hdu_out[0].header['DESCRIP'] = hdu_out[0].header['DESCRIP'] + '-'
     if len(hdu_out[0].header['DESCRIP']) > 67:

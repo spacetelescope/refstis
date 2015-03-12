@@ -64,9 +64,18 @@ def update_header_from_input(filename, input_list):
     hdu_out[0].header['TELESCOP'] = 'HST'
     hdu_out[0].header['INSTRUME'] = 'STIS'
     hdu_out[0].header['DETECTOR'] = ('CCD', 'detector in use: CCD')
-    hdu_out[0].header['CCDAMP'] = get_keyword(input_list, 'CCDAMP', 0)
-    hdu_out[0].header['CCDGAIN'] = gain
-    hdu_out[0].header['CCDOFFST'] = get_keyword(input_list, 'CCDOFFST', 0)
+
+    if targname == 'BIAS':
+        hdu_out[0].header['CCDAMP'] = get_keyword(input_list, 'CCDAMP', 0)
+        hdu_out[0].header['CCDGAIN'] = gain
+        hdu_out[0].header['CCDOFFST'] = get_keyword(input_list, 'CCDOFFST', 0)
+    elif targname == 'DARK':
+        hdu_out[0].header['CCDAMP'] = 'ANY'
+        hdu_out[0].header['CCDGAIN'] = -1
+        hdu_out[0].header['CCDOFFST'] = -1
+    else:
+        raise ValueError('{} for targname not understood'.format(targname))
+
     hdu_out[0].header['OPT_ELEM'] = 'ANY'
     hdu_out[0].header['APERTURE'] = 'ANY'
     hdu_out[0].header['OBSTYPE'] = 'ANY'

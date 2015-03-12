@@ -404,7 +404,6 @@ def run_cdbs_checks():
 
 
 def check_all(folder):
-    set_descrip(folder)
     plot_obset(folder)
     send_forms(folder)
     regress(folder)

@@ -366,7 +366,7 @@ def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
             filetype = 'bias'
 
             weekbias_name = os.path.join(folder,
-                                         'weekbias_%s_%s_%s.fits'%(proposal, visit, wk))
+                                         'weekbias_%s_%s_%s_bia.fits'%(proposal, visit, wk))
             if os.path.exists(weekbias_name):
                 print '{} already exists, skipping'
                 continue
@@ -393,7 +393,7 @@ def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
             filetype = 'dark'
 
             weekdark_name = os.path.join(folder,
-                                         'weekdark_%s_%s_%s.fits'%(proposal, visit, wk))
+                                         'weekdark_%s_%s_%s_drk.fits'%(proposal, visit, wk))
             if os.path.exists(weekdark_name):
                 print '{} already exists, skipping'
                 continue
@@ -402,7 +402,7 @@ def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
             weekbias_name = os.path.join(root_folder,
                                          'biases/1-1x1',
                                           wk,
-                                         'weekbias_%s_%s_%s.fits'%(proposal, visit, wk))
+                                         'weekbias_%s_%s_%s_bia.fits'%(proposal, visit, wk))
 
             basedark_name = os.path.join(root_folder, 'basedark.fits')
             weekdark.make_weekdark(raw_files,

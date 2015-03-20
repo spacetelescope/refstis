@@ -292,22 +292,12 @@ def crreject(input_file, workdir=None):
 
     output_blev = input_file.replace('.fits','_blev.fits')
     output_crj = input_file.replace('.fits','_crj.fits')
-    #
-    # between the long file paths and not being able to find EPC files,
-    # need IRAF to run in the work dir
-    #
-    #os.chdir( workdir )
-    #
-    # if cosmic-ray rejection has already been done on the input bias image,
-    # skip all calstis-related calibration steps
-    #
 
-    fd = pyfits.open( input_file )
-    nimset   = fd[0].header['nextend'] / 3
-    nrptexp  = fd[0].header['nrptexp']
-    crcorr   = fd[0].header['crcorr']
-    blevcorr = fd[0].header['blevcorr']
-    del fd
+    with pyfits.open(input_file) as hdu:
+        nimset = hdu[0].header['nextend'] / 3
+        nrptexp = hdu[0].header['nrptexp']
+        crcorr = hdu[0].header['crcorr']
+        blevcorr = hdu[0].header['blevcorr']
 
     if (nimset <= 1 and crcorr != "COMPLETE"):
         print("Sorry, your input image seems to have only 1 imset, but it isn't cr-rejected.")
@@ -359,32 +349,29 @@ def crreject(input_file, workdir=None):
 
     pyfits.setval(output_crj, 'FILENAME', value=output_crj)
 
-    fd = pyfits.open(output_crj)
-    gain    = fd[0].header['atodgain']
-    ccdgain = fd[0].header['ccdgain']
-    xsize   = fd[1].header['naxis1']
-    ysize   = fd[1].header['naxis2']
-    xbin    = fd[0].header['binaxis1']
-    ybin    = fd[0].header['binaxis2']
+    with pyfits.open(output_crj) as hdu:
+        gain = hdu[0].header['atodgain']
+        ccdgain = hdu[0].header['ccdgain']
+        xsize = hdu[1].header['naxis1']
+        ysize = hdu[1].header['naxis2']
+        xbin = hdu[0].header['binaxis1']
+        ybin = hdu[0].header['binaxis2']
 
-    try:
-        ncombine = fd[0].header['ncombine']
-    except:
-        ncombine = fd[1].header['ncombine']
-
-    fd.close()
-    del fd
+        try:
+            ncombine = hdu[0].header['ncombine']
+        except:
+            ncombine = hdu[1].header['ncombine']
 
     print('Number of combined imsets is '+str(ncombine)+' while number of imsets is '+str(nimset ) )
     print('Dividing cosmic-ray-rejected image by '+str(ncombine)+'...')
     out_div = output_crj.replace('.fits','_div.fits')
 
-    #this used to be a call to MSARITH, is anything else needed?
-    #modifying the error too (done), etc?
-    hdu = pyfits.open( output_crj )
+    ###this used to be a call to MSARITH, is anything else needed?
+    ###modifying the error too (done), etc?
+    hdu = pyfits.open(output_crj)
     hdu[('sci', 1)].data /= ncombine
     hdu[('err', 1)].data /= ncombine
-    hdu.writeto( out_div )
+    hdu.writeto(out_div)
 
     os.remove(output_blev)
     os.remove(output_crj)
@@ -394,14 +381,30 @@ def crreject(input_file, workdir=None):
 #------------------------------------------------------------------------
 
 def count_imsets(file_list):
-    """ Count the total number of imsets in a file list by dividing the number
-    of extensions (NEXTEND) by 3
+    """Count the total number of imsets in a file list.
+
+    The total number of imsets is counted by dividing the total number
+    of extensions (NEXTEND) by 3 (SCI, ERR, DQ).
+
+    Parameters
+    ----------
+    file_list : list
+        list of all files to be counted
+
+    Returns
+    -------
+    total : ine
+        number of imsets
 
     """
+
+    if not isinstance(file_list, list):
+        file_list = [file_list]
 
     total = 0
     for item in file_list:
         total += pyfits.getval(item,'NEXTEND',ext=0) / 3
+
     return total
 
 #------------------------------------------------------------------------
@@ -485,6 +488,18 @@ def figure_number_of_periods(number_of_days, mode) :
 
     Takes the number of days in the period and the mode ('WK' or 'BIWK')
     and returns the total number of periods.
+
+    Parameters
+    ----------
+    number_of_days : int
+        total number of days in the 'month'
+    mode : str
+        wk or biwk
+
+    Returns
+    -------
+    number_of_periods : int
+        the total number of periods to split the month into
 
     """
 
@@ -710,6 +725,15 @@ def bd_calstis(joinedfile, thebiasfile=None):
     flag regions outside the original aperture:
     APERTURE --> 50CCD
     APER_FOV --> '50x50'
+    DARKCORR --> 'OMIT'
+    FLATCORR --> 'OMIT'
+
+    Parameters
+    ----------
+    joinedfile : str
+        join of multiple input darks
+    thebiasfile : str, bool
+        the biasfile to be subtracted by basic2d
 
     """
 
@@ -745,7 +769,12 @@ def bd_calstis(joinedfile, thebiasfile=None):
 #------------------------------------------------------------------------
 
 def RemoveIfThere(item):
-    """Simple copy from OPUSUtils to remove a file if it is there
+    """Remove a file if it exists
+
+    Parameter
+    ---------
+    item : str
+        file to be removed
 
     """
 
@@ -791,6 +820,20 @@ def refaver(reffiles, combined_name):
 #------------------------------------------------------------------------
 
 def apply_dark_correction(filename, expstart):
+    """Perform temperature scaling to input dark file
+
+    All science extensions in the input filename will be scaled to the reference
+    temperatue of 18.0 c.
+
+    Parameters
+    ----------
+    filename : str
+        full path to input FITS file
+    expstart : str
+        start time in MJD of the dataset
+
+    """
+
     dark_v_temp = 0.07
     s2ref_temp = 18.0
     with pyfits.open(filename, mode = 'update') as ofile:
@@ -809,37 +852,52 @@ def apply_dark_correction(filename, expstart):
         else:
             print 'TEMPCORR = %s, no temperature correction applied to %s' %(ofile[0].header['tempcorr'], filename)
 
-#------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 
 def bias_subtract_data(filename, biasfile):
+    """Perform bias subtraction on input dataset
+
+    basic2d from calstis will be run on the input dataset with the
+    steps DQICORR, BLEVCORR, and BIASCORR set to perform.
+
+    Parameters
+    ----------
+    filename : str
+        full path to input FITS file
+    biasfile : str
+        full path to the bias FITS file to be subtracted
+
+    Returns
+    -------
+    filename : str
+        full_path to the bias subtracted file
+
+    """
 
     if os.path.exists(filename.replace('raw', 'flc')):
-        filename = filename.replace('raw', 'flc')
-        assert pyfits.getval(filename, 'CRCORR', 0) != 'COMPLETE', 'CR Rejection should not be performed on %s' %(filename)
+        os.remove(filename.replace('raw', 'flc'))
     elif os.path.exists(filename.replace('raw', 'flt')):
-        filename = filename.replace('raw', 'flt')
-        assert pyfits.getval(filename, 'CRCORR', 0) != 'COMPLETE', 'CR Rejection should not be performed on %s' %(filename)
-    else:
+        os.remove(filename.replace('raw', 'flt'))
 
-        path, name = os.path.split(filename)
-        name, ext = os.path.splitext(name)
-        trailerfile = os.path.join(path, name + '_bias_subtract_log.txt')
+    path, name = os.path.split(filename)
+    name, ext = os.path.splitext(name)
+    trailerfile = os.path.join(path, name + '_bias_subtract_log.txt')
 
-        pyfits.setval(filename, 'BIASFILE', value=biasfile)
-        basic2d(filename,
-                dqicorr='perform',
-                blevcorr='perform',
-                biascorr='perform',
-                doppcorr='omit',
-                lorscorr='omit',
-                glincorr='omit',
-                lflgcorr='omit',
-                darkcorr='omit',
-                flatcorr='omit',
-                photcorr='omit',
-                verbose=True,
-                trailer=trailerfile)
-        filename = filename.replace('raw', 'flt')
+    pyfits.setval(filename, 'BIASFILE', value=biasfile)
+    basic2d(filename,
+            dqicorr='perform',
+            blevcorr='perform',
+            biascorr='perform',
+            doppcorr='omit',
+            lorscorr='omit',
+            glincorr='omit',
+            lflgcorr='omit',
+            darkcorr='omit',
+            flatcorr='omit',
+            photcorr='omit',
+            verbose=True,
+            trailer=trailerfile)
+    filename = filename.replace('raw', 'flt')
 
     return filename
 

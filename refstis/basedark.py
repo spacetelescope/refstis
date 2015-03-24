@@ -75,10 +75,9 @@ def make_basedark(input_list, refdark_name='basedark.fits', bias_file=None):
     print 'with biasfile %s' % bias_file
 
     #-- bias subtract data if not already done
-    for i, filename in enumerate(input_list):
-        filename = functions.bias_subtract_data(filename, bias_file)
-        input_list[i] = filename
+    flt_list = [functions.bias_subtract_data(item, bias_file) for item in input_list]
 
+    for filename in flt_list:
         texpstrt = fits.getval(filename, 'texpstrt', 0)
         if texpstrt > 52091.0:
             functions.apply_dark_correction(filename, texpstrt)
@@ -90,7 +89,7 @@ def make_basedark(input_list, refdark_name='basedark.fits', bias_file=None):
         raise IOError('No biasfile specified, this task needs one to run')
 
     print 'Joining images'
-    functions.msjoin(input_list, joined_filename)
+    functions.msjoin(flt_list, joined_filename)
 
     print 'Performing CRREJECT'
     crdone = functions.bd_crreject(joined_filename)
@@ -107,6 +106,7 @@ def make_basedark(input_list, refdark_name='basedark.fits', bias_file=None):
     print 'Cleaning...'
     functions.RemoveIfThere(crj_filename)
     functions.RemoveIfThere(joined_filename)
+    map(functions.RemoveIfThere, flt_list)
 
     print 'basedark done for {}'.format(refdark_name)
 

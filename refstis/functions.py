@@ -331,7 +331,7 @@ def crreject(input_file, workdir=None):
                     flatcorr='omit',
                     photcorr='omit',
                     statflag=False,
-                    verbose=True,
+                    verbose=False,
                     trailer=trailerfile)
         else:
             print('Blevcorr already Performed')
@@ -340,7 +340,7 @@ def crreject(input_file, workdir=None):
         print('Performing OCRREJECT')
         ocrreject(input=output_blev,
                   output=output_crj,
-                  verbose=True,
+                  verbose=False,
                   trailer=trailerfile)
 
     elif (crcorr == "COMPLETE"):
@@ -761,7 +761,7 @@ def bd_calstis(joinedfile, thebiasfile=None):
             wavecal="",
             outroot="",
             savetmp=False,
-            verbose=True,
+            verbose=False,
             trailer=trailerfile)
 
     pyfits.setval(crj_file, 'FILENAME', value=os.path.split(crj_file)[1])
@@ -895,7 +895,7 @@ def bias_subtract_data(filename, biasfile):
             darkcorr='omit',
             flatcorr='omit',
             photcorr='omit',
-            verbose=True,
+            verbose=False,
             trailer=trailerfile)
     filename = filename.replace('raw', 'flt')
 

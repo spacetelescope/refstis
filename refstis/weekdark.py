@@ -124,20 +124,19 @@ def make_weekdark(input_list, refdark_name, thebasedark, thebiasfile=None):
     print 'With : %s' % (thebiasfile)
     print '     : %s' % (thebasedark)
 
-    for i, filename in enumerate(input_list):
-        filename = functions.bias_subtract_data(filename, thebiasfile)
-        input_list[i] = filename
+    flt_list = [functions.bias_subtract_data(item, thebiasfile) for item in input_list]
 
+    for filename in flt_list:
+        texpstrt = fits.getval(filename, 'texpstrt', 0)
         #Side 1 operations ended on May 16, 2001.
         #Side 2 operations started on July 10, 2001,
         #52091.0 corresponds to July 1, 2001
-        texpstrt = fits.getval(filename, 'texpstrt', ext=0)
         if texpstrt > 52091.0:
             functions.apply_dark_correction(filename, texpstrt)
 
     joined_out = refdark_name.replace('.fits', '_joined.fits')
     print 'Joining images to %s' % joined_out
-    functions.msjoin(input_list, joined_out)
+    functions.msjoin(flt_list, joined_out)
 
     crdone = functions.bd_crreject(joined_out)
     print "## crdone is ", crdone
@@ -155,6 +154,7 @@ def make_weekdark(input_list, refdark_name, thebasedark, thebiasfile=None):
     print 'Cleaning up...'
     functions.RemoveIfThere(crj_filename)
     functions.RemoveIfThere(joined_out)
+    map(functions.RemoveIfThere, flt_list)
 
     print 'Weekdark done for {}'.format(refdark_name)
 

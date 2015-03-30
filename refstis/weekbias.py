@@ -5,11 +5,13 @@ pipeline
 """
 
 from astropy.io import fits
+from astropy.stats import sigma_clipped_stats
 import numpy as np
 import shutil
 
 import support
 import functions
+from .basejoint import replace_hot_cols
 
 #-------------------------------------------------------------------------------
 
@@ -50,23 +52,26 @@ def make_weekbias(input_list, refbias_name, basebias):
     print '#        Running weekbias       #'
     print '#-------------------------------#'
     print 'Output to %s' % (refbias_name)
+    print 'using {}'.format(basebias)
 
     joined_out = refbias_name.replace('.fits', '_joined.fits')
     functions.msjoin(input_list, joined_out)
 
     crj_filename = functions.crreject(joined_out)
-    residual_image, median_image = functions.make_residual(crj_filename)
+    residual_image, median_image = functions.make_residual(crj_filename, (2, 15))
 
-    resi_columns_2d = functions.make_resicols_image(residual_image)
-    resi_median, resi_mean, resi_std = support.sigma_clip(resi_columns_2d[0],
-                                                          sigma=3,
-                                                          iterations=20)
-    replval = resi_mean + 3.0 * resi_std
+    resi_columns_2d = functions.make_resicols_image(residual_image, yfrac=.25)
+
+    resi_mean, resi_median, resi_std = sigma_clipped_stats(resi_columns_2d[0],
+                                                           sigma=3,
+                                                           iters=20)
+    replval = resi_mean + 5.0 * resi_std
     only_hotcols = np.where(resi_columns_2d > replval, residual_image, 0)
 
     with fits.open(crj_filename, mode='update') as hdu:
         #-- update science extension
-        hdu[('sci', 1)].data += only_hotcols
+        baseline_sci = fits.getdata(basebias, ext=('sci', 1))
+        hdu[('sci', 1)].data = baseline_sci + only_hotcols
 
         #-- update DQ extension
         hot_index = np.where(only_hotcols > 0)[0]

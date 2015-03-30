@@ -6,11 +6,48 @@ reference file pipeline
 """
 
 from astropy.io import fits
+from astropy.stats import sigma_clipped_stats
 import numpy as np
+from scipy.ndimage.filters import median_filter
 import shutil
 
 import functions
 import support
+
+#-------------------------------------------------------------------------------
+
+def update_sci(filename):
+    """Create the science extension of the baseline dark
+
+    Input file will be updated in place.
+
+    Parameters
+    ----------
+    filename, str
+        name of the file to be updated
+
+    """
+
+    with fits.open(filename, mode='update') as hdu:
+        im_mean, im_median, im_std = sigma_clipped_stats(hdu[('sci', 1)].data,
+                                                         sigma=5,
+                                                         iters=50)
+        fivesig = im_mean + 5.0 * im_std
+        only_hotpix = np.where(hdu[('sci', 1)].data >= fivesig,
+                               hdu[('sci', 1)].data - im_mean,
+                               0)
+
+        med_im = median_filter(hdu[('sci', 1)].data, (3, 3))
+
+        #-- I don't see this being used
+        only_baseline = np.where(hdu[('sci', 1)].data >= fivesig,
+                                 med_im,
+                                 hdu[('sci', 1)].data)
+
+
+        hdu[('dq', 1)].data = np.where(only_hotpix >= .1,
+                                       16,
+                                       hdu[('dq', 1)].data)
 
 #-------------------------------------------------------------------------------
 
@@ -28,13 +65,13 @@ def find_hotpix(filename):
     """
 
     with fits.open(filename, mode='update') as hdu:
-        data_median, data_mean, data_std = support.sigma_clip(hdu[('sci', 1)].data,
-                                                              sigma=3,
-                                                              iterations=40)
+        im_mean, im_median, im_std = sigma_clipped_stats(hdu[('sci', 1)].data,
+                                                         sigma=3,
+                                                         iters=40)
 
-        five_sigma = data_median + 5 * data_std
+        five_sigma = im_median + 5 * im_std
         index = np.where((hdu[('SCI', 1)].data > five_sigma) &
-                         (hdu[('SCI', 1)].data > data_mean + 0.1))
+                         (hdu[('SCI', 1)].data > im_mean + 0.1))
 
         hdu[('DQ', 1)].data[index] = 16
 
@@ -99,6 +136,7 @@ def make_basedark(input_list, refdark_name='basedark.fits', bias_file=None):
     functions.normalize_crj(crj_filename)
     shutil.copy(crj_filename, refdark_name)
 
+    update_sci(refdark_name)
     find_hotpix(refdark_name)
 
     functions.update_header_from_input(refdark_name, input_list)

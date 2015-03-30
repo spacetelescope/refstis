@@ -5,6 +5,7 @@ file pipeline.
 """
 
 from astropy.io import fits
+from astropy.stats import sigma_clipped_stats
 import numpy as np
 from scipy.signal import medfilt
 import shutil
@@ -34,19 +35,19 @@ def create_superdark(crj_filename, basedark):
     with fits.open(crj_filename, mode='update') as crj_hdu:
 
         ## Perform iterative statistics on this normalized superdark
-        #imstat(img,fields="mean,stddev,npix,midpt,mode,min,max",lower=ll,upper=ul,for-) | scan(mn,sig,nx,med,mod,min,max)
-        data_median, data_mean, data_std = support.sigma_clip(crj_hdu[('sci', 1)].data,
-                                                              sigma=3,
-                                                              iterations=40)
+        data_mean, data_median, data_std = sigma_clipped_stats(crj_hdu[('sci', 1)].data,
+                                                            sigma=3,
+                                                            iters=40)
 
-        #	p_fivesig = med + (5*sig)
         p_five_sigma = data_median + (5*data_std)
         print 'hot pixels are defined as above: ', p_five_sigma
         basedark_hdu = fits.open(basedark)
-        base_median, base_mean, base_std = support.sigma_clip(basedark_hdu[('sci', 1)].data,
-                                                              sigma=3,
-                                                              iterations=40)
 
+        base_mean, base_median, base_std = sigma_clipped_stats(basedark_hdu[('sci', 1)].data,
+                                                            sigma=3,
+                                                            iters=40)
+
+        fivesig = base_median + 5.0 * base_std
         zerodark = crj_hdu[('sci', 1)].data - base_median
         only_hotpix = np.where(crj_hdu[('sci', 1)].data >= p_five_sigma,
                                zerodark,

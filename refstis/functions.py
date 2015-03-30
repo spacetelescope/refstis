@@ -1,8 +1,10 @@
 from astropy.io import fits as pyfits
+from astropy.stats import sigma_clipped_stats
 import numpy as np
 import os
 import shutil
 from scipy.signal import medfilt
+from scipy.ndimage.filters import median_filter
 from astropy.time import Time
 import support
 import math
@@ -204,24 +206,21 @@ def get_start_and_endtimes(input_list):
 
 #------------------------------------------------------------------------
 
-def make_resicols_image(residual_image, yfrac=None):
+def make_resicols_image(residual_image, yfrac=1):
     print "Making residual column image"
 
-    if yfrac:
-        ystart = int((yfrac[0] / 100.0) * residual_image.shape[0])
-        yend = int((yfrac[1] / 100.0) * residual_image.shape[0])
-        print ystart, '-->', yend
-        residual_columns = np.mean(residual_image[ystart:yend+1], axis=0)
-    else:
-        residual_columns = np.mean(residual_image, axis=0)
+    ystart = 0
+    yend = min(1024, int(np.floor(yfrac * residual_image.shape[0] + .5)))
 
-    residual_columns_image = (residual_columns.repeat(residual_image.shape[0]).reshape(residual_image.shape)).T
+    residual_columns = np.mean(residual_image[ystart:yend], axis=0)
+    print ystart, '-->', yend
+    residual_columns_image = residual_columns * np.ones(residual_image.shape[1])[:, np.newaxis]
 
     return residual_columns_image
 
 #------------------------------------------------------------------------
 
-def make_residual(mean_bias):
+def make_residual(mean_bias, kern=(3, 15)):
     """Create residual image
 
     Median filter the median with a 15 x 3 box and subtract from the mean
@@ -232,12 +231,15 @@ def make_residual(mean_bias):
     mean_hdu = pyfits.open(mean_bias)
     mean_image = mean_hdu[('sci', 1)].data
 
-    median_image = medfilt(mean_image, (3, 15))
+    #median_image = medfilt(mean_image, (3, 15))
+    median_image = median_filter(mean_image, kern)
 
-    diffmean = support.sigma_clip(mean_image,
-                                  sigma=3,
-                                  iterations=40)[1] - support.sigma_clip( median_image, sigma=3, iterations=40 )[1]
-    residual_image = median_image - diffmean
+    medi_mean = sigma_clipped_stats(median_image, sigma=3, iters=40)[0]
+    mean_mean = sigma_clipped_stats(mean_image, sigma=3, iters=40)[0]
+    diffmean = mean_mean - medi_mean
+
+    median_image += diffmean
+    residual_image = mean_image - median_image
 
     return residual_image, median_image
 
@@ -744,8 +746,6 @@ def bd_calstis(joinedfile, thebiasfile=None):
         hdu[0].header['DARKCORR'] = 'OMIT'
         hdu[0].header['FLATCORR'] = 'OMIT'
 
-        ### This was causing a floating point error in CalSTIS
-        ### Perhaps the biasfile i was using was bad?
         if thebiasfile:
             hdu[0].header['BIASFILE'] = thebiasfile
 

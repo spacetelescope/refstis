@@ -26,6 +26,7 @@ Script to produce a monthly base bias for STIS CCD
 """
 
 from astropy.io import fits
+from astropy.stats import sigma_clipped_stats
 import numpy as np
 import os
 import shutil
@@ -85,12 +86,12 @@ def average_biases(bias_list):
             else:
                 sum_arr += hdu[1].data
                 err_arr += (hdu[2].data) ** 2
-                dq_arr = dq_arr | hdu[3].data
+                dq_arr |= hdu[3].data
                 totalweight += ncombine
                 totaltime += hdr0['texptime']
 
     # Then divide by the sum of the weighting factors.
-    mean_arr = sum_arr / totalweight
+    mean_arr = sum_arr / float(totalweight)
     mean_err_arr = np.sqrt(err_arr / (totalweight ** 2))
     #Update exptime and number of orbits
 
@@ -189,7 +190,7 @@ def calibrate(input_file):
 
 #-------------------------------------------------------------------------------
 
-def replace_hot_cols(mean_bias, median_image, residual_image, yfrac=None):
+def replace_hot_cols(mean_bias, median_image, residual_image, yfrac=1):
     """ Replace hot columns in the mean_bias as identified from the
     residual image with values from the bias_median
 
@@ -203,7 +204,7 @@ def replace_hot_cols(mean_bias, median_image, residual_image, yfrac=None):
     residual_columns_2d = functions.make_resicols_image(residual_image,
                                                         yfrac=yfrac)
 
-    resi_cols_median, resi_cols_mean, resi_cols_std = support.sigma_clip(residual_columns_2d[0], sigma=3, iterations=40)
+    resi_cols_mean, resi_cols_median, resi_cols_std = sigma_clipped_stats(residual_columns_2d[0], sigma=3, iters=40)
 
     print 'thresh mean,sigma = {} {}'.format(resi_cols_mean, resi_cols_std)
     replval = resi_cols_mean + 3.0 * resi_cols_std
@@ -235,9 +236,12 @@ def replace_hot_pix(mean_bias, median_image):
 
     print 'Replacing hot pixels'
     residual_image = fits.getdata(mean_bias, ext=('sci', 1)) - median_image
-    resi_median, resi_mean, resi_std = support.sigma_clip(residual_image)
+    resi_mean, resi_median, resi_std = sigma_clipped_stats(residual_image,
+                                                           sigma=5,
+                                                           iters=40)
 
     fivesig = resi_mean + (5.0 * resi_std)
+    print "  hot is > {}".format(fivesig)
     index = np.where(residual_image >= fivesig)
 
     with fits.open(mean_bias, mode='update') as hdu:
@@ -278,13 +282,15 @@ def make_basebias(input_list, refbias_name='basebias.fits'):
     residual_image, median_image = functions.make_residual(mean_bias)
 
     replace_hot_cols(mean_bias, median_image, residual_image)
-    #-- for some reason this is done again, but only using the lower 20% of rows
-    replace_hot_cols(mean_bias, median_image, residual_image, yfrac=(0, 20))
+    #-- then again, but only using the lower 20% of rows
+    replace_hot_cols(mean_bias, median_image, residual_image, yfrac=.2)
+
+    replace_hot_pix(mean_bias, median_image)
 
     shutil.copy(mean_bias, refbias_name)
 
-    fits.setval(refbias_name, 'NCOMBINE', value=totalweight, ext=1)
     functions.update_header_from_input(refbias_name, input_list)
+    fits.setval(refbias_name, 'NCOMBINE', value=totalweight, ext=1)
 
     print 'Cleaning up...'
     functions.RemoveIfThere(mean_bias)

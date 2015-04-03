@@ -37,9 +37,9 @@ def update_sci(filename):
                                hdu[('sci', 1)].data - im_mean,
                                0)
 
-        med_im = median_filter(hdu[('sci', 1)].data, (3, 3))
 
         #-- I don't see this being used
+        med_im = median_filter(hdu[('sci', 1)].data, (3, 3))
         only_baseline = np.where(hdu[('sci', 1)].data >= fivesig,
                                  med_im,
                                  hdu[('sci', 1)].data)

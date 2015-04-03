@@ -58,7 +58,7 @@ def make_weekbias(input_list, refbias_name, basebias):
     functions.msjoin(input_list, joined_out)
 
     crj_filename = functions.crreject(joined_out)
-    residual_image, median_image = functions.make_residual(crj_filename, (2, 15))
+    residual_image, median_image = functions.make_residual(crj_filename, (3, 15))
 
     resi_columns_2d = functions.make_resicols_image(residual_image, yfrac=.25)
 
@@ -66,7 +66,7 @@ def make_weekbias(input_list, refbias_name, basebias):
                                                            sigma=3,
                                                            iters=20)
     replval = resi_mean + 5.0 * resi_std
-    only_hotcols = np.where(resi_columns_2d > replval, residual_image, 0)
+    only_hotcols = np.where(resi_columns_2d >= replval, residual_image, 0)
 
     with fits.open(crj_filename, mode='update') as hdu:
         #-- update science extension
@@ -74,16 +74,17 @@ def make_weekbias(input_list, refbias_name, basebias):
         hdu[('sci', 1)].data = baseline_sci + only_hotcols
 
         #-- update DQ extension
-        hot_index = np.where(only_hotcols > 0)[0]
+        hot_index = np.where(only_hotcols > 0)
         hdu[('dq', 1)].data[hot_index] = 16
 
         #- update ERR
         baseline_err = fits.getdata(basebias, ext=('err', 1))
-        no_hot_index = np.where(only_hotcols == 0)[0]
+        no_hot_index = np.where(only_hotcols == 0)
         hdu[('err', 1)].data[no_hot_index] = baseline_err[no_hot_index]
 
     shutil.copy(crj_filename, refbias_name)
     functions.update_header_from_input(refbias_name, input_list)
+    fits.setval(refbias_name, 'TASKNAME', ext=0, value='WEEKBIAS')
 
     print 'Cleaning up...'
     functions.RemoveIfThere(crj_filename)

@@ -231,7 +231,6 @@ def make_residual(mean_bias, kern=(3, 15)):
     mean_hdu = pyfits.open(mean_bias)
     mean_image = mean_hdu[('sci', 1)].data
 
-    #median_image = medfilt(mean_image, (3, 15))
     median_image = median_filter(mean_image, kern)
 
     medi_mean = sigma_clipped_stats(median_image, sigma=3, iters=40)[0]
@@ -844,7 +843,7 @@ def apply_dark_correction(filename, expstart):
                 occdhtav = ofile[ext].header['OCCDHTAV']
                 factor = 1.0 / (1.0 + dark_v_temp * (float(occdhtav) - s2ref_temp))
                 ofile[ext].data = ofile[ext].data * factor
-                print 'Scaling data by ', factor, ' for temperature: ', occdhtav
+                print '{}, ext {}: Scaling data by '.format(filename, ext), factor, ' for temperature: ', occdhtav
                 ofile[ext+1].data = np.sqrt((ofile[ext+1].data)**2 * (factor**2)) #Modify the error array
                 ofile[ext].header.add_history('File scaled for Side-2 temperature uncertainty by data * (1.0 + %f * (%f - %f)) following description is STIS TIR 2004-01' %(dark_v_temp, occdhtav, s2ref_temp))
 
@@ -874,6 +873,11 @@ def bias_subtract_data(filename, biasfile):
 
     """
 
+    with pyfits.open(filename) as hdu:
+        if (hdu[0].header['BLEVCORR'] == 'COMPLETE') or (hdu[0].header['BIASCORR'] == 'COMPLETE'):
+            print "BIAS correction already done for {}".format(filename)
+            return filename
+
     if os.path.exists(filename.replace('raw', 'flc')):
         os.remove(filename.replace('raw', 'flc'))
     elif os.path.exists(filename.replace('raw', 'flt')):
@@ -897,8 +901,8 @@ def bias_subtract_data(filename, biasfile):
             photcorr='omit',
             verbose=False,
             trailer=trailerfile)
-    filename = filename.replace('raw', 'flt')
 
+    filename = filename.replace('raw', 'flt')
     return filename
 
 #------------------------------------------------------------------------

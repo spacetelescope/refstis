@@ -36,15 +36,15 @@ def create_superdark(crj_filename, basedark):
 
         ## Perform iterative statistics on this normalized superdark
         data_mean, data_median, data_std = sigma_clipped_stats(crj_hdu[('sci', 1)].data,
-                                                            sigma=3,
-                                                            iters=40)
+                                                               sigma=5,
+                                                               iters=40)
 
         p_five_sigma = data_median + (5*data_std)
         print 'hot pixels are defined as above: ', p_five_sigma
         basedark_hdu = fits.open(basedark)
 
         base_mean, base_median, base_std = sigma_clipped_stats(basedark_hdu[('sci', 1)].data,
-                                                            sigma=3,
+                                                            sigma=5,
                                                             iters=40)
 
         fivesig = base_median + 5.0 * base_std
@@ -58,14 +58,8 @@ def create_superdark(crj_filename, basedark):
                              basedark_med,
                              basedark_hdu[('sci', 1)].data)
 
-        crj_hdu[('sci', 1)].data = only_dark + only_hotpix
 
-        #divide error by the sqrt of number of combined images
-        #imcalc (s3//"[err]", "refERR.fits", "im1/sqrt("//ncombine//")", \
-        #	pixtype="old", nullval=0., verbose-)
-        #!!!!Very early data may not have ncombine
-        #This doesn't appear to be used in the final xstis analysis
-        #crj_hdu[('err', 1)].data /= np.sqrt(crj_hdu[1].header['ncombine'])
+        crj_hdu[('sci', 1)].data = only_dark + only_hotpix
 
         #- update DQ extension
         crj_hdu[('dq', 1)].data = np.where(only_hotpix >= p_five_sigma,
@@ -73,13 +67,6 @@ def create_superdark(crj_filename, basedark):
                                            crj_hdu[('dq', 1)].data)
 
         #- Update Error
-        #imcalc (thebasedark//"_err.fits[0],
-        #          only_hotpix.fits[0],
-        #          "//theoutfile//"_err.fits[0]", \
-        #"ERR_new.fits", "if im2 .eq. 0.0 then im1 else im3", \
-        #pixtype="old", nullval=0., verbose-)
-
-
         crj_hdu[('err', 1)].data = np.where(only_hotpix == 0,
                                             basedark_hdu[('err', 1)].data,
                                             crj_hdu[('err', 1)].data)

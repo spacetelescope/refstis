@@ -142,7 +142,7 @@ def make_weekdark(input_list, refdark_name, thebasedark, thebiasfile=None):
     print 'Cleaning up...'
     functions.RemoveIfThere(crj_filename)
     functions.RemoveIfThere(joined_out)
-    map(functions.RemoveIfThere, flt_list)
+    #map(functions.RemoveIfThere, flt_list)
 
     print 'Weekdark done for {}'.format(refdark_name)
 

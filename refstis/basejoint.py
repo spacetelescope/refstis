@@ -105,7 +105,7 @@ def average_biases(bias_list):
     out_hdu3 = fits.ImageHDU(dq_arr, header=hdu[3].header)
 
     hdulist = fits.HDUList([out_hdu0, out_hdu1, out_hdu2, out_hdu3])
-    hdulist.writeto(mean_file)
+    hdulist.writeto(mean_file, output_verify='exception')
 
     return mean_file, totalweight
 

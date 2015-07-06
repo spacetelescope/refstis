@@ -5,6 +5,8 @@ reference file pipeline
 
 """
 
+__all__ = ['make_basedark']
+
 from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
 import numpy as np
@@ -140,11 +142,12 @@ def make_basedark(input_list, refdark_name='basedark.fits', bias_file=None):
     find_hotpix(refdark_name)
 
     functions.update_header_from_input(refdark_name, input_list)
+    fits.setval(refdark_name, 'TASKNAME', ext=0, value='BASEDARK')
 
     print 'Cleaning...'
     functions.RemoveIfThere(crj_filename)
     functions.RemoveIfThere(joined_filename)
-    map(functions.RemoveIfThere, flt_list)
+    #map(functions.RemoveIfThere, flt_list)
 
     print 'basedark done for {}'.format(refdark_name)
 

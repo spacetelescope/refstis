@@ -291,6 +291,7 @@ def make_basebias(input_list, refbias_name='basebias.fits'):
 
     functions.update_header_from_input(refbias_name, input_list)
     fits.setval(refbias_name, 'NCOMBINE', value=totalweight, ext=1)
+    fits.setval(refbias_name, 'TASKNAME', ext=0, value='BASEJOIN')
 
     print 'Cleaning up...'
     functions.RemoveIfThere(mean_bias)

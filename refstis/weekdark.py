@@ -138,11 +138,12 @@ def make_weekdark(input_list, refdark_name, thebasedark, thebiasfile=None):
     create_superdark(refdark_name, thebasedark)
 
     functions.update_header_from_input(refdark_name, input_list)
+    fits.setval(refdark_name, 'TASKNAME', ext=0, value='WEEKDARK')
 
     print 'Cleaning up...'
     functions.RemoveIfThere(crj_filename)
     functions.RemoveIfThere(joined_out)
-    map(functions.RemoveIfThere, flt_list)
+    #map(functions.RemoveIfThere, flt_list)
 
     print 'Weekdark done for {}'.format(refdark_name)
 

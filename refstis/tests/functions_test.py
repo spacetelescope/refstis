@@ -1,4 +1,4 @@
-import functions
+from refstis import functions
 import numpy as np
 
 #-------------------------------------------------------------------------------

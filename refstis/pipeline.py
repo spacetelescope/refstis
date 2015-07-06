@@ -36,6 +36,7 @@ import time
 import shutil
 import re
 import numpy as np
+import yaml
 
 from support import SybaseInterface
 from support import createXmlFile, submitXmlFile
@@ -48,15 +49,6 @@ import refbias
 import weekbias
 import basejoint
 import functions
-
-### products_directory = '/user/ely/STIS/refstis/darks_biases/'
-### retrieve_directory = '/user/ely/STIS/refstis/requested/'
-products_directory = '/grp/hst/stis/darks_biases/refstis_test/'
-retrieve_directory = '/grp/hst/stis/darks_biases/refstis_test/data/'
-
-for location in [products_directory, retrieve_directory]:
-    if not os.path.isdir(location):
-        os.makedirs(location)
 
 #dark_proposals = [7600, 7601, 8408, 8437, 8837, 8864, 8901, 8902, 9605, 9606,
 #                  10017, 10018, 11844, 11845, 12401, 12402, 12741, 12742]
@@ -297,207 +289,6 @@ def get_anneal_month(proposal_id, anneal_id):
     anneal_start = all_info[0][0]
 
     return anneal_start, anneal_end
-
-#-------------------------------------------------------------------------------
-
-def remake_exact_reffiles(root_folder, last_basedark=None, last_basebias=None):
-    if not 'oref' in os.environ:
-        raise ValueError("oref hasn't been defined in the environment")
-
-    bias_threshold = {(1, 1, 1) : 98,
-                      (1, 1, 2) : 25,
-                      (1, 2, 1) : 25,
-                      (1, 2, 2) : 7,
-                      (1, 4, 1) : 7,
-                      (1, 4, 2) : 4,
-                      (4, 1, 1) : 1}
-
-    print '#-----------------------------#'
-    print '#  Making all ref files for   #'
-    print  root_folder
-    print '#-----------------------------#'
-
-    if not os.path.exists(root_folder):
-        raise IOError('Root folder does not exist')
-
-    print '###################'
-    print ' make the basebias '
-    print '###################'
-    raw_files = []
-    for item in glob.glob(os.path.join(root_folder, 'o*.fits')):
-        with fits.open(item) as hdu:
-            if hdu[0].header['TARGNAME'] == 'BIAS' and hdu[0].header['CCDGAIN'] == 1:
-                raw_files.append(item)
-
-    basebias_name = os.path.join(root_folder, 'basebias.fits')
-    if os.path.exists(basebias_name):
-        print '{} already exists, skipping'
-    else:
-        basejoint.make_basebias(raw_files, basebias_name)
-
-
-
-    print '###################'
-    print ' prepping the basedarks '
-    print '###################'
-    all_raw_darks = []
-    for item in glob.glob(os.path.join(root_folder, 'o*.fits')):
-        with fits.open(item) as hdu:
-            if hdu[0].header['TARGNAME'] == 'DARK' and hdu[0].header['CCDGAIN'] == 1 and (1000 < hdu[0].header['TEXPTIME'] < 1200):
-                all_raw_darks.append(item)
-    '''
-    basedark_name = os.path.join(root_folder, 'basedark.fits')
-    if os.path.exists(basedark_name):
-        print '{} already exists, skipping'
-    else:
-        basedark.make_basedark(all_raw_darks, basedark_name, basebias_name)
-    '''
-
-    print '##################################'
-    print ' make the weekly biases and darks '
-    print '##################################'
-    #-- Find the premade folders if they exist
-    gain_folders, week_folders = pull_out_subfolders(root_folder)
-
-    all_raw_darks = []
-    for stdfile in sorted(glob.glob(os.path.join(root_folder, '????_refstis_{}_*.fits'.format(root_folder)))):
-        print 'Processing {}'.format(stdfile)
-
-        proposal, wk, visit = pull_info(stdfile)
-        print proposal, wk, visit
-
-        with fits.open(stdfile) as hdu:
-            try:
-                files_history = re.findall('(o\w{8})\n', hdu[0].header['history'].__str__())
-            except:
-                continue
-
-        raw_files = []
-        for item in files_history:
-            raw_fits = os.path.join(root_folder, item+'_raw.fits')
-            if os.path.exists(raw_fits):
-                raw_files.append(raw_fits)
-        print raw_files
-        n_imsets = functions.count_imsets(raw_files)
-
-        gain = functions.get_keyword(raw_files, 'CCDGAIN', 0)
-        xbin = functions.get_keyword(raw_files, 'BINAXIS1', 0)
-        ybin = functions.get_keyword(raw_files, 'BINAXIS2', 0)
-
-        if re.search('bias_', stdfile):
-            filetype = 'bias'
-
-            weekbias_name = os.path.join(root_folder,
-                                         'weekbias_%s_%s_%s_bia.fits'%(proposal, visit, wk))
-            if os.path.exists(weekbias_name):
-                print '{} already exists, skipping'
-                continue
-
-            #make weekbias if too few imsets
-            if n_imsets < bias_threshold[(gain, xbin, ybin)]:
-                weekbias.make_weekbias(raw_files, weekbias_name, basebias_name)
-            else:
-                if n_imsets > 120:
-                    super_list = split_files(raw_files)
-                    all_subnames = []
-                    for i, sub_list in enumerate(super_list):
-                        subname = weekbias_name.replace('.fits', '_grp0'+str(i+1)+'.fits')
-                        print 'Making sub-file for datasets'
-                        print sub_list
-                        refbias.make_refbias(sub_list, subname)
-                        all_subnames.append(subname)
-                    functions.refaver(all_subnames, weekbias_name)
-                else:
-                    refbias.make_refbias(raw_files, weekbias_name)
-
-
-        elif re.search('dark_', stdfile):
-            filetype = 'dark'
-
-            #weekdark_name = os.path.join(root_folder,
-            #                             'weekdark_%s_%s_%s_drk.fits'%(proposal, visit, wk))
-            #if os.path.exists(weekdark_name):
-            #    print '{} already exists, skipping'
-            #    continue
-
-
-            #-- create a base-dark for everyweek
-            weekbias_name = os.path.join(root_folder,
-                                         'weekbias_%s_%s_%s_bia.fits'%(proposal, visit, wk))
-            for item in raw_files:
-                flt_name = functions.bias_subtract_data(item, weekbias_name)
-                all_raw_darks.append(flt_name)
-            #basedark_name = last_basedark or os.path.join(root_folder, 'basedark_%s_%s_%s.fits'%(proposal, visit, wk))
-
-            #if not os.path.exists(basedark_name):
-            #    basedark.make_basedark(all_raw_darks, basedark_name, weekbias_name)
-
-            #basedark_name = last_basedark or basedark_name
-            #weekdark.make_weekdark(raw_files,
-            #                       weekdark_name,
-            #                       basedark_name,
-            #                       weekbias_name)
-
-        else:
-            raise ValueError("{} doesn't conform with standards".format(root_folder))
-
-
-    for stdfile in sorted(glob.glob(os.path.join(root_folder, '????_refstis_{}_*.fits'.format(root_folder)))):
-        print 'Processing {}'.format(stdfile)
-
-        proposal, wk, visit = pull_info(stdfile)
-        print proposal, wk, visit
-
-        with fits.open(stdfile) as hdu:
-            try:
-                files_history = re.findall('(o\w{8})\n', hdu[0].header['history'].__str__())
-            except:
-                continue
-
-        raw_files = []
-        for item in files_history:
-            raw_fits = os.path.join(root_folder, item+'_flt.fits')
-            if os.path.exists(raw_fits):
-                raw_files.append(raw_fits)
-
-        if not len(raw_files):
-            continue
-        print raw_files
-        n_imsets = functions.count_imsets(raw_files)
-
-        gain = functions.get_keyword(raw_files, 'CCDGAIN', 0)
-        xbin = functions.get_keyword(raw_files, 'BINAXIS1', 0)
-        ybin = functions.get_keyword(raw_files, 'BINAXIS2', 0)
-
-        if re.search('bias_', stdfile):
-            continue
-
-        elif re.search('dark_', stdfile):
-            filetype = 'dark'
-
-            weekdark_name = os.path.join(root_folder,
-                                         'weekdark_%s_%s_%s_drk.fits'%(proposal, visit, wk))
-            if os.path.exists(weekdark_name):
-                print '{} already exists, skipping'
-                continue
-
-
-            #-- create a base-dark for everyweek
-            weekbias_name = os.path.join(root_folder,
-                                         'weekbias_%s_%s_%s_bia.fits'%(proposal, visit, wk))
-            basedark_name = os.path.join(root_folder, 'basedark_%s_%s_%s.fits'%(proposal, visit, wk))
-
-            if not os.path.exists(basedark_name):
-                basedark.make_basedark(all_raw_darks, basedark_name, weekbias_name)
-
-            basedark_name = last_basedark or basedark_name
-            weekdark.make_weekdark(raw_files,
-                                   weekdark_name,
-                                   basedark_name,
-                                   weekbias_name)
-
-        else:
-            raise ValueError("{} doesn't conform with standards".format(root_folder))
 
 #-------------------------------------------------------------------------------
 
@@ -1027,10 +818,23 @@ Procedure
 
 #-----------------------------------------------------------------------
 
-def run():
+def run(config_file='config.yaml'):
     """Run the reference file pipeline """
 
     args = parse_args()
+
+    #-- start pipeline configuration
+    if not os.path.exists(config_file):
+        raise IOError("Can't open configure file: {}".format(config_file))
+
+    with open(config_file, 'r') as f:
+        data = yaml.load(f)
+
+    for location in [data['products_directory'], data['retrieve_directory']]:
+        if not os.path.isdir(location):
+            os.makedirs(location)
+
+    sys.exit()
 
     pop_db.main()
 
@@ -1040,6 +844,3 @@ def run():
         make_ref_files(folder, clean=args.redo_all)
 
 #-----------------------------------------------------------------------
-
-if __name__ == "__main__":
-    run()

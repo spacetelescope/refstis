@@ -58,7 +58,6 @@ for location in [products_directory, retrieve_directory]:
     if not os.path.isdir(location):
         os.makedirs(location)
 
-
 #dark_proposals = [7600, 7601, 8408, 8437, 8837, 8864, 8901, 8902, 9605, 9606,
 #                  10017, 10018, 11844, 11845, 12401, 12402, 12741, 12742]
 #bias_proposals = [7600, 7601, 8409, 8439, 8838, 8865, 8903, 8904, 9607, 9608,
@@ -152,6 +151,16 @@ def split_files(all_files):
 
     Each list will have a selection from both early and late in time.
 
+    Parameters
+    ----------
+    all_files : list
+        full list of files
+
+    Returns
+    -------
+    super_list : list
+        list of lists containing the split list of all files
+
     """
 
     all_info = [(fits.getval(filename,'EXPSTART', 1), filename)
@@ -201,6 +210,21 @@ def pull_out_subfolders(root_folder):
 #-------------------------------------------------------------------------------
 
 def grab_between(file_list, mjd_start, mjd_end):
+    """Select files between given start/end times
+
+    Parameters
+    ----------
+    file_list : list
+        files on which to filter
+    mjd_start : float
+        earliest time
+    mjd_end : float
+        latest time
+
+    Yields
+    ------
+        filenames with mjd_start < TEXPSTRT < mjd_end
+    """
 
     for filename in file_list:
         with pyfits.open(filename) as hdu:
@@ -276,6 +300,207 @@ def get_anneal_month(proposal_id, anneal_id):
 
 #-------------------------------------------------------------------------------
 
+def remake_exact_reffiles(root_folder, last_basedark=None, last_basebias=None):
+    if not 'oref' in os.environ:
+        raise ValueError("oref hasn't been defined in the environment")
+
+    bias_threshold = {(1, 1, 1) : 98,
+                      (1, 1, 2) : 25,
+                      (1, 2, 1) : 25,
+                      (1, 2, 2) : 7,
+                      (1, 4, 1) : 7,
+                      (1, 4, 2) : 4,
+                      (4, 1, 1) : 1}
+
+    print '#-----------------------------#'
+    print '#  Making all ref files for   #'
+    print  root_folder
+    print '#-----------------------------#'
+
+    if not os.path.exists(root_folder):
+        raise IOError('Root folder does not exist')
+
+    print '###################'
+    print ' make the basebias '
+    print '###################'
+    raw_files = []
+    for item in glob.glob(os.path.join(root_folder, 'o*.fits')):
+        with fits.open(item) as hdu:
+            if hdu[0].header['TARGNAME'] == 'BIAS' and hdu[0].header['CCDGAIN'] == 1:
+                raw_files.append(item)
+
+    basebias_name = os.path.join(root_folder, 'basebias.fits')
+    if os.path.exists(basebias_name):
+        print '{} already exists, skipping'
+    else:
+        basejoint.make_basebias(raw_files, basebias_name)
+
+
+
+    print '###################'
+    print ' prepping the basedarks '
+    print '###################'
+    all_raw_darks = []
+    for item in glob.glob(os.path.join(root_folder, 'o*.fits')):
+        with fits.open(item) as hdu:
+            if hdu[0].header['TARGNAME'] == 'DARK' and hdu[0].header['CCDGAIN'] == 1 and (1000 < hdu[0].header['TEXPTIME'] < 1200):
+                all_raw_darks.append(item)
+    '''
+    basedark_name = os.path.join(root_folder, 'basedark.fits')
+    if os.path.exists(basedark_name):
+        print '{} already exists, skipping'
+    else:
+        basedark.make_basedark(all_raw_darks, basedark_name, basebias_name)
+    '''
+
+    print '##################################'
+    print ' make the weekly biases and darks '
+    print '##################################'
+    #-- Find the premade folders if they exist
+    gain_folders, week_folders = pull_out_subfolders(root_folder)
+
+    all_raw_darks = []
+    for stdfile in sorted(glob.glob(os.path.join(root_folder, '????_refstis_{}_*.fits'.format(root_folder)))):
+        print 'Processing {}'.format(stdfile)
+
+        proposal, wk, visit = pull_info(stdfile)
+        print proposal, wk, visit
+
+        with fits.open(stdfile) as hdu:
+            try:
+                files_history = re.findall('(o\w{8})\n', hdu[0].header['history'].__str__())
+            except:
+                continue
+
+        raw_files = []
+        for item in files_history:
+            raw_fits = os.path.join(root_folder, item+'_raw.fits')
+            if os.path.exists(raw_fits):
+                raw_files.append(raw_fits)
+        print raw_files
+        n_imsets = functions.count_imsets(raw_files)
+
+        gain = functions.get_keyword(raw_files, 'CCDGAIN', 0)
+        xbin = functions.get_keyword(raw_files, 'BINAXIS1', 0)
+        ybin = functions.get_keyword(raw_files, 'BINAXIS2', 0)
+
+        if re.search('bias_', stdfile):
+            filetype = 'bias'
+
+            weekbias_name = os.path.join(root_folder,
+                                         'weekbias_%s_%s_%s_bia.fits'%(proposal, visit, wk))
+            if os.path.exists(weekbias_name):
+                print '{} already exists, skipping'
+                continue
+
+            #make weekbias if too few imsets
+            if n_imsets < bias_threshold[(gain, xbin, ybin)]:
+                weekbias.make_weekbias(raw_files, weekbias_name, basebias_name)
+            else:
+                if n_imsets > 120:
+                    super_list = split_files(raw_files)
+                    all_subnames = []
+                    for i, sub_list in enumerate(super_list):
+                        subname = weekbias_name.replace('.fits', '_grp0'+str(i+1)+'.fits')
+                        print 'Making sub-file for datasets'
+                        print sub_list
+                        refbias.make_refbias(sub_list, subname)
+                        all_subnames.append(subname)
+                    functions.refaver(all_subnames, weekbias_name)
+                else:
+                    refbias.make_refbias(raw_files, weekbias_name)
+
+
+        elif re.search('dark_', stdfile):
+            filetype = 'dark'
+
+            #weekdark_name = os.path.join(root_folder,
+            #                             'weekdark_%s_%s_%s_drk.fits'%(proposal, visit, wk))
+            #if os.path.exists(weekdark_name):
+            #    print '{} already exists, skipping'
+            #    continue
+
+
+            #-- create a base-dark for everyweek
+            weekbias_name = os.path.join(root_folder,
+                                         'weekbias_%s_%s_%s_bia.fits'%(proposal, visit, wk))
+            for item in raw_files:
+                flt_name = functions.bias_subtract_data(item, weekbias_name)
+                all_raw_darks.append(flt_name)
+            #basedark_name = last_basedark or os.path.join(root_folder, 'basedark_%s_%s_%s.fits'%(proposal, visit, wk))
+
+            #if not os.path.exists(basedark_name):
+            #    basedark.make_basedark(all_raw_darks, basedark_name, weekbias_name)
+
+            #basedark_name = last_basedark or basedark_name
+            #weekdark.make_weekdark(raw_files,
+            #                       weekdark_name,
+            #                       basedark_name,
+            #                       weekbias_name)
+
+        else:
+            raise ValueError("{} doesn't conform with standards".format(root_folder))
+
+
+    for stdfile in sorted(glob.glob(os.path.join(root_folder, '????_refstis_{}_*.fits'.format(root_folder)))):
+        print 'Processing {}'.format(stdfile)
+
+        proposal, wk, visit = pull_info(stdfile)
+        print proposal, wk, visit
+
+        with fits.open(stdfile) as hdu:
+            try:
+                files_history = re.findall('(o\w{8})\n', hdu[0].header['history'].__str__())
+            except:
+                continue
+
+        raw_files = []
+        for item in files_history:
+            raw_fits = os.path.join(root_folder, item+'_flt.fits')
+            if os.path.exists(raw_fits):
+                raw_files.append(raw_fits)
+
+        if not len(raw_files):
+            continue
+        print raw_files
+        n_imsets = functions.count_imsets(raw_files)
+
+        gain = functions.get_keyword(raw_files, 'CCDGAIN', 0)
+        xbin = functions.get_keyword(raw_files, 'BINAXIS1', 0)
+        ybin = functions.get_keyword(raw_files, 'BINAXIS2', 0)
+
+        if re.search('bias_', stdfile):
+            continue
+
+        elif re.search('dark_', stdfile):
+            filetype = 'dark'
+
+            weekdark_name = os.path.join(root_folder,
+                                         'weekdark_%s_%s_%s_drk.fits'%(proposal, visit, wk))
+            if os.path.exists(weekdark_name):
+                print '{} already exists, skipping'
+                continue
+
+
+            #-- create a base-dark for everyweek
+            weekbias_name = os.path.join(root_folder,
+                                         'weekbias_%s_%s_%s_bia.fits'%(proposal, visit, wk))
+            basedark_name = os.path.join(root_folder, 'basedark_%s_%s_%s.fits'%(proposal, visit, wk))
+
+            if not os.path.exists(basedark_name):
+                basedark.make_basedark(all_raw_darks, basedark_name, weekbias_name)
+
+            basedark_name = last_basedark or basedark_name
+            weekdark.make_weekdark(raw_files,
+                                   weekdark_name,
+                                   basedark_name,
+                                   weekbias_name)
+
+        else:
+            raise ValueError("{} doesn't conform with standards".format(root_folder))
+
+#-------------------------------------------------------------------------------
+
 def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
     """Make reference files like the refstis pipeline
 
@@ -285,7 +510,7 @@ def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
     """
 
     if not 'oref' in os.environ:
-        os.environ['oref'] = '/grp/hst/cdbs/oref/'
+        raise ValueError("oref hasn't been defined in the environment")
 
     bias_threshold = {(1, 1, 1) : 98,
                       (1, 1, 2) : 25,
@@ -323,34 +548,33 @@ def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
         print '{} already exists, skipping'
     else:
         basejoint.make_basebias(raw_files, basebias_name)
-
+    '''
     print '###################'
     print ' make the basedarks '
     print '###################'
-    raw_files = []
+    all_raw_darks = []
     for root, dirs, files in os.walk(os.path.join(root_folder, 'darks')):
         for filename in files:
             if filename.startswith('o') and filename.endswith('_raw.fits'):
-                raw_files.append(os.path.join(root, filename))
+                full_filename = os.path.join(root, filename)
+                with fits.open(full_filename) as hdu:
+                    if hdu[0].header['TARGNAME'] == 'DARK' and hdu[0].header['CCDGAIN'] == 1 and (1000 < hdu[0].header['TEXPTIME'] < 1200):
+                        all_raw_darks.append(full_filename)
+    '''
 
-    basedark_name = os.path.join(root_folder, 'basedark.fits')
-    if os.path.exists(basedark_name):
-        print '{} already exists, skipping'
-    else:
-        basedark.make_basedark(raw_files, basedark_name, basebias_name)
-
-
-    print '##################################'
-    print ' make the weekly biases and darks '
-    print '##################################'
+    print '#######################'
+    print ' make the weekly biases'
+    print '#######################'
     #-- Find the premade folders if they exist
     gain_folders, week_folders = pull_out_subfolders(root_folder)
 
     #-- use last basefiles if supplied
     basebias_name = last_basebias or basebias_name
-    basedark_name = last_basedark or basedark_name
 
-    for folder in week_folders:
+    bias_folders = [item for item in week_folders if '/biases/' in item]
+    print bias_folders
+
+    for folder in sorted(bias_folders):
         print 'Processing {}'.format(folder)
 
         proposal, wk, visit = pull_info(folder)
@@ -362,234 +586,85 @@ def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
         xbin = functions.get_keyword(raw_files, 'BINAXIS1', 0)
         ybin = functions.get_keyword(raw_files, 'BINAXIS2', 0)
 
-        if re.search('/biases/', folder):
-            filetype = 'bias'
+        weekbias_name = os.path.join(folder,
+                                     'weekbias_%s_%s_%s_bia.fits'%(proposal, visit, wk))
+        if os.path.exists(weekbias_name):
+            print '{} already exists, skipping'
+            continue
 
-            weekbias_name = os.path.join(folder,
-                                         'weekbias_%s_%s_%s_bia.fits'%(proposal, visit, wk))
-            if os.path.exists(weekbias_name):
-                print '{} already exists, skipping'
-                continue
-
-            #make weekbias if too few imsets
-            if n_imsets < bias_threshold[(gain, xbin, ybin)]:
-                weekbias.make_weekbias(raw_files, weekbias_name, basebias_name)
-            else:
-                if n_imsets > 120:
-                    super_list = split_files(raw_files)
-                    all_subnames = []
-                    for i, sub_list in enumerate(super_list):
-                        subname = weekbias_name.replace('.fits', '_grp0'+str(i+1)+'.fits')
-                        print 'Making sub-file for datasets'
-                        print sub_list
-                        refbias.make_refbias(sub_list, subname)
-                        all_subnames.append(subname)
-                    functions.refaver(all_subnames, weekbias_name)
-                else:
-                    refbias.make_refbias(raw_files, weekbias_name)
-
-
-        elif re.search('/darks/', folder):
-            filetype = 'dark'
-
-            weekdark_name = os.path.join(folder,
-                                         'weekdark_%s_%s_%s_drk.fits'%(proposal, visit, wk))
-            if os.path.exists(weekdark_name):
-                print '{} already exists, skipping'
-                continue
-
-
-            weekbias_name = os.path.join(root_folder,
-                                         'biases/1-1x1',
-                                          wk,
-                                         'weekbias_%s_%s_%s_bia.fits'%(proposal, visit, wk))
-
-            basedark_name = os.path.join(root_folder, 'basedark.fits')
-            weekdark.make_weekdark(raw_files,
-                                   weekdark_name,
-                                   basedark_name,
-                                   weekbias_name)
-
+        #make weekbias if too few imsets
+        if n_imsets < bias_threshold[(gain, xbin, ybin)]:
+            weekbias.make_weekbias(raw_files, weekbias_name, basebias_name)
         else:
-            raise ValueError("{} doesn't conform with standards".format(folder))
-
-#-------------------------------------------------------------------------------
-
-def make_ref_files(root_folder, clean=False):
-    """ Make all refrence files for a given folder
-
-    This functions is very specific to the REFSTIS pipeline, and requires files
-    and folders to have certain naming conventions.
-
-    """
-
-    print '#-----------------------------#'
-    print '#  Making all ref files for   #'
-    print  root_folder
-    print '#-----------------------------#'
-
-    if not os.path.exists(root_folder):
-        raise IOError('Root folder does not exist')
-
-    if clean:
-        clean_directory(root_folder)
-
-    bias_threshold = {(1, 1, 1) : 98,
-                      (1, 1, 2) : 25,
-                      (1, 2, 1) : 25,
-                      (1, 2, 2) : 7,
-                      (1, 4, 1) : 7,
-                      (1, 4, 2) : 4,
-                      (4, 1, 1) : 1}
-
-    #-- Find the premade folders if they exist
-    gain_folders, week_folders = pull_out_subfolders(root_folder)
-
-    if not len(gain_folders) or not len(week_folders):
-        proposal_id, anneal_id = os.path.split(os.path.realpath(root_folder))[-1].split('_')
-        anneal_start, anneal_stop = get_anneal_month(proposal_id, anneal_id)
-        print anneal_start, anneal_stop
-        datasets = glob.glob(os.path.join(root_folder, '*_raw.fits'))
-        separate_obs(root_folder, anneal_start, anneal_stop, datasets)
-
-        gain_folders, week_folders = pull_out_subfolders(root_folder)
-
-    ######################
-    # make the base biases
-    ######################
-    if os.path.exists(os.path.join(root_folder, 'biases')):
-        for folder in gain_folders:
-            all_dir = os.path.join(folder, 'all')
-            if not os.path.exists(all_dir):
-                os.mkdir(all_dir)
-
-            for root, dirs, files in os.walk(folder):
-                if root.endswith('all'): continue
-                for filename in files:
-                    if filename.endswith('_raw.fits'):
-                        shutil.copy(os.path.join(root, filename), all_dir)
-
-            all_files = glob.glob(os.path.join( all_dir, '*_raw.fits'))
-            basebias_name = os.path.join(all_dir, 'basebias.fits')
-            if not os.path.exists(basebias_name):
-                basejoint.make_basebias(all_files , basebias_name)
+            if n_imsets > 120:
+                super_list = split_files(raw_files)
+                all_subnames = []
+                for i, sub_list in enumerate(super_list):
+                    subname = weekbias_name.replace('.fits', '_grp0'+str(i+1)+'.fits')
+                    print 'Making sub-file for datasets'
+                    print sub_list
+                    refbias.make_refbias(sub_list, subname)
+                    all_subnames.append(subname)
+                functions.refaver(all_subnames, weekbias_name)
             else:
-                print 'Basebias already created, skipping'
-    else:
-        print 'no folder {} exists, not making a basebias'.format(os.path.join(root_folder, 'biases'))
+                refbias.make_refbias(raw_files, weekbias_name)
 
-    ######################
-    # make the base darks
-    ######################
-    if os.path.exists(os.path.join(root_folder, 'darks')):
-        dark_folder = os.path.join(root_folder, 'darks')
-        all_dir = os.path.join(dark_folder, 'all')
-        if not os.path.exists(all_dir):  os.mkdir(all_dir)
 
-        for root, dirs, files in os.walk(dark_folder):
-            if root.endswith('all'): continue
-            for filename in files:
-                if filename.endswith('_raw.fits'):
-                    shutil.copy( os.path.join(root, filename), all_dir)
-
-        all_files = glob.glob(os.path.join(all_dir, '*_raw.fits'))
-
-        basebias_name = os.path.join(root_folder,
-                                     'biases/1-1x1/all/',
-                                     'basebias.fits' )
-        basedark_name = os.path.join(all_dir, 'basedark.fits')
-        if not os.path.exists(basedark_name):
-            basedark.make_basedark(all_files , basedark_name, basebias_name)
-        else:
-            print 'Basedark already created, skipping'
-    else:
-        print 'no folder {} exists, not making a basedark'.format(os.path.join(root_folder, 'darks'))
-
-    ####################
-    # make the weekly biases and darks
-    ####################
-    for folder in week_folders:
-        REFBIAS = False
-        WEEKBIAS = False
-
-        BASEDARK = False
-        WEEKDARK = False
-        print 'Processing %s'%(folder)
+    print '#######################'
+    print ' make the weekly darks '
+    print '#######################'
+    all_flt_darks = []
+    dark_folders = [item for item in week_folders if '/darks/' in item]
+    print dark_folders
+    for folder in sorted(dark_folders):
+        print 'Prepping {}'.format(folder)
 
         proposal, wk, visit = pull_info(folder)
 
+        weekbias_name = os.path.join(root_folder,
+                                     'biases/1-1x1',
+                                     wk,
+                                     'weekbias_%s_%s_%s_bia.fits'%(proposal, visit, wk))
+
         raw_files = glob.glob(os.path.join(folder, '*raw.fits'))
+        for item in raw_files:
+            print "bias subtracting"
+            flt_name = functions.bias_subtract_data(item, weekbias_name)
+            all_flt_darks.append(flt_name)
+
+
+    for folder in sorted(dark_folders):
+        print 'Processing {}'.format(folder)
+        raw_files = glob.glob(os.path.join(folder, '*flt.fits'))
         n_imsets = functions.count_imsets(raw_files)
 
         gain = functions.get_keyword(raw_files, 'CCDGAIN', 0)
         xbin = functions.get_keyword(raw_files, 'BINAXIS1', 0)
         ybin = functions.get_keyword(raw_files, 'BINAXIS2', 0)
 
-        if re.search('/biases/', folder):
-            filetype = 'bias'
-            REFBIAS = True
-
-            ### What does this mean?
-            if n_imsets < bias_threshold[(gain, xbin, ybin)]:
-                WEEKBIAS = True
-
-        elif re.search('/darks/', folder):
-            filetype = 'dark'
-            BASEDARK = True
-            WEEKDARK = True
-
-        else:
-            raise ValueError("{} doesn't conform with standards".format(folder))
+        proposal, wk, visit = pull_info(folder)
+        weekdark_name = os.path.join(folder,
+                                     'weekdark_%s_%s_%s_drk.fits'%(proposal, visit, wk))
+        if os.path.exists(weekdark_name):
+            print '{} already exists, skipping'
+            continue
 
 
-        print 'Making REFFILE for ', filetype
-        print '%d files found with %d imsets'%(len(raw_files), n_imsets)
+        #-- create a base-dark for everyweek
+        weekbias_name = os.path.join(root_folder,
+                                     'biases/1-1x1',
+                                     wk,
+                                     'weekbias_%s_%s_%s_bia.fits'%(proposal, visit, wk))
+        basedark_name = os.path.join(folder, 'basedark_%s_%s_%s.fits'%(proposal, visit, wk))
 
-        if REFBIAS:
-            refbias_name = os.path.join(folder,
-                                        'refbias_%s_%s.fits'%(proposal, wk))
-            if os.path.exists(refbias_name):
-                print 'Refbias already created, skipping'
-            else:
-                if n_imsets > 120:
-                    super_list = split_files(raw_files)
-                    all_subnames = []
-                    for i, sub_list in enumerate(super_list):
-                        subname = refbias_name.replace('.fits',
-                                                       '_grp0'+str(i+1)+'.fits')
-                        print 'Making sub-file for datasets'
-                        print sub_list
-                        refbias.make_refbias(sub_list, subname)
-                        all_subnames.append(subname)
-                    functions.refaver(all_subnames, refbias_name)
-                else:
-                    refbias.make_refbias(raw_files, refbias_name)
+        if not os.path.exists(basedark_name):
+            basedark.make_basedark(all_flt_darks, basedark_name, weekbias_name)
 
-        if WEEKBIAS:
-            weekbias_name = os.path.join(folder,
-                                         'weekbias_%s_%s.fits'%(proposal, wk))
-            if os.path.exists(weekbias_name):
-                print 'Weekbias already created, skipping'
-            else:
-                refbias.make_refbias(raw_files, weekbias_name, basebias_name)
-
-        if WEEKDARK:
-            weekdark_name = os.path.join(folder,
-                                         'weekdark_%s_%s.fits'%(proposal, wk))
-            if os.path.exists( weekdark_name ):
-                print 'Weekdark already created, skipping'
-            else:
-                ### probably need to be final file, either week* or ref*
-                weekbias_name = os.path.join(root_folder,
-                                             'biases/1-1x1',
-                                             wk,
-                                             'refbias_%s_%s.fits'%(proposal, wk))
-                basedark_name = os.path.join(folder.replace(wk, 'all'),
-                                             'basedark.fits')
-                weekdark.make_weekdark(raw_files,
-                                       weekdark_name,
-                                       basedark_name,
-                                       weekbias_name )
+        basedark_name = last_basedark or basedark_name
+        weekdark.make_weekdark(raw_files,
+                               weekdark_name,
+                               basedark_name,
+                               weekbias_name)
 
 #-------------------------------------------------------------------------------
 

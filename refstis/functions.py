@@ -15,8 +15,6 @@ from stistools.calstis import calstis
 from stistools.ocrreject import ocrreject
 from stistools.basic2d import basic2d
 
-__name__ = "J. Ely"
-
 #------------------------------------------------------------------------
 
 def update_header_from_input(filename, input_list):
@@ -277,10 +275,10 @@ def msjoin(imset_list, out_name='joined_out.fits'):
             extension.header['EXTVER'] = (ext_count // 3) + n_offset
             hdu.append( extension )
             ext_count += 1
-    
+
     hdu[0].header['NEXTEND'] = len( hdu ) - 1
     hdu.writeto(out_name, output_verify='exception')
-    
+
     if not os.path.exists(out_name):
         raise IOError('Error in refstis:functions:msjoin() -- output file not written!')
 
@@ -928,7 +926,7 @@ def bias_subtract_data(filename, biasfile):
                     print '    {}'.format(line.strip())
         finally:
             raise Exception('BASIC2D failed to properly reduce {}'.format(filename))
-    
+
     filename = filename.replace('raw', 'flt')
     return filename
 

@@ -182,7 +182,7 @@ def update_header_from_input(filename, input_list):
         hdu_out[3].header['PCOUNT'] = 0
         hdu_out[3].header['GROUNT'] = 1
 
-    hdu_out.writeto(filename, clobber=True)
+    hdu_out.writeto(filename, clobber=True, output_verify='exception')
 
 #------------------------------------------------------------------------
 
@@ -277,9 +277,12 @@ def msjoin(imset_list, out_name='joined_out.fits'):
             extension.header['EXTVER'] = (ext_count // 3) + n_offset
             hdu.append( extension )
             ext_count += 1
-
+    
     hdu[0].header['NEXTEND'] = len( hdu ) - 1
-    hdu.writeto(out_name)
+    hdu.writeto(out_name, output_verify='exception')
+    
+    if not os.path.exists(out_name):
+        raise IOError('Error in refstis:functions:msjoin() -- output file not written!')
 
 #------------------------------------------------------------------------
 
@@ -318,22 +321,30 @@ def crreject(input_file, workdir=None):
         if (blevcorr != 'COMPLETE') :
             print('Performing BLEVCORR')
             pyfits.setval(input_file, 'BLEVCORR', value='PERFORM')
-            basic2d(input_file,
-                    output_blev,
-                    outblev='',
-                    dqicorr='perform',
-                    blevcorr='perform',
-                    doppcorr='omit',
-                    lorscorr='omit',
-                    glincorr='omit',
-                    lflgcorr='omit',
-                    biascorr='omit',
-                    darkcorr='omit',
-                    flatcorr='omit',
-                    photcorr='omit',
-                    statflag=False,
-                    verbose=False,
-                    trailer=trailerfile)
+            status = basic2d(input_file,
+                             output_blev,
+                             outblev='',
+                             dqicorr='perform',
+                             blevcorr='perform',
+                             doppcorr='omit',
+                             lorscorr='omit',
+                             glincorr='omit',
+                             lflgcorr='omit',
+                             biascorr='omit',
+                             darkcorr='omit',
+                             flatcorr='omit',
+                             photcorr='omit',
+                             statflag=False,
+                             verbose=False,
+                             trailer=trailerfile)
+            if status != 0:
+                try:
+                    print
+                    with open(trailerfile) as tr:
+                        for line in tr.readlines():
+                            print '    {}'.format(line.strip())
+                finally:
+                    raise Exception('BASIC2D failed to properly reduce {}'.format(input_file))
         else:
             print('Blevcorr already Performed')
             shutil.copy(input_file,output_blev)
@@ -372,7 +383,7 @@ def crreject(input_file, workdir=None):
     hdu = pyfits.open(output_crj)
     hdu[('sci', 1)].data /= ncombine
     hdu[('err', 1)].data /= ncombine
-    hdu.writeto(out_div)
+    hdu.writeto(out_div, output_verify='exception')
 
     os.remove(output_blev)
     os.remove(output_crj)
@@ -756,12 +767,20 @@ def bd_calstis(joinedfile, thebiasfile=None):
 
     print 'Running CalSTIS on %s' % joinedfile
     print 'to create: %s' % crj_file
-    calstis(joinedfile,
-            wavecal="",
-            outroot="",
-            savetmp=False,
-            verbose=False,
-            trailer=trailerfile)
+    status = calstis(joinedfile,
+                     wavecal="",
+                     outroot="",
+                     savetmp=False,
+                     verbose=False,
+                     trailer=trailerfile)
+    if status != 0:
+        try:
+            print
+            with open(trailerfile) as tr:
+                for line in tr.readlines():
+                    print '    {}'.format(line.strip())
+        finally:
+            raise Exception('CalSTIS failed to properly reduce {}'.format(joinedfile))
 
     pyfits.setval(crj_file, 'FILENAME', value=os.path.split(crj_file)[1])
 
@@ -888,20 +907,28 @@ def bias_subtract_data(filename, biasfile):
     trailerfile = os.path.join(path, name + '_bias_subtract_log.txt')
 
     pyfits.setval(filename, 'BIASFILE', value=biasfile)
-    basic2d(filename,
-            dqicorr='perform',
-            blevcorr='perform',
-            biascorr='perform',
-            doppcorr='omit',
-            lorscorr='omit',
-            glincorr='omit',
-            lflgcorr='omit',
-            darkcorr='omit',
-            flatcorr='omit',
-            photcorr='omit',
-            verbose=False,
-            trailer=trailerfile)
-
+    status = basic2d(filename,
+                     dqicorr='perform',
+                     blevcorr='perform',
+                     biascorr='perform',
+                     doppcorr='omit',
+                     lorscorr='omit',
+                     glincorr='omit',
+                     lflgcorr='omit',
+                     darkcorr='omit',
+                     flatcorr='omit',
+                     photcorr='omit',
+                     verbose=False,
+                     trailer=trailerfile)
+    if status != 0:
+        try:
+            print
+            with open(trailerfile) as tr:
+                for line in tr.readlines():
+                    print '    {}'.format(line.strip())
+        finally:
+            raise Exception('BASIC2D failed to properly reduce {}'.format(filename))
+    
     filename = filename.replace('raw', 'flt')
     return filename
 

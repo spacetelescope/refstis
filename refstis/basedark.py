@@ -124,8 +124,8 @@ def make_basedark(input_list, refdark_name='basedark.fits', bias_file=None):
     joined_filename = refdark_name.replace('.fits', '_joined.fits')
     crj_filename = joined_filename.replace('.fits', '_crj.fits')
 
-    if not bias_file:
-        raise IOError('No biasfile specified, this task needs one to run')
+    #if not bias_file:
+    #    raise IOError('No biasfile specified, this task needs one to run')
 
     print 'Joining images'
     functions.msjoin(flt_list, joined_filename)

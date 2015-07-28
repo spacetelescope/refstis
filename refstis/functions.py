@@ -277,7 +277,7 @@ def msjoin(imset_list, out_name='joined_out.fits'):
             ext_count += 1
 
     hdu[0].header['NEXTEND'] = len( hdu ) - 1
-    hdu.writeto(out_name, output_verify='exception')
+    hdu.writeto(out_name, output_verify='exception', clobber=True)
 
     if not os.path.exists(out_name):
         raise IOError('Error in refstis:functions:msjoin() -- output file not written!')
@@ -348,11 +348,19 @@ def crreject(input_file, workdir=None):
             shutil.copy(input_file,output_blev)
 
         print('Performing OCRREJECT')
-        ocrreject(input=output_blev,
-                  output=output_crj,
-                  verbose=False,
-                  trailer=trailerfile)
-
+        status = ocrreject(input=output_blev,
+                           output=output_crj,
+                           verbose=False,
+                           trailer=trailerfile)
+        if status != 0:
+            try:
+                print
+                with open(trailerfile) as tr:
+                    for line in tr.readlines():
+                        print '    {}'.format(line.strip())
+            finally:
+                raise Exception('OCRREJECT failed to properly reduce {}'.format(output_blev))
+    
     elif (crcorr == "COMPLETE"):
         print "CR rejection already done"
         os.rename(input_file, output_crj)
@@ -381,7 +389,7 @@ def crreject(input_file, workdir=None):
     hdu = pyfits.open(output_crj)
     hdu[('sci', 1)].data /= ncombine
     hdu[('err', 1)].data /= ncombine
-    hdu.writeto(out_div, output_verify='exception')
+    hdu.writeto(out_div, output_verify='exception', clobber=True)
 
     os.remove(output_blev)
     os.remove(output_crj)
@@ -762,7 +770,15 @@ def bd_calstis(joinedfile, thebiasfile=None):
     path, name = os.path.split(joinedfile)
     name, ext = os.path.splitext(name)
     trailerfile = os.path.join(path, name+'_bd_calstis_log.txt')
-
+    
+    if os.path.exists(crj_file):
+        print 'Deleting old file: %s' % crj_file
+        os.remove(crj_file)
+    
+    if os.path.exists(trailerfile):
+        print 'Deleting old file: %s' % trailerfile
+        os.remove(trailerfile)
+    
     print 'Running CalSTIS on %s' % joinedfile
     print 'to create: %s' % crj_file
     status = calstis(joinedfile,

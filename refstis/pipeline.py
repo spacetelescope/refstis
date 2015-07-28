@@ -61,7 +61,7 @@ bias_proposals = [11846, 11847, 12402, 12403, 12743, 12744, 13133, 13134, 13535,
 
 #-------------------------------------------------------------------------------
 
-def get_new_periods():
+def get_new_periods(products_directory):
     print '#-------------------#'
     print 'Reading from database'
     print '#-------------------#\n'
@@ -830,17 +830,16 @@ def run(config_file='config.yaml'):
     with open(config_file, 'r') as f:
         data = yaml.load(f)
 
+
     for location in [data['products_directory'], data['retrieve_directory']]:
         if not os.path.isdir(location):
             os.makedirs(location)
 
-    sys.exit()
-
     pop_db.main()
 
-    all_folders = get_new_periods()
+    all_folders = get_new_periods(data['products_directory'])
 
-    for folder in all_folders:
-        make_ref_files(folder, clean=args.redo_all)
+    #for folder in all_folders:
+    #    make_ref_files(folder, clean=args.redo_all)
 
 #-----------------------------------------------------------------------

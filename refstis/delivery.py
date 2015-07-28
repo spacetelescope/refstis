@@ -36,11 +36,11 @@ def plot_obset(folder):
     biwk = []
     dark = []
     for filename in glob.glob(os.path.join(folder, '*.fits')):
-        if 'bias_wk' in filename:
+        if 'bias' in filename and '_wk' in filename:
             bias.append(filename)
-        if 'bias_biwk' in filename:
+        if 'bias' in filename and '_biwk' in filename:
             biwk.append(filename)
-        if 'dark_wk' in filename:
+        if 'dark' in filename and '_wl' in filename:
             dark.append(filename)
 
     plt.rcParams['figure.subplot.hspace'] = .35
@@ -207,11 +207,11 @@ def regress(folder):
     os.chdir(test_suite)
     print os.getcwd()
 
-    bias_biwk_refs = glob.glob('*bias_bi*.fits')
+    bias_biwk_refs = glob.glob('*bias*_bi*.fits')
     bias_biwk_refs.sort()
-    biasrefs = glob.glob('bias*_wk*.fits')
+    biasrefs = glob.glob('*bias*_wk*.fits')
     biasrefs.sort()
-    darkrefs = glob.glob('dark*.fits')
+    darkrefs = glob.glob('*dark*.fits')
     darkrefs.sort()
 
     raws = glob.glob('*raw.fits')

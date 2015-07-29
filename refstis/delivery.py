@@ -40,7 +40,7 @@ def plot_obset(folder):
             bias.append(filename)
         if 'bias' in filename and '_biwk' in filename:
             biwk.append(filename)
-        if 'dark' in filename and '_wl' in filename:
+        if 'dark' in filename and '_wk' in filename:
             dark.append(filename)
 
     plt.rcParams['figure.subplot.hspace'] = .35

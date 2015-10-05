@@ -722,7 +722,7 @@ def bd_crreject(joinedfile):
         raise ValueError( 'Something bad happened' )
 
     if not crdone:
-        print('FYI: CR rejection not done')
+        print('FYI: CR rejection not already done')
         print('Keyword NRPTEXP = ' + str(nrptexp) + ' while nr. of imsets = ' + str(nimset))
         if (nrptexp != nimset):
             pyfits.setval( joinedfile,'NRPTEXP',value=nimset)

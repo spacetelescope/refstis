@@ -2,4 +2,4 @@ include README.md
 include LICENSE
 include setup.py
 include refstis/*
-include scripts/*.py
+include scripts/*

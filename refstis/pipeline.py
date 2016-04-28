@@ -31,16 +31,13 @@ import sys
 from astropy.io import fits
 import argparse
 import textwrap
-from . import support
 import time
 import shutil
 import re
 import numpy as np
 import yaml
 
-from .support import createXmlFile, submitXmlFile
-
-from .functions import figure_number_of_periods, translate_date_string
+from .functions import figure_number_of_periods, translate_date_string, mjd_to_greg
 from .retrieval import submit_xml_request, build_xml_request
 from . import pop_db
 from . import basedark
@@ -88,8 +85,8 @@ def get_new_periods(products_directory, settings):
         proposal = proposal_id_all[i + 1]
 
         visit = visit_id_all[i + 1]
-        year, month, day, dec_year = support.mjd_to_greg(ref_begin)
-        end_year, end_month, end_day, dec_year = support.mjd_to_greg(ref_end)
+        year, month, day, dec_year = mjd_to_greg(ref_begin)
+        end_year, end_month, end_day, dec_year = mjd_to_greg(ref_end)
 
         if visit < 10:
             visit = '0' + str(visit)

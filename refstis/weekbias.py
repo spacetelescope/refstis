@@ -7,7 +7,6 @@ from astropy.stats import sigma_clipped_stats
 import numpy as np
 import shutil
 
-from . import support
 from . import functions
 from .basejoint import replace_hot_cols
 

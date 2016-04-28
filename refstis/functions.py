@@ -13,8 +13,69 @@ import datetime
 from stistools.calstis import calstis
 from stistools.ocrreject import ocrreject
 from stistools.basic2d import basic2d
+#--------------------------------------------------------------------------------
 
-from . import support
+def send_email(subject=None,message=None,from_addr=None,to_addr=None):
+    '''
+    Send am email via SMTP server.
+    This will not prompt for login if you are alread on the internal network.
+    '''
+    import os
+    import getpass
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+
+    users_email=getpass.getuser()+'@stsci.edu'
+
+    if not subject:
+	subject='Message from %s'%(__file__)
+    if not message:
+	message='You forgot to put a message into me'
+    if not from_addr:
+        from_addr=users_email
+    if not to_addr:
+        to_addr=users_email
+
+    svr_addr='smtp.stsci.edu'
+    msg = MIMEMultipart()
+    msg['Subject']=subject
+    msg['From']=from_addr
+    msg['To']=to_addr
+    msg.attach(MIMEText(message))
+    s = smtplib.SMTP(svr_addr)
+    s.sendmail(from_addr, to_addr, msg.as_string())
+    s.quit()
+    print('\nEmail sent to %s \n' %(from_addr))
+
+#---------------------------------------------------------------------------
+
+def mjd_to_greg(mjd):
+   #This comes from http://www.usno.navy.mil/USNO/astronomical-applications/astronomical-information-center/julian-date-form
+   JD = mjd + 2400000.5
+   JD = int(JD)
+   L= JD+68569
+   N= 4*L/146097
+   L= L-(146097*N+3)/4
+   I= 4000*(L+1)/1461001
+   L= L-1461*I/4+31
+   J= 80*L/2447
+   K= L-2447*J/80
+   L= J/11
+   J= J+2-12*L
+   I= 100*(N-49)+I+L
+   Year = I
+   Month = J
+   Day = K
+   month_to_day = {'0': 0,'1':31, '2':59, '3':90, '4':120, '5':151, '6':181, '7':212, '8':243, '9':273, '10':304, '11':334, '12':365}
+   tot_day = (month_to_day[str(int(Month)-1)] + Day)
+   day_in_year = 365.0
+   if (Month >= 2) & (Year%4 == 0): #for leap year
+      tot_day = tot_day + 1.0
+      day_in_year = 365.0 + 1.0
+   frac_day = tot_day / day_in_year
+   fractional_year = Year + frac_day
+   return (Year, Month, Day, fractional_year)
 
 #------------------------------------------------------------------------
 

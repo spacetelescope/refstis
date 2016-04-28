@@ -33,7 +33,6 @@ import shutil
 import sys
 import stistools
 
-from . import support
 from . import functions
 
 #-------------------------------------------------------------------------------

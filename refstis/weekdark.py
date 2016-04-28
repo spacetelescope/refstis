@@ -8,7 +8,6 @@ import numpy as np
 from scipy.signal import medfilt
 import shutil
 
-from . import support
 from . import functions
 
 #-------------------------------------------------------------------------------

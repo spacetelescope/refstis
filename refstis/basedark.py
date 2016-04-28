@@ -10,7 +10,6 @@ from scipy.ndimage.filters import median_filter
 import shutil
 
 from . import functions
-from . import support
 
 #-------------------------------------------------------------------------------
 

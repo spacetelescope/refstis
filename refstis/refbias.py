@@ -1,5 +1,4 @@
 """Produce a superbias using the "refbias" method.
-
 """
 
 from astropy.io import fits
@@ -18,14 +17,14 @@ def flag_hot_pixels(refbias_name):
 
     Pixels more than (mean + 3*sigma) away from a median smoothed image
     are flagged as DQ=16 in the DQ array.
-    The input file is be updated in place.
 
-    Notes
-    -----
-    The IRAF version of this pipeline specified a 2x15 pixel median filter
-    to calculate the smoothed imaged, but the IRAF task documentation says that
-    even sizes are increased by 1 for the computation.  A 3x5 pixel filter is
-    used directly here.
+    .. note:: The input file is updated in-place.
+
+    .. note::
+      The IRAF version of this pipeline specified a 2x15 pixel median filter
+      to calculate the smoothed imaged, but the IRAF task documentation says that
+      even sizes are increased by 1 for the computation.  A 3x5 pixel filter is
+      used directly here.
 
     Parameters
     ----------
@@ -60,11 +59,12 @@ def flag_hot_pixels(refbias_name):
 def make_refbias(input_list, refbias_name='refbias.fits'):
     """Create a refbias FITS file
 
-    Basic premise for making a refbias
-    1- join imsets from each datset together into one large file
-    2- combine, cosmic ray screen, and normalize to number of imsets
-    3- set header keywords
-    4- clean up intermediate files
+    Basic premise for making a refbias.
+
+    1. join imsets from each datset together into one large file
+    2. combine, cosmic ray screen, and normalize to number of imsets
+    3. set header keywords
+    4. clean up intermediate files
 
     Parameters:
     -----------

@@ -1,11 +1,5 @@
+"""Functions to create a BaseDark for the STIS instrument
 """
-
-Functions to produce a monthly basedark for the STIS Darks and Biases
-reference file pipeline
-
-"""
-
-__all__ = ['make_basedark']
 
 from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
@@ -21,7 +15,7 @@ import support
 def update_sci(filename):
     """Create the science extension of the baseline dark
 
-    Input file will be updated in place.
+    .. note:: The input file will be updated in-place.
 
     Parameters
     ----------
@@ -57,7 +51,9 @@ def find_hotpix(filename):
     """Find hotpixels and update DQ array
 
     Pixels hotter that median + 5*sigma will be updated to have a
-    DQ value of 16.  The data file will be updated in place.
+    DQ value of 16.
+
+    .. note:: The input file will be updated in-place.
 
     Parameters:
     -----------
@@ -80,21 +76,20 @@ def find_hotpix(filename):
 #-------------------------------------------------------------------------------
 
 def make_basedark(input_list, refdark_name='basedark.fits', bias_file=None):
-    """Make a monthly baseline dark from the input list
+    """Make a monthly baseline dark from the input list.
 
-    1- If not already done, perform bias subtraction
-        (I believe this should include blevcorr and dqicorr)
-    2- If after switch to side-2 electronics, perform temperature scaling
-    3- Join all imsets from input list into single file
-    4- combine and cr-reject
-    5- normalize to e/s by dividing by (exptime/gain)
-    6- update DQ array with hot pixel information
+    #. If not already done, perform bias subtraction
+    #. If after switch to side-2 electronics, perform temperature scaling
+    #. Join all imsets from input list into single file
+    #. combine and cr-reject
+    #. normalize to e/s by dividing by (exptime/gain)
+    #. update DQ array with hot pixel information
 
+    .. note::
 
-    Side 1 operations ended on May 16, 2001.
-    Side 2 operations started on July 10, 2001,
-    52091.0 corresponds to July 1, 2001.  The dark correction will only be
-    applied to datasets after July 1, 2001.
+      * Side 1 operations ended on May 16, 2001.
+      * Side 2 operations started on July 10, 2001.
+      * The dark correction will only be applied to datasets after July 1, 2001 (MJD 52091.0).
 
     Parameters:
     -----------

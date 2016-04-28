@@ -1,6 +1,4 @@
-"""
-Functions to create weekly superdarks for the STIS darks and bias reference
-file pipeline.
+"""Functions to create weekly superdarks for the STIS instrument.
 
 """
 
@@ -18,10 +16,10 @@ import functions
 def create_superdark(crj_filename, basedark):
     """ Create a superdark from the crj and basedark
 
-    files will be updated in place
+    Create the science portion of the forthcoming reference dark by adding the
+    'only baseline dark current' image to the 'only hot pixels' image.
 
-    # Add 'only baseline dark current' image to 'only hot pixels' image.
-    # This creates the science portion of the forthcoming reference dark.
+    .. note:: input file will be updated in-place.
 
     Parameters:
     -----------
@@ -76,14 +74,14 @@ def create_superdark(crj_filename, basedark):
 def make_weekdark(input_list, refdark_name, thebasedark, thebiasfile=None):
     """ Create a weekly dark reference file
 
-    1- If not already done, run basic2d with blevcorr, biascorr, and dqicorr
+    1. If not already done, run basic2d with blevcorr, biascorr, and dqicorr
         set to perform
-    2- Apply temperature correction to the data
-    3- split all raw images into their imsets
-    4- join imsets together into a single file
-    5- combine and cr-reject
-    6- normalize to e/s by dividing by (exptime/gain)
-    7- do hot pixel things
+    2. Apply temperature correction to the data
+    3. split all raw images into their imsets
+    4. join imsets together into a single file
+    5. combine and cr-reject
+    6. normalize to e/s by dividing by (exptime/gain)
+    7. do hot pixel things
 
     # Update ERR extension of new superdark by assigning the ERR values of the
     # basedark except for the new hot pixels that are updated from the weekly

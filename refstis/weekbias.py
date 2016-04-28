@@ -1,6 +1,4 @@
-"""
-Functions to create a weekly bias for the STIS Darks and Biases reference file
-pipeline
+"""Functions to create a weekly bias for the STIS instrument.
 
 """
 
@@ -18,24 +16,22 @@ from .basejoint import replace_hot_cols
 def make_weekbias(input_list, refbias_name, basebias):
     """ Make 'weekly' bias from list of input bias files
 
-    1- join imsets from each datset together into one large file
-    2- combine and cosmic ray screen joined imset
-    3- find hot colums
-    4- add hot colums in to basebias sci data as output science data
-    5- update error, dq, and headers
+    1. join imsets from each datset together into one large file
+    2. combine and cosmic ray screen joined imset
+    3. find hot colums
+    4. add hot colums in to basebias sci data as output science data
+    5. update error, dq, and headers
 
-    update SCI
-    **************************************************************************
-    the baseline bias rate is taken from the aptly named basebias
-    anything that is "hot" is assumed to be potentially transient and
-    is thus taken from the weekly biases.
+    .. note::
 
-    update err
-    **************************************************************************
-    Update ERR extension of new superbias by assigning the ERR values of the
-    baseline superbias except for the new hot pixels that are updated from
-    the weekly superbias, for which the error extension of the weekly
-    superbias is taken. Put the result in temporary ERR image.
+      For the SCI extensions, the baseline bias rate is taken from the aptly named
+      basebias because anything that is "hot" is assumed to be potentially
+      transient and is thus taken from the weekly biases.
+
+      Update ERR extension of new superbias by assigning the ERR values of the
+      baseline superbias except for the new hot pixels that are updated from
+      the weekly superbias, for which the error extension of the weekly
+      ssuperbias is taken. Put the result in temporary ERR image.
 
     Parameters:
     -----------

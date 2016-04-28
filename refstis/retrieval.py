@@ -29,10 +29,12 @@ REQUEST_TEMPLATE = string.Template('\
 
 def build_xml_request(datasets, settings):
     """Build the XML request for the given datasets
+
     Parameters
     ----------
     datasets : list
         A list of rootnames to download from MAST.
+
     Returns
     -------
     xml_request : string
@@ -60,10 +62,12 @@ def build_xml_request(datasets, settings):
 
 def submit_xml_request(xml_request, settings):
     """Submit the XML request to the MAST archive.
+
     Parameters
     ----------
     xml_request : string
         The request XML string.
+        
     Returns
     -------
     submission_results : httplib object

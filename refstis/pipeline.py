@@ -447,10 +447,10 @@ def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
 def clean_directory(root_path):
     """ Cleans directory of any fits files that do not end in _raw.fits
 
-    This WILL remove ANY files that do not match *_raw.fits.  This includes
-    any plots, txt files, other fits files, anything.
+    .. warning::
 
-    Use with caution
+      This WILL remove ANY files that do not match *_raw.fits.  This includes
+      any plots, txt files, other fits files, anything.
 
     """
 

@@ -1,5 +1,4 @@
-numpy
-matplotlib
 astropy
+matplotlib
+numpy
 scipy
-stistools

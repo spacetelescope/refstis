@@ -6,7 +6,6 @@ import shutil
 from scipy.signal import medfilt
 from scipy.ndimage.filters import median_filter
 from astropy.time import Time
-import support
 import math
 import sqlite3
 import datetime
@@ -14,6 +13,8 @@ import datetime
 from stistools.calstis import calstis
 from stistools.ocrreject import ocrreject
 from stistools.basic2d import basic2d
+
+from . import support
 
 #------------------------------------------------------------------------
 
@@ -205,13 +206,13 @@ def get_start_and_endtimes(input_list):
 #------------------------------------------------------------------------
 
 def make_resicols_image(residual_image, yfrac=1):
-    print "Making residual column image"
+    print("Making residual column image")
 
     ystart = 0
     yend = min(1024, int(np.floor(yfrac * residual_image.shape[0] + .5)))
 
     residual_columns = np.mean(residual_image[ystart:yend], axis=0)
-    print ystart, '-->', yend
+    print(ystart, '-->', yend)
     residual_columns_image = residual_columns * np.ones(residual_image.shape[1])[:, np.newaxis]
 
     return residual_columns_image
@@ -252,7 +253,7 @@ def normalize_crj(filename):
         gain = hdu[0].header['ATODGAIN']
 
         norm_factor = float(exptime)/gain
-        print 'Normalizing by ', norm_factor
+        print('Normalizing by ', norm_factor)
         hdu[('sci', 1)].data /= norm_factor
         hdu[('err', 1)].data /= abs(norm_factor)
 
@@ -337,10 +338,10 @@ def crreject(input_file, workdir=None):
                              trailer=trailerfile)
             if status != 0:
                 try:
-                    print
+                    print()
                     with open(trailerfile) as tr:
                         for line in tr.readlines():
-                            print '    {}'.format(line.strip())
+                            print('    {}'.format(line.strip()))
                 finally:
                     raise Exception('BASIC2D failed to properly reduce {}'.format(input_file))
         else:
@@ -354,15 +355,15 @@ def crreject(input_file, workdir=None):
                            trailer=trailerfile)
         if status != 0:
             try:
-                print
+                print()
                 with open(trailerfile) as tr:
                     for line in tr.readlines():
-                        print '    {}'.format(line.strip())
+                        print('    {}'.format(line.strip()))
             finally:
                 raise Exception('OCRREJECT failed to properly reduce {}'.format(output_blev))
-    
+
     elif (crcorr == "COMPLETE"):
-        print "CR rejection already done"
+        print("CR rejection already done")
         os.rename(input_file, output_crj)
 
     pyfits.setval(output_crj, 'FILENAME', value=output_crj)
@@ -380,8 +381,8 @@ def crreject(input_file, workdir=None):
         except:
             ncombine = hdu[1].header['ncombine']
 
-    print('Number of combined imsets is '+str(ncombine)+' while number of imsets is '+str(nimset ) )
-    print('Dividing cosmic-ray-rejected image by '+str(ncombine)+'...')
+    print(('Number of combined imsets is '+str(ncombine)+' while number of imsets is '+str(nimset ) ))
+    print(('Dividing cosmic-ray-rejected image by '+str(ncombine)+'...'))
     out_div = output_crj.replace('.fits','_div.fits')
 
     ###this used to be a call to MSARITH, is anything else needed?
@@ -486,7 +487,7 @@ def divide_anneal_month(data_begin, data_end, database_path, N_period):
     #For remaining days, add 1 to each week until all days are gone
     remaining_days = math.floor(total_num_days - base_num_days*N_period)
     remaining_time = total_num_days - base_num_days*N_period - remaining_days
-    num_days_per_period = np.array([base_num_days for i in xrange(N_period)])
+    num_days_per_period = np.array([base_num_days for i in range(N_period)])
     num_days_per_period[-1] = num_days_per_period[-1] + remaining_time
     for i, day in enumerate(range(int(remaining_days))):
         num_days_per_period[i] += 1
@@ -540,7 +541,7 @@ def figure_number_of_periods(number_of_days, mode) :
 
     # WK mode
     if mode == "WK":
-        for n in xrange(2, number_of_days) :
+        for n in range(2, number_of_days) :
             if  number_of_days < 12 :
                 if (number_of_days >  MAX_DAYS_IN_WK or
                     number_of_days <  MIN_DAYS_IN_WK) :
@@ -567,7 +568,7 @@ def figure_number_of_periods(number_of_days, mode) :
 
     # BIWK mode
     elif mode == 'BIWK':
-        for n in xrange(2, number_of_days) :
+        for n in range(2, number_of_days) :
             if number_of_days < MAX_DAYS_IN_BIWK :
                 # raises an ERROR if < MIN_DAYS_IN_BIWK1
                 if number_of_days < MIN_DAYS_IN_BIWK : number_of_periods = -1
@@ -579,13 +580,13 @@ def figure_number_of_periods(number_of_days, mode) :
                 # For easier comparison to periods.py
                 if number_of_days > 72 :
                     msg = "length of anneal month = " +str(number_of_days)+ "; For real? "
-                    print("E", msg, nm)
+                    print(("E", msg, nm))
                     # Do we really need to set this to 0?  What's wrong with a bigger number?
                     msg  = "I give it "+str(number_of_periods)+" (BIWKs). "
                     msg += "Is this bad? "
                     msg += "Code would usually give such a large difference "
                     msg += "number_of_periods = 0, but why?  "
-                    print("W", msg, nm)
+                    print(("W", msg, nm))
                 break
     else:
         sys.exit('what mode did you put in?')
@@ -636,7 +637,7 @@ def figure_days_in_period(N_periods, N_days, add_remainder=False):
     base_length = N_days // N_periods
     N_extra_days = N_days - N_periods * base_length
 
-    period_lengths = [base_length for item in xrange(N_periods)]
+    period_lengths = [base_length for item in range(N_periods)]
 
     for i in range(N_extra_days):
         index = i % N_periods
@@ -700,7 +701,7 @@ def bd_crreject(joinedfile):
 
     """
 
-    print joinedfile
+    print(joinedfile)
 
     fd = pyfits.open(joinedfile)
     nimset   = fd[0].header['nextend'] / 3
@@ -713,7 +714,7 @@ def bd_crreject(joinedfile):
         print('OK, CR rejection already done')
         os.rename(joinedfile, joinedfile.replace('_joined', '_crj') )
     else:
-        print('crcorr found = ' + crcorr)
+        print(('crcorr found = ' + crcorr))
 
     if (nimset <= 1 and not crdone):
         print("Sorry, your input image seems to have only 1 imset, but it isn't cr-rejected.")
@@ -723,14 +724,14 @@ def bd_crreject(joinedfile):
 
     if not crdone:
         print('FYI: CR rejection not already done')
-        print('Keyword NRPTEXP = ' + str(nrptexp) + ' while nr. of imsets = ' + str(nimset))
+        print(('Keyword NRPTEXP = ' + str(nrptexp) + ' while nr. of imsets = ' + str(nimset)))
         if (nrptexp != nimset):
             pyfits.setval( joinedfile,'NRPTEXP',value=nimset)
             pyfits.setval( joinedfile,'CRSPLIT',value=1)
 
-            print('>>>> Updated keyword NRPTEXP to '+str(nimset) )
+            print(('>>>> Updated keyword NRPTEXP to '+str(nimset) ))
             print('    (and set keyword CRSPLIT to 1)' )
-            print('     in ' + joinedfile )
+            print(('     in ' + joinedfile ))
 
     return crdone
 
@@ -770,17 +771,17 @@ def bd_calstis(joinedfile, thebiasfile=None):
     path, name = os.path.split(joinedfile)
     name, ext = os.path.splitext(name)
     trailerfile = os.path.join(path, name+'_bd_calstis_log.txt')
-    
+
     if os.path.exists(crj_file):
-        print 'Deleting old file: %s' % crj_file
+        print('Deleting old file: %s' % crj_file)
         os.remove(crj_file)
-    
+
     if os.path.exists(trailerfile):
-        print 'Deleting old file: %s' % trailerfile
+        print('Deleting old file: %s' % trailerfile)
         os.remove(trailerfile)
-    
-    print 'Running CalSTIS on %s' % joinedfile
-    print 'to create: %s' % crj_file
+
+    print('Running CalSTIS on %s' % joinedfile)
+    print('to create: %s' % crj_file)
     status = calstis(joinedfile,
                      wavecal="",
                      outroot="",
@@ -789,10 +790,10 @@ def bd_calstis(joinedfile, thebiasfile=None):
                      trailer=trailerfile)
     if status != 0:
         try:
-            print
+            print()
             with open(trailerfile) as tr:
                 for line in tr.readlines():
-                    print '    {}'.format(line.strip())
+                    print('    {}'.format(line.strip()))
         finally:
             raise Exception('CalSTIS failed to properly reduce {}'.format(joinedfile))
 
@@ -829,12 +830,12 @@ def refaver(reffiles, combined_name):
     if not combined_name.endswith('.fits'):
         combined_name = combined_name + '.fits'
 
-    print '#-----------------------#'
-    print 'combining datasets'
-    print reffiles
-    print 'into'
-    print combined_name
-    print '#-----------------------#'
+    print('#-----------------------#')
+    print('combining datasets')
+    print(reffiles)
+    print('into')
+    print(combined_name)
+    print('#-----------------------#')
 
     all_subfiles = []
     for subfile in reffiles:
@@ -876,13 +877,13 @@ def apply_dark_correction(filename, expstart):
                 occdhtav = ofile[ext].header['OCCDHTAV']
                 factor = 1.0 / (1.0 + dark_v_temp * (float(occdhtav) - s2ref_temp))
                 ofile[ext].data = ofile[ext].data * factor
-                print '{}, ext {}: Scaling data by '.format(filename, ext), factor, ' for temperature: ', occdhtav
+                print('{}, ext {}: Scaling data by '.format(filename, ext), factor, ' for temperature: ', occdhtav)
                 ofile[ext+1].data = np.sqrt((ofile[ext+1].data)**2 * (factor**2)) #Modify the error array
                 ofile[ext].header.add_history('File scaled for Side-2 temperature uncertainty by data * (1.0 + %f * (%f - %f)) following description is STIS TIR 2004-01' %(dark_v_temp, occdhtav, s2ref_temp))
 
             ofile[0].header['tempcorr'] = 'COMPLETE'
         else:
-            print 'TEMPCORR = %s, no temperature correction applied to %s' %(ofile[0].header['tempcorr'], filename)
+            print('TEMPCORR = %s, no temperature correction applied to %s' %(ofile[0].header['tempcorr'], filename))
 
 #-------------------------------------------------------------------------------
 
@@ -908,7 +909,7 @@ def bias_subtract_data(filename, biasfile):
 
     with pyfits.open(filename) as hdu:
         if (hdu[0].header['BLEVCORR'] == 'COMPLETE') or (hdu[0].header['BIASCORR'] == 'COMPLETE'):
-            print "BIAS correction already done for {}".format(filename)
+            print("BIAS correction already done for {}".format(filename))
             return filename
 
     if os.path.exists(filename.replace('raw', 'flc')):
@@ -936,10 +937,10 @@ def bias_subtract_data(filename, biasfile):
                      trailer=trailerfile)
     if status != 0:
         try:
-            print
+            print()
             with open(trailerfile) as tr:
                 for line in tr.readlines():
-                    print '    {}'.format(line.strip())
+                    print('    {}'.format(line.strip()))
         finally:
             raise Exception('BASIC2D failed to properly reduce {}'.format(filename))
 

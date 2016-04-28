@@ -6,7 +6,7 @@ import sys, os  #fix this sometime  Remove this and run Dark_Monitor.py and see 
 
 def createXmlFile(ftp_dir=None,set=None, file_type="all", archive_user=None, archive_pwd=None, email=None, host='science3.stsci.edu', ftp_user=None, ftp_pwd=None):
 
-    import sys, traceback, os, string, errno, glob, httplib, urllib, time
+    import sys, traceback, os, string, errno, glob, http.client, urllib.request, urllib.parse, urllib.error, time
 
     exposure_template = string.Template('\
 <?xml version=\"1.0\"?> \n \
@@ -28,14 +28,14 @@ def createXmlFile(ftp_dir=None,set=None, file_type="all", archive_user=None, arc
     </body> \n \
   </distributionRequest> \n' )
 
-    print archive_user,archive_pwd,ftp_user,ftp_pwd,ftp_dir,email
+    print(archive_user,archive_pwd,ftp_user,ftp_pwd,ftp_dir,email)
 
-    if not archive_user: archive_user = raw_input('I need your archive username: ')
-    if not archive_pwd: archive_pwd = raw_input('I need your archive password: ')
-    if not ftp_user: ftp_user = raw_input('I need the ftp username: ')
-    if not ftp_pwd: ftp_pwd = raw_input('I need the ftp password: ')
-    if not ftp_dir: ftp_dir = raw_input('Where would you like the files delivered: ')
-    if not email: email = raw_input('Please enter the email address for the notification: ')
+    if not archive_user: archive_user = input('I need your archive username: ')
+    if not archive_pwd: archive_pwd = input('I need your archive password: ')
+    if not ftp_user: ftp_user = input('I need the ftp username: ')
+    if not ftp_pwd: ftp_pwd = input('I need the ftp password: ')
+    if not ftp_dir: ftp_dir = input('Where would you like the files delivered: ')
+    if not email: email = input('Please enter the email address for the notification: ')
     datasets = "\n"
 
     if file_type == "all":
@@ -69,19 +69,19 @@ def createXmlFile(ftp_dir=None,set=None, file_type="all", archive_user=None, arc
     return xml_file
 
 def submitXmlFile(xml_file,server):
-    import sys, traceback, os, string, errno, httplib, urllib
+    import sys, traceback, os, string, errno, http.client, urllib.request, urllib.parse, urllib.error
 
     if server == "dmsops1.stsci.edu":
-        params = urllib.urlencode({'dadshost':'dmsops1.stsci.edu','dadsport': 4703, 'request': xml_file})
+        params = urllib.parse.urlencode({'dadshost':'dmsops1.stsci.edu','dadsport': 4703, 'request': xml_file})
     else:
-        params = urllib.urlencode({'dadshost':'sthubbins.stsci.edu','dadsport': 4703, 'request': xml_file})
+        params = urllib.parse.urlencode({'dadshost':'sthubbins.stsci.edu','dadsport': 4703, 'request': xml_file})
 
     headers = {"Accept": "text/html", "User-Agent":"%sDADSAll" % os.environ.get("USER")}
-    req = httplib.HTTPSConnection("archive.stsci.edu")
+    req = http.client.HTTPSConnection("archive.stsci.edu")
     req.request("POST", "/cgi-bin/dads.cgi", params, headers)
     resp = req.getresponse()
     textlines = resp.read()
-    print 'Request Submitted'
+    print('Request Submitted')
     return textlines
 
 class SybaseInterface:
@@ -334,7 +334,7 @@ def decimal_year(month,day,year):
     elif month==11: decimal_day=day+304
     elif month==12: decimal_day=day+334
     else:
-        print 'Input Error'
+        print('Input Error')
     decimal_day=decimal_day/365.0
     decimal_date=year+decimal_day
     return decimal_date
@@ -349,7 +349,7 @@ def sigma_clip(input_array, sigma=5, iterations=30, print_message=False):
     input_array=numpy.array(input_array)
     if len(input_array.shape)>1:
     	input_array=input_array.flatten()
-    for iteration in xrange(iterations):
+    for iteration in range(iterations):
     	if print_message:
     	    os.write(1,'\b\b\b\b\b\b\b\b\bPass: %d'%(iteration))
 
@@ -365,7 +365,7 @@ def sigma_clip(input_array, sigma=5, iterations=30, print_message=False):
 	    input_array=input_array[index]
 
     if print_message:
-        print '\n'
+        print('\n')
     return numpy.median(input_array),input_array.mean(),input_array.std()
 
 #---------------------------------------------------------------------------
@@ -444,4 +444,4 @@ def send_email(subject=None,message=None,from_addr=None,to_addr=None):
     s = smtplib.SMTP(svr_addr)
     s.sendmail(from_addr, to_addr, msg.as_string())
     s.quit()
-    print '\nEmail sent to %s \n' %(from_addr)
+    print('\nEmail sent to %s \n' %(from_addr))

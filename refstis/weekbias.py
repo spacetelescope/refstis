@@ -7,8 +7,8 @@ from astropy.stats import sigma_clipped_stats
 import numpy as np
 import shutil
 
-import support
-import functions
+from . import support
+from . import functions
 from .basejoint import replace_hot_cols
 
 #-------------------------------------------------------------------------------
@@ -44,11 +44,11 @@ def make_weekbias(input_list, refbias_name, basebias):
 
     """
 
-    print '#-------------------------------#'
-    print '#        Running weekbias       #'
-    print '#-------------------------------#'
-    print 'Output to %s' % (refbias_name)
-    print 'using {}'.format(basebias)
+    print('#-------------------------------#')
+    print('#        Running weekbias       #')
+    print('#-------------------------------#')
+    print('Output to %s' % (refbias_name))
+    print('using {}'.format(basebias))
 
     joined_out = refbias_name.replace('.fits', '_joined.fits')
     functions.msjoin(input_list, joined_out)
@@ -82,10 +82,10 @@ def make_weekbias(input_list, refbias_name, basebias):
     functions.update_header_from_input(refbias_name, input_list)
     fits.setval(refbias_name, 'TASKNAME', ext=0, value='WEEKBIAS')
 
-    print 'Cleaning up...'
+    print('Cleaning up...')
     functions.RemoveIfThere(crj_filename)
     functions.RemoveIfThere(joined_out)
 
-    print 'weekbias done for {}'.format(refbias_name)
+    print('weekbias done for {}'.format(refbias_name))
 
 #-------------------------------------------------------------------------------

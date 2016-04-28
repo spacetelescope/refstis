@@ -22,7 +22,7 @@ Test reference files and deliver.
 
 """
 
-from __future__ import division
+
 
 import sqlite3
 import glob
@@ -31,24 +31,24 @@ import sys
 from astropy.io import fits
 import argparse
 import textwrap
-import support
+from . import support
 import time
 import shutil
 import re
 import numpy as np
 import yaml
 
-from support import createXmlFile, submitXmlFile
+from .support import createXmlFile, submitXmlFile
 
-from functions import figure_number_of_periods, translate_date_string
-from retrieval import submit_xml_request, build_xml_request
-import pop_db
-import basedark
-import weekdark
-import refbias
-import weekbias
-import basejoint
-import functions
+from .functions import figure_number_of_periods, translate_date_string
+from .retrieval import submit_xml_request, build_xml_request
+from . import pop_db
+from . import basedark
+from . import weekdark
+from . import refbias
+from . import weekbias
+from . import basejoint
+from . import functions
 
 #dark_proposals = [7600, 7601, 8408, 8437, 8837, 8864, 8901, 8902, 9605, 9606,
 #                  10017, 10018, 11844, 11845, 12401, 12402, 12741, 12742]
@@ -61,9 +61,9 @@ bias_proposals = [11846, 11847, 12402, 12403, 12743, 12744, 13133, 13134, 13535,
 #-------------------------------------------------------------------------------
 
 def get_new_periods(products_directory, settings):
-    print '#-------------------#'
-    print 'Reading from database'
-    print '#-------------------#\n'
+    print('#-------------------#')
+    print('Reading from database')
+    print('#-------------------#\n')
     db = sqlite3.connect( "anneal_info.db" )
     c = db.cursor()
     table = 'anneals'
@@ -96,12 +96,12 @@ def get_new_periods(products_directory, settings):
         else:
             visit = str(visit)
 
-        print '#--------------------------------#'
-        print 'Searching for new observations for'
-        print 'Period: %d_%d_%s'%(year, proposal, visit)
-        print 'MJD %5.5f %5.5f'%(ref_begin, ref_end)
-        print month, day, year, ' to ', end_month, end_day, end_year
-        print '#--------------------------------#'
+        print('#--------------------------------#')
+        print('Searching for new observations for')
+        print('Period: %d_%d_%s'%(year, proposal, visit))
+        print('MJD %5.5f %5.5f'%(ref_begin, ref_end))
+        print(month, day, year, ' to ', end_month, end_day, end_year)
+        print('#--------------------------------#')
 
         products_folder = os.path.join(products_directory,
                                        '%d_%s' % (proposal, visit))
@@ -121,11 +121,11 @@ def get_new_periods(products_directory, settings):
         obs_to_get = [obs for obs in new_obs if not obs in already_retrieved]
 
         if not len(obs_to_get):
-            print 'No new obs to get, skipping this period\n\n'
+            print('No new obs to get, skipping this period\n\n')
             continue
         else:
-            print 'Found new observations for this period'
-            print obs_to_get, '\n\n'
+            print('Found new observations for this period')
+            print(obs_to_get, '\n\n')
 
         #response = collect_new(obs_to_get, settings)
         #dirs_to_process.append(products_folder)
@@ -309,10 +309,10 @@ def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
                       (1, 4, 2) : 4,
                       (4, 1, 1) : 1}
 
-    print '#-----------------------------#'
-    print '#  Making all ref files for   #'
-    print  root_folder
-    print '#-----------------------------#'
+    print('#-----------------------------#')
+    print('#  Making all ref files for   #')
+    print(root_folder)
+    print('#-----------------------------#')
 
     if not os.path.exists(root_folder):
         raise IOError('Root folder does not exist')
@@ -320,9 +320,9 @@ def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
     # separate raw files in folder into periods
     separate_period(root_folder)
 
-    print '###################'
-    print ' make the basebias '
-    print '###################'
+    print('###################')
+    print(' make the basebias ')
+    print('###################')
     raw_files = []
     for root, dirs, files in os.walk(os.path.join(root_folder, 'biases')):
         if not '1-1x1' in root:
@@ -334,13 +334,13 @@ def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
 
     basebias_name = os.path.join(root_folder, 'basebias.fits')
     if os.path.exists(basebias_name):
-        print '{} already exists, skipping'
+        print('{} already exists, skipping')
     else:
         basejoint.make_basebias(raw_files, basebias_name)
 
-    print '#######################'
-    print ' make the weekly biases'
-    print '#######################'
+    print('#######################')
+    print(' make the weekly biases')
+    print('#######################')
     #-- Find the premade folders if they exist
     gain_folders, week_folders = pull_out_subfolders(root_folder)
 
@@ -348,10 +348,10 @@ def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
     basebias_name = last_basebias or basebias_name
 
     bias_folders = [item for item in week_folders if '/biases/' in item]
-    print bias_folders
+    print(bias_folders)
 
     for folder in sorted(bias_folders):
-        print 'Processing {}'.format(folder)
+        print('Processing {}'.format(folder))
 
         proposal, wk, visit = pull_info(folder)
 
@@ -365,7 +365,7 @@ def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
         weekbias_name = os.path.join(folder,
                                      'weekbias_%s_%s_%s_bia.fits'%(proposal, visit, wk))
         if os.path.exists(weekbias_name):
-            print '{} already exists, skipping'
+            print('{} already exists, skipping')
             continue
 
         #make weekbias if too few imsets
@@ -377,8 +377,8 @@ def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
                 all_subnames = []
                 for i, sub_list in enumerate(super_list):
                     subname = weekbias_name.replace('.fits', '_grp0'+str(i+1)+'.fits')
-                    print 'Making sub-file for datasets'
-                    print sub_list
+                    print('Making sub-file for datasets')
+                    print(sub_list)
                     refbias.make_refbias(sub_list, subname)
                     all_subnames.append(subname)
                 functions.refaver(all_subnames, weekbias_name)
@@ -386,14 +386,14 @@ def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
                 refbias.make_refbias(raw_files, weekbias_name)
 
 
-    print '#######################'
-    print ' make the weekly darks '
-    print '#######################'
+    print('#######################')
+    print(' make the weekly darks ')
+    print('#######################')
     all_flt_darks = []
     dark_folders = [item for item in week_folders if '/darks/' in item]
-    print dark_folders
+    print(dark_folders)
     for folder in sorted(dark_folders):
-        print 'Prepping {}'.format(folder)
+        print('Prepping {}'.format(folder))
 
         proposal, wk, visit = pull_info(folder)
 
@@ -404,13 +404,13 @@ def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
 
         raw_files = glob.glob(os.path.join(folder, '*raw.fits'))
         for item in raw_files:
-            print "bias subtracting"
+            print("bias subtracting")
             flt_name = functions.bias_subtract_data(item, weekbias_name)
             all_flt_darks.append(flt_name)
 
 
     for folder in sorted(dark_folders):
-        print 'Processing {}'.format(folder)
+        print('Processing {}'.format(folder))
         raw_files = glob.glob(os.path.join(folder, '*flt.fits'))
         n_imsets = functions.count_imsets(raw_files)
 
@@ -422,7 +422,7 @@ def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
         weekdark_name = os.path.join(folder,
                                      'weekdark_%s_%s_%s_drk.fits'%(proposal, visit, wk))
         if os.path.exists(weekdark_name):
-            print '{} already exists, skipping'
+            print('{} already exists, skipping')
             continue
 
 
@@ -457,7 +457,7 @@ def clean_directory(root_path):
     for root, dirs, files in os.walk(root_path):
         for filename in files:
             if not filename.endswith('_raw.fits'):
-                print 'Removing: ', filename
+                print('Removing: ', filename)
                 os.remove(os.path.join( root, filename))
 
 #-------------------------------------------------------------------------------
@@ -513,13 +513,13 @@ def move(folder):
             full_path = os.path.join(root, filename)
             if 'biases/4-1x1/' in full_path and 'weekbias_' in filename:
                 shutil.copy(full_path, destination)
-                print full_path
+                print(full_path)
             if 'biases/1-1x1/' in full_path and 'weekbias_' in filename and not 'grp' in filename:
                 shutil.copy(full_path, destination)
-                print full_path
+                print(full_path)
             if 'darks' in full_path and 'weekdark_' in filename:
                 shutil.copy(full_path, destination)
-                print full_path
+                print(full_path)
 
 #-------------------------------------------------------------------------------
 
@@ -534,7 +534,7 @@ def get_new_obs(file_type, start, end, settings):
         MIN_EXPTIME = -1
         MAX_EXPTIME = 100
     else:
-        print 'file type not recognized: ', file_type
+        print('file type not recognized: ', file_type)
 
     # Gather configuration settings
     mast_server = settings['mast_server']
@@ -569,11 +569,11 @@ def get_new_obs(file_type, start, end, settings):
     mast_rootnames = [item.lower().strip().split('|')[1] for item in mast_results]
 
     obs_names = np.array(mast_rootnames)
-    start_times_MJD = np.array(map(translate_date_string, mast_start_times))
+    start_times_MJD = np.array(list(map(translate_date_string, mast_start_times)))
     index = np.where((start_times_MJD > start) & (start_times_MJD < end))[0]
 
     if not len(index):
-        print "WARNING: didn't find any datasets, skipping"
+        print("WARNING: didn't find any datasets, skipping")
         return []
 
     assert start_times_MJD[index].min() > start, 'Data has mjd before period start'
@@ -610,17 +610,17 @@ def separate_period(base_dir):
     """
 
 
-    print 'Separating', base_dir
+    print('Separating', base_dir)
     all_files = glob.glob(os.path.join(base_dir, 'o*_raw.fits'))
     if not len(all_files):
-        print "nothing to move"
+        print("nothing to move")
         return
 
     mjd_times = np.array([fits.getval(item, 'EXPSTART', ext=1)
                           for item in all_files])
     month_begin = mjd_times.min()
     month_end = mjd_times.max()
-    print 'All data goes from', month_begin, ' to ',  month_end
+    print('All data goes from', month_begin, ' to ',  month_end)
 
     select_gain = {'WK' : 1,
                    'BIWK' : 4}
@@ -637,10 +637,10 @@ def separate_period(base_dir):
                     obs_list.append(item)
 
         if not len(obs_list):
-            print '{} No obs to move.  Skipping'.format(mode)
+            print('{} No obs to move.  Skipping'.format(mode))
             continue
         else:
-            print file_type,  mode, len(obs_list), 'files to move, ', 'gain = ', gain
+            print(file_type,  mode, len(obs_list), 'files to move, ', 'gain = ', gain)
 
         N_days = int(month_end - month_begin)
         N_periods = figure_number_of_periods(N_days, mode)
@@ -659,14 +659,14 @@ def separate_period(base_dir):
             end += item
             anneal_weeks.append((start, end))
 
-        print
-        print file_type, mode, 'will be broken up into %d periods as follows:'%(N_periods)
-        print '\tWeek start, Week end'
+        print()
+        print(file_type, mode, 'will be broken up into %d periods as follows:'%(N_periods))
+        print('\tWeek start, Week end')
         for a_week in anneal_weeks:
-            print '\t', a_week
-        print
+            print('\t', a_week)
+        print()
 
-        for period in xrange(N_periods):
+        for period in range(N_periods):
             begin, end = anneal_weeks[period]
             # weeks from 1-4, not 0-3
             week = str(period + 1)
@@ -683,13 +683,13 @@ def separate_period(base_dir):
                 output_path = os.path.join(output_path,
                                            'darks/%s%s/'%(mode.lower(), week))
             else:
-                print 'File Type not recognized'
+                print('File Type not recognized')
 
-            print output_path
+            print(output_path)
             if not os.path.exists(output_path):
                 os.makedirs(output_path)
 
-            print 'week goes from: ', begin, end
+            print('week goes from: ', begin, end)
             obs_to_move = [item for item in obs_list if
                            (begin <= fits.getval(item, 'EXPSTART', ext=1) <= end)]
 
@@ -697,7 +697,7 @@ def separate_period(base_dir):
                 raise ValueError('error, empty list to move')
 
             for item in obs_to_move:
-                print 'Moving ', item,  ' to:', output_path
+                print('Moving ', item,  ' to:', output_path)
                 shutil.move(item,  output_path)
                 if not 'IMPHTTAB' in fits.getheader(os.path.join(output_path,
                                                                  item.split('/')[-1]), 0):
@@ -717,13 +717,13 @@ def separate_obs(base_dir, month_begin, month_end, all_files=None):
     if not all_files:
         all_files = glob.glob(os.path.join(retrieve_directory, '*raw.fits'))
 
-    print 'Separating', base_dir
-    print
-    print 'Period runs from', month_begin, ' to ',  month_end
+    print('Separating', base_dir)
+    print()
+    print('Period runs from', month_begin, ' to ',  month_end)
 
     mjd_times = np.array([fits.getval(item, 'EXPSTART', ext=1)
                           for item in all_files])
-    print 'All data goes from', mjd_times.min(), ' to ',  mjd_times.max()
+    print('All data goes from', mjd_times.min(), ' to ',  mjd_times.max())
 
     select_gain = {'WK' : 1,
                    'BIWK' : 4}
@@ -740,10 +740,10 @@ def separate_obs(base_dir, month_begin, month_end, all_files=None):
                     obs_list.append(item)
 
         if not len(obs_list):
-            print '%s No obs to move.  Skipping'%(mode)
+            print('%s No obs to move.  Skipping'%(mode))
             continue
 
-        print file_type,  mode, len(obs_list), 'files to move, ', 'gain = ', gain
+        print(file_type,  mode, len(obs_list), 'files to move, ', 'gain = ', gain)
 
         N_days = int(round(month_end - month_begin))
         N_periods = figure_number_of_periods(N_days, mode)
@@ -751,14 +751,14 @@ def separate_obs(base_dir, month_begin, month_end, all_files=None):
 
         anneal_weeks = [(month_begin + item - week_lengths[0], month_begin + item) for item in np.cumsum(week_lengths)]
 
-        print
-        print file_type, mode, 'will be broken up into %d periods as follows:'%(N_periods)
-        print '\tWeek start, Week end'
+        print()
+        print(file_type, mode, 'will be broken up into %d periods as follows:'%(N_periods))
+        print('\tWeek start, Week end')
         for a_week in anneal_weeks:
-            print '\t', a_week
-        print
+            print('\t', a_week)
+        print()
 
-        for period in xrange(N_periods):
+        for period in range(N_periods):
             begin, end = anneal_weeks[period]
             # weeks from 1-4, not 0-3
             week = str(period + 1)
@@ -775,22 +775,22 @@ def separate_obs(base_dir, month_begin, month_end, all_files=None):
                 output_path = os.path.join(output_path,
                                            'darks/%s%s/'%(mode.lower(), week))
             else:
-                print 'File Type not recognized'
+                print('File Type not recognized')
 
-            print output_path
+            print(output_path)
             if not os.path.exists(output_path):
                 os.makedirs(output_path)
 
-            print 'week goes from: ', begin, end
+            print('week goes from: ', begin, end)
             obs_to_move = [item for item in obs_list if
                             ((fits.getval(item, 'EXPSTART', ext=1) >= begin) and
                              (fits.getval(item, 'EXPSTART', ext=1) < end))]
 
             if not len(obs_to_move):
-                print 'error, empty list to move'
+                print('error, empty list to move')
 
             for item in obs_to_move:
-                print 'Moving ', item,  ' to:', output_path
+                print('Moving ', item,  ' to:', output_path)
                 shutil.move(item,  output_path)
                 if not 'IMPHTTAB' in fits.getheader(os.path.join(output_path,
                                                                  item.split('/')[-1]), 0):
@@ -803,7 +803,7 @@ def separate_obs(base_dir, month_begin, month_end, all_files=None):
 #-----------------------------------------------------------------------
 
 def move_obs(new_obs, base_output_dir, retrieve_directory):
-    print 'Files not yet delivered.'
+    print('Files not yet delivered.')
     delivered_set = set( [ os.path.split(item)[-1][:9].upper() for
                            item in glob.glob( os.path.join(retrieve_directory, '*raw*.fits') ) ] )
     new_set = set(new_obs)
@@ -822,7 +822,7 @@ def move_obs(new_obs, base_output_dir, retrieve_directory):
     list_to_move = [ os.path.join( retrieve_directory, item.lower()+'_raw.fits') for item in new_obs ]
 
     for item in list_to_move:
-        print 'Moving ', item,  ' to:', base_output_dir
+        print('Moving ', item,  ' to:', base_output_dir)
         shutil.move( item, base_output_dir )
 
     list_to_remove = glob.glob( os.path.join(retrieve_directory, '*.fits') )

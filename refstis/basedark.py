@@ -1,19 +1,23 @@
 """Functions to create a BaseDark for the STIS instrument
 """
 
+
+
 from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
 import numpy as np
 from scipy.ndimage.filters import median_filter
 import shutil
 
-import functions
-import support
+from . import functions
+from . import support
 
 #-------------------------------------------------------------------------------
 
 def update_sci(filename):
     """Create the science extension of the baseline dark
+
+    THIS APPEARS
 
     .. note:: The input file will be updated in-place.
 
@@ -95,18 +99,20 @@ def make_basedark(input_list, refdark_name='basedark.fits', bias_file=None):
     -----------
     input_list : list
         list of input dark files
+
     refdark_name : str
         name of the output reference file
+
     bias_file : str
         bias file to be used in calibration
 
     """
 
-    print '#-------------------------------#'
-    print '#        Running basedark       #'
-    print '#-------------------------------#'
-    print 'output to: %s' % refdark_name
-    print 'with biasfile %s' % bias_file
+    print('#-------------------------------#')
+    print('#        Running basedark       #')
+    print('#-------------------------------#')
+    print('output to: %s' % refdark_name)
+    print('with biasfile %s' % bias_file)
 
     #-- bias subtract data if not already done
     flt_list = [functions.bias_subtract_data(item, bias_file) for item in input_list]
@@ -122,10 +128,10 @@ def make_basedark(input_list, refdark_name='basedark.fits', bias_file=None):
     #if not bias_file:
     #    raise IOError('No biasfile specified, this task needs one to run')
 
-    print 'Joining images'
+    print('Joining images')
     functions.msjoin(flt_list, joined_filename)
 
-    print 'Performing CRREJECT'
+    print('Performing CRREJECT')
     crdone = functions.bd_crreject(joined_filename)
     if not crdone:
         functions.bd_calstis(joined_filename, bias_file)
@@ -139,11 +145,11 @@ def make_basedark(input_list, refdark_name='basedark.fits', bias_file=None):
     functions.update_header_from_input(refdark_name, input_list)
     fits.setval(refdark_name, 'TASKNAME', ext=0, value='BASEDARK')
 
-    print 'Cleaning...'
+    print('Cleaning...')
     functions.RemoveIfThere(crj_filename)
     functions.RemoveIfThere(joined_filename)
     #map(functions.RemoveIfThere, flt_list)
 
-    print 'basedark done for {}'.format(refdark_name)
+    print('basedark done for {}'.format(refdark_name))
 
 #-------------------------------------------------------------------------------

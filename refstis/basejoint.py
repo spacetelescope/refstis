@@ -33,8 +33,8 @@ import shutil
 import sys
 import stistools
 
-import support
-import functions
+from . import support
+from . import functions
 
 #-------------------------------------------------------------------------------
 
@@ -119,7 +119,7 @@ def calibrate(input_file):
     if not 'oref' in os.environ:
         os.environ['oref'] = '/grp/hst/cdbs/oref/'
 
-    print 'Calibrating %s' % (input_file)
+    print('Calibrating %s' % (input_file))
     output_blev = input_file.replace('.fits', '_blev.fits')
     functions.RemoveIfThere(output_blev)
     output_crj = input_file.replace('.fits', '_crj.fits')
@@ -179,7 +179,7 @@ def calibrate(input_file):
                                           trailer="/dev/null")
 
         elif (crcorr == "COMPLETE"):
-            print "CR rejection already done"
+            print("CR rejection already done")
             os.rename(input_file, output_crj)
 
     fits.setval(output_crj, 'FILENAME', value=os.path.split(output_crj)[-1])
@@ -200,13 +200,13 @@ def replace_hot_cols(mean_bias, median_image, residual_image, yfrac=1):
 
     """
 
-    print 'Replacing hot column'
+    print('Replacing hot column')
     residual_columns_2d = functions.make_resicols_image(residual_image,
                                                         yfrac=yfrac)
 
     resi_cols_mean, resi_cols_median, resi_cols_std = sigma_clipped_stats(residual_columns_2d[0], sigma=3, iters=40)
 
-    print 'thresh mean,sigma = {} {}'.format(resi_cols_mean, resi_cols_std)
+    print('thresh mean,sigma = {} {}'.format(resi_cols_mean, resi_cols_std))
     replval = resi_cols_mean + 3.0 * resi_cols_std
     index = np.where(residual_columns_2d >= replval)
 
@@ -234,14 +234,14 @@ def replace_hot_pix(mean_bias, median_image):
 
     """
 
-    print 'Replacing hot pixels'
+    print('Replacing hot pixels')
     residual_image = fits.getdata(mean_bias, ext=('sci', 1)) - median_image
     resi_mean, resi_median, resi_std = sigma_clipped_stats(residual_image,
                                                            sigma=5,
                                                            iters=40)
 
     fivesig = resi_mean + (5.0 * resi_std)
-    print "  hot is > {}".format(fivesig)
+    print("  hot is > {}".format(fivesig))
     index = np.where(residual_image >= fivesig)
 
     with fits.open(mean_bias, mode='update') as hdu:
@@ -267,18 +267,18 @@ def make_basebias(input_list, refbias_name='basebias.fits'):
 
     """
 
-    print '#-------------------------------#'
-    print '#        Running basejoint      #'
-    print '#-------------------------------#'
-    print 'Output to %s' % refbias_name
+    print('#-------------------------------#')
+    print('#        Running basejoint      #')
+    print('#-------------------------------#')
+    print('Output to %s' % refbias_name)
 
-    print 'Processing individual files'
+    print('Processing individual files')
     crj_list = [calibrate(item) for item in input_list]
     crj_list = [item for item in crj_list if item != None]
 
     mean_bias, totalweight = average_biases(crj_list)
 
-    print 'Replacing hot columns and pixels by median-smoothed values'
+    print('Replacing hot columns and pixels by median-smoothed values')
     residual_image, median_image = functions.make_residual(mean_bias)
 
     replace_hot_cols(mean_bias, median_image, residual_image)
@@ -293,11 +293,11 @@ def make_basebias(input_list, refbias_name='basebias.fits'):
     fits.setval(refbias_name, 'NCOMBINE', value=totalweight, ext=1)
     fits.setval(refbias_name, 'TASKNAME', ext=0, value='BASEJOIN')
 
-    print 'Cleaning up...'
+    print('Cleaning up...')
     functions.RemoveIfThere(mean_bias)
     for item in crj_list:
         functions.RemoveIfThere(item)
 
-    print 'basejoint done for {}'.format(refbias_name)
+    print('basejoint done for {}'.format(refbias_name))
 
 #-------------------------------------------------------------------------------

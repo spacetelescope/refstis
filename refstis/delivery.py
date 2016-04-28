@@ -29,9 +29,9 @@ def plot_obset(folder):
 
     plt.ioff()
 
-    print '#----------#'
-    print 'Making Plots'
-    print '#----------#'
+    print('#----------#')
+    print('Making Plots')
+    print('#----------#')
     bias = []
     biwk = []
     dark = []
@@ -47,7 +47,7 @@ def plot_obset(folder):
     plt.figure(figsize=(14, 20))
     plt.suptitle('Bias: collapsed rows, colums, and means')
     for i, ifile in enumerate(bias):
-        print ifile
+        print(ifile)
         data = pyfits.getdata(ifile, 1)
         plt.subplot(4, 1, 1)
         plt.plot( np.sum(data, axis=0), label=ifile)
@@ -77,7 +77,7 @@ def plot_obset(folder):
     plt.figure(figsize=(14, 20))
     plt.suptitle('Dark: collapsed rows, colums, and means')
     for i, ifile in enumerate(dark):
-        print ifile
+        print(ifile)
         data = pyfits.getdata(ifile, 1)
         plt.subplot(4, 1, 1)
         plt.plot( np.sum(data, axis=0), label=ifile)
@@ -107,7 +107,7 @@ def plot_obset(folder):
     plt.figure(figsize=(14, 20))
     plt.suptitle('BiWeek bias: collapsed rows, colums, and means')
     for i, ifile in enumerate(biwk):
-        print ifile
+        print(ifile)
         data = pyfits.getdata(ifile, 1)
         plt.subplot(4, 1, 1)
         plt.plot( np.sum(data, axis=0), label=ifile)
@@ -140,8 +140,8 @@ def set_descrip(folder):
     """ Make sure the descriptions are useful.  Should be removed when using
         the new version of the pipeline.
     """
-    print 'Making headers pretty'
-    print 'WARNING: Make sure to take this out when using the new refstis'
+    print('Making headers pretty')
+    print('WARNING: Make sure to take this out when using the new refstis')
 
     for item in glob.glob(os.path.join(folder, '*.fits')):
         hdu = pyfits.open(item)
@@ -172,30 +172,30 @@ def regress(folder):
 
     start_dir = os.getcwd()
 
-    print '#------------------#'
-    print 'Running regression for'
-    print folder
-    print '#------------------#'
+    print('#------------------#')
+    print('Running regression for')
+    print(folder)
+    print('#------------------#')
 
     monitor_dir = '/grp/hst/stis/darks_biases'
     test_suite = os.path.join(monitor_dir, 'test_suite')
     test_dark = os.path.join(monitor_dir, 'test_dark')
 
-    print glob.glob(os.path.join(folder, '*bia.fits'))
+    print(glob.glob(os.path.join(folder, '*bia.fits')))
     reference_files = glob.glob(os.path.join(folder, '*bia.fits')) + \
                     glob.glob(os.path.join(folder, '*drk.fits'))
-    print reference_files
+    print(reference_files)
     assert len(reference_files) >= 1, 'No reference files in folder'
 
-    print 'Copying files and removing old files'
+    print('Copying files and removing old files')
     for testing_dir in [test_suite, test_dark]:
         for oldfile in glob.glob(os.path.join(testing_dir, '*_drk.fits')) + \
                 glob.glob(os.path.join(testing_dir, '*_bia.fits')):
-            print 'removing', oldfile
+            print('removing', oldfile)
             os.remove(os.path.join(testing_dir, oldfile))
 
         for newfile in reference_files:
-            print 'moving', newfile, '-->', testing_dir
+            print('moving', newfile, '-->', testing_dir)
             shutil.copy(newfile, testing_dir)
 
 
@@ -205,7 +205,7 @@ def regress(folder):
 
 
     os.chdir(test_suite)
-    print os.getcwd()
+    print(os.getcwd())
 
     bias_biwk_refs = glob.glob('*bias*_bi*.fits')
     bias_biwk_refs.sort()
@@ -216,14 +216,14 @@ def regress(folder):
 
     raws = glob.glob('*raw.fits')
 
-    print 'Setting IMPHTTAB in datasets'
+    print('Setting IMPHTTAB in datasets')
 
     for dark, bias in zip(darkrefs, biasrefs):
         remove_products()
 
-        print '#-------------------------------------------#'
-        print 'Running CalSTIS with %s %s ' % (dark, bias)
-        print '#-------------------------------------------#'
+        print('#-------------------------------------------#')
+        print('Running CalSTIS with %s %s ' % (dark, bias))
+        print('#-------------------------------------------#')
 
         for rawfile in raws:
             if os.path.exists( rawfile.replace('raw.fits', 'wav.fits') ):
@@ -248,11 +248,11 @@ def regress(folder):
     ######################################
 
     os.chdir(test_dark)
-    print os.getcwd()
+    print(os.getcwd())
 
     raws = glob.glob('*raw.fits')
 
-    print 'Setting IMPHTTAB in datasets'
+    print('Setting IMPHTTAB in datasets')
     for item in raws:
         pyfits.setval(item, 'IMPHTTAB', value='oref$x9r1607mo_imp.fits', ext=0)
 
@@ -260,9 +260,9 @@ def regress(folder):
 
         remove_products()
 
-        print '#------------------------------------------#'
-        print 'Running CalSTIS with %s' % (bias)
-        print '#------------------------------------------#'
+        print('#------------------------------------------#')
+        print('Running CalSTIS with %s' % (bias))
+        print('#------------------------------------------#')
 
         for rawfile in raws:
 
@@ -385,16 +385,16 @@ def remove_products():
     for ext in ext_list:
         file_list = glob.glob(ext)
         if file_list != []:
-            print 'removing {} files'.format( ext )
+            print('removing {} files'.format( ext ))
             for file in file_list:
                 os.remove(file)
 
 #----------------------------------------------------------------
 
 def run_cdbs_checks():
-    print 'Round one'
+    print('Round one')
     os.system('python %slength_descrip_CDBS.py' % (monitor_dir))
-    print '\n\nRound two'
+    print('\n\nRound two')
     os.system('python %slength_descrip_CDBS.py' % (monitor_dir))
 
     for command in ['certify *.fits', 'fitsverify_delivery *.fits']:
@@ -407,10 +407,10 @@ def check_all(folder):
     send_forms(folder)
     regress(folder)
 
-    print '#-------------------------------------------#'
-    print 'Darks and Bias Monitor complete.  '
-    print 'Please run certify and fitsverify'
-    print 'Please send delievery form to cdbs@stsci.edu.'
-    print '#-------------------------------------------#'
+    print('#-------------------------------------------#')
+    print('Darks and Bias Monitor complete.  ')
+    print('Please run certify and fitsverify')
+    print('Please send delievery form to cdbs@stsci.edu.')
+    print('#-------------------------------------------#')
 
 #----------------------------------------------------------------

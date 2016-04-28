@@ -1,5 +1,5 @@
 import os
-import urllib
+import urllib.request, urllib.parse, urllib.error
 import string
 
 from .SignStsciRequest import SignStsciRequest
@@ -79,7 +79,7 @@ def submit_xml_request(xml_request, settings):
 
     signer = SignStsciRequest()
     request_xml_str = signer.signRequest('{0}/.ssh/privkey.pem'.format(home), xml_request)
-    params = urllib.urlencode({'dadshost': settins['dads_host'],
+    params = urllib.parse.urlencode({'dadshost': settins['dads_host'],
                                 'dadsport': 4703,
                                 'mission':'HST',
                                 'request': request_xml_str})

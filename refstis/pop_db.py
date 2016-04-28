@@ -37,7 +37,7 @@ def get_directories():
                     crj_list = glob.glob(path + '?????????_crj.fits')
                     crj_list.sort()
                     if len(crj_list) == 2:
-                        print path
+                        print(path)
                         directories.append( path )
     return directories
 
@@ -54,13 +54,13 @@ def grab_anneal_mjds():
 
     """
 
-    print 'Getting anneal information'
+    print('Getting anneal information')
     anneal_info = []
     for directory in get_directories():
         anneal_obs = glob.glob( os.path.join(directory, '?????????_crj.fits') )
         anneal_obs.sort()
         if len(anneal_obs) != 2:
-            print 'Error in ', directory
+            print('Error in ', directory)
             continue
 
         proposid = pyfits.getval( anneal_obs[0], 'PROPOSID', ext=0 )
@@ -89,7 +89,7 @@ def pop_database(anneal_info):
 
     """
 
-    print 'Populating Anneal database'
+    print('Populating Anneal database')
     db = sqlite3.connect("anneal_info.db")
     c = db.cursor()
     table = 'anneals'
@@ -108,10 +108,10 @@ def pop_database(anneal_info):
                   (table), (i+1, proposid, visit_number, start, end))
     db.commit()
     c.execute("""SELECT * FROM %s """ % (table))
-    print 'Database Populated'
-    print '------------------'
+    print('Database Populated')
+    print('------------------')
     for row in c:
-        print row
+        print(row)
 
 #-------------------------------------------------------------------------------
 

@@ -8,8 +8,8 @@ import numpy as np
 from scipy.signal import medfilt
 import shutil
 
-import support
-import functions
+from . import support
+from . import functions
 
 #-------------------------------------------------------------------------------
 
@@ -38,7 +38,7 @@ def create_superdark(crj_filename, basedark):
                                                                iters=40)
 
         p_five_sigma = data_median + (5*data_std)
-        print 'hot pixels are defined as above: ', p_five_sigma
+        print('hot pixels are defined as above: ', p_five_sigma)
         basedark_hdu = fits.open(basedark)
 
         base_mean, base_median, base_std = sigma_clipped_stats(basedark_hdu[('sci', 1)].data,
@@ -100,15 +100,15 @@ def make_weekdark(input_list, refdark_name, thebasedark, thebiasfile=None):
 
     """
 
-    print '#-------------------------------#'
-    print '#        Running weekdark       #'
-    print '#-------------------------------#'
+    print('#-------------------------------#')
+    print('#        Running weekdark       #')
+    print('#-------------------------------#')
     if not thebiasfile:
         thebiasfile = fits.getval(input_list[0], 'biasfile', 0)
 
-    print 'Making weekdark %s' % (refdark_name)
-    print 'With : %s' % (thebiasfile)
-    print '     : %s' % (thebasedark)
+    print('Making weekdark %s' % (refdark_name))
+    print('With : %s' % (thebiasfile))
+    print('     : %s' % (thebasedark))
 
     flt_list = [functions.bias_subtract_data(item, thebiasfile) for item in input_list]
 
@@ -121,11 +121,11 @@ def make_weekdark(input_list, refdark_name, thebasedark, thebiasfile=None):
             functions.apply_dark_correction(filename, texpstrt)
 
     joined_out = refdark_name.replace('.fits', '_joined.fits')
-    print 'Joining images to %s' % joined_out
+    print('Joining images to %s' % joined_out)
     functions.msjoin(flt_list, joined_out)
 
     crdone = functions.bd_crreject(joined_out)
-    print "## crdone is ", crdone
+    print("## crdone is ", crdone)
     if not crdone:
         functions.bd_calstis(joined_out, thebiasfile)
 
@@ -138,11 +138,11 @@ def make_weekdark(input_list, refdark_name, thebasedark, thebiasfile=None):
     functions.update_header_from_input(refdark_name, input_list)
     fits.setval(refdark_name, 'TASKNAME', ext=0, value='WEEKDARK')
 
-    print 'Cleaning up...'
+    print('Cleaning up...')
     functions.RemoveIfThere(crj_filename)
     functions.RemoveIfThere(joined_out)
     #map(functions.RemoveIfThere, flt_list)
 
-    print 'Weekdark done for {}'.format(refdark_name)
+    print('Weekdark done for {}'.format(refdark_name))
 
 #-------------------------------------------------------------------------------

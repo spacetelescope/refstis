@@ -1,4 +1,5 @@
 astropy
+numpy==1.11.0
 stistools==1.0.2
 stsci.convolve==2.2.0
 stsci.distutils==0.3.7

@@ -4,3 +4,4 @@ stsci.convolve==2.2.0
 stsci.distutils==0.3.7
 stsci.tools==3.4
 stsci.ndimage
+scipy

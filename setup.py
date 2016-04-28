@@ -6,7 +6,7 @@ import glob
 
 setup(
     name = 'refstis',
-    version = '0.5.1', 
+    version = '0.5.1',
     description = 'Pipeline to create STIS CCD superdarks and superbiases',
     author = 'Justin Ely',
     author_email = 'ely@stsci.edu',
@@ -19,8 +19,6 @@ setup(
                    'Topic :: Scientific/Engineering :: Physics',
                    'Topic :: Software Development :: Libraries :: Python Modules'],
     scripts = glob.glob('scripts/*'),
-    include_package_data = True,
-    package_data = {'': ['pipeline_data/config.yaml']},
     install_requires = ['setuptools',
                         'numpy',
                         'astropy>=1.0.1',

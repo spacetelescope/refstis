@@ -38,10 +38,10 @@ import re
 import numpy as np
 import yaml
 
-from support import SybaseInterface
 from support import createXmlFile, submitXmlFile
 
 from functions import figure_number_of_periods, translate_date_string
+from retrieval import submit_xml_request, build_xml_request
 import pop_db
 import basedark
 import weekdark
@@ -55,13 +55,12 @@ import functions
 #bias_proposals = [7600, 7601, 8409, 8439, 8838, 8865, 8903, 8904, 9607, 9608,
 #                  10019, 10020, 11846, 11847, 12403, 12404, 12743, 12744]
 
-dark_proposals = [11844, 11845, 12400, 12401, 12741, 12742, 13131, 13132, 13518, 13519]
-bias_proposals = [11846, 11847, 12402, 12403, 12743, 12744, 13133, 13134, 13535, 13536]
-
+dark_proposals = [11844, 11845, 12400, 12401, 12741, 12742, 13131, 13132, 13518, 13519, 13980, 13981, 14412, 14413]
+bias_proposals = [11846, 11847, 12402, 12403, 12743, 12744, 13133, 13134, 13535, 13536, 13982, 13983, 14414, 14415]
 
 #-------------------------------------------------------------------------------
 
-def get_new_periods(products_directory):
+def get_new_periods(products_directory, settings):
     print '#-------------------#'
     print 'Reading from database'
     print '#-------------------#\n'
@@ -81,7 +80,7 @@ def get_new_periods(products_directory):
 
     dirs_to_process = []
 
-    for i in range( len(table_id_all) )[::-1]:
+    for i in range(len(table_id_all))[::-1]:
         if i == len(table_id_all) - 1: continue
         ref_begin = anneal_end_all[i]
         ref_end = anneal_start_all[i + 1]
@@ -106,19 +105,18 @@ def get_new_periods(products_directory):
 
         products_folder = os.path.join(products_directory,
                                        '%d_%s' % (proposal, visit))
-        dirs_to_process.append(products_folder)
 
         if not os.path.exists(products_folder):
             os.makedirs(products_folder)
-        '''
+
         already_retrieved = []
         for root, dirs, files in os.walk(products_folder):
             for filename in files:
                 if filename.endswith('_raw.fits'):
-                    already_retrieved.append( filename[:9].upper() )
+                    already_retrieved.append(filename[:9])
 
-        new_obs = get_new_obs('DARK', ref_begin, ref_end) + \
-            get_new_obs('BIAS', ref_begin, ref_end)
+        new_obs = get_new_obs('DARK', ref_begin, ref_end, settings) + \
+                  get_new_obs('BIAS', ref_begin, ref_end, settings)
 
         obs_to_get = [obs for obs in new_obs if not obs in already_retrieved]
 
@@ -129,11 +127,11 @@ def get_new_periods(products_directory):
             print 'Found new observations for this period'
             print obs_to_get, '\n\n'
 
-        ### response = collect_new( obs_to_get )
-        ### move_obs( obs_to_get, products_folder)
-        separate_obs(products_folder, ref_begin, ref_end)
-        '''
-    sys.exit('done')
+        #response = collect_new(obs_to_get, settings)
+        #dirs_to_process.append(products_folder)
+        #move_obs(obs_to_get, products_folder, settings['retrieve_directory'])
+        #separate_obs(products_folder, ref_begin, ref_end)
+
     return dirs_to_process
 
 #-------------------------------------------------------------------------------
@@ -339,19 +337,6 @@ def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
         print '{} already exists, skipping'
     else:
         basejoint.make_basebias(raw_files, basebias_name)
-    '''
-    print '###################'
-    print ' make the basedarks '
-    print '###################'
-    all_raw_darks = []
-    for root, dirs, files in os.walk(os.path.join(root_folder, 'darks')):
-        for filename in files:
-            if filename.startswith('o') and filename.endswith('_raw.fits'):
-                full_filename = os.path.join(root, filename)
-                with fits.open(full_filename) as hdu:
-                    if hdu[0].header['TARGNAME'] == 'DARK' and hdu[0].header['CCDGAIN'] == 1 and (1000 < hdu[0].header['TEXPTIME'] < 1200):
-                        all_raw_darks.append(full_filename)
-    '''
 
     print '#######################'
     print ' make the weekly biases'
@@ -477,7 +462,68 @@ def clean_directory(root_path):
 
 #-------------------------------------------------------------------------------
 
-def get_new_obs(file_type, start, end):
+def reset(folder):
+    for root, dirs, files in os.walk(folder):
+        for filename in files:
+            if '_raw.fits' in filename:
+                full = os.path.join(root, filename)
+                if not os.path.exists(os.path.join(folder, filename)):
+                    shutil.move(full, folder)
+
+    os.system('rm -fR {}'.format(os.path.join(folder, 'darks')))
+    os.system('rm -fR {}'.format(os.path.join(folder, 'biases')))
+    for item in glob.glob('{}/basedark.fits'.format(folder)):
+        os.remove(item)
+
+    for item in glob.glob('{}/basedark_?????_*.fits'.format(folder)):
+        os.remove(item)
+
+    for item in glob.glob('{}/basebias.fits'.format(folder)):
+        os.remove(item)
+
+    for item in glob.glob('{}/*_flt.fits'.format(folder)):
+        os.remove(item)
+
+    for item in glob.glob('{}/*_crj.fits'.format(folder)):
+        os.remove(item)
+
+    for item in glob.glob('{}/*_blev.fits'.format(folder)):
+        os.remove(item)
+
+    for item in glob.glob('{}/weekdark*.fits'.format(folder)):
+        os.remove(item)
+
+    for item in glob.glob('{}/weekbias*.fits'.format(folder)):
+        os.remove(item)
+
+    for item in glob.glob('{}/*.txt'.format(folder)):
+        os.remove(item)
+
+#-------------------------------------------------------------------------------
+
+def move(folder):
+    destination = os.path.join('/grp/hst/stis/darks_biases', folder)
+    if not os.path.exists(destination):
+        os.mkdir(destination)
+
+    for root, dirs, files in os.walk(folder):
+        for filename in files:
+            if not filename.endswith('.fits'):
+                continue
+            full_path = os.path.join(root, filename)
+            if 'biases/4-1x1/' in full_path and 'weekbias_' in filename:
+                shutil.copy(full_path, destination)
+                print full_path
+            if 'biases/1-1x1/' in full_path and 'weekbias_' in filename and not 'grp' in filename:
+                shutil.copy(full_path, destination)
+                print full_path
+            if 'darks' in full_path and 'weekdark_' in filename:
+                shutil.copy(full_path, destination)
+                print full_path
+
+#-------------------------------------------------------------------------------
+
+def get_new_obs(file_type, start, end, settings):
 
     if file_type == 'DARK':
         proposal_list = dark_proposals
@@ -490,21 +536,43 @@ def get_new_obs(file_type, start, end):
     else:
         print 'file type not recognized: ', file_type
 
-    query = support.SybaseInterface("ZEPPO", "dadsops")
+    # Gather configuration settings
+    mast_server = settings['mast_server']
+    mast_database = settings['mast_database']
+    mast_account = settings['mast_account']
+    mast_password = settings['mast_password']
+
+    # Connect to server
+    connection = "tsql -S {0} -D '{1}' -U '{2}' -P '{3}' -t '|'".format(mast_server, mast_database, mast_account, mast_password)
+    print(connection)
+    transmit, receive = os.popen2(connection)
 
     OR_part = "".join(["science.sci_pep_id = %d OR "%(proposal) for proposal in proposal_list])[:-3]
+    data_query = """SELECT science.sci_start_time,science.sci_data_set_name
+                           FROM science INNER JOIN stis_ref_data
+                                ON science.sci_data_set_name = stis_ref_data.ssr_data_set_name
+                            WHERE ( {} ) AND
+                                  stis_ref_data.ssr_ccdamp = 'D' AND
+                                  science.sci_targname = '{}' AND
+                                  science.sci_actual_duration BETWEEN {} AND {}
+                                  \ngo\n""".format(OR_part, file_type, MIN_EXPTIME, MAX_EXPTIME)
 
-    data_query = "SELECT science.sci_start_time,science.sci_data_set_name FROM science WHERE ( " + OR_part + " ) AND  science.sci_targname ='%s' AND science.sci_actual_duration BETWEEN %d AND %d "%(file_type, MIN_EXPTIME, MAX_EXPTIME)
-    query.doQuery(query=data_query)
-    new_dict = query.resultAsDict()
+    # Perform query and capture results
+    transmit.write(data_query)
+    transmit.close()
+    mast_results = receive.readlines()
+    receive.close()
 
-    obs_names = np.array( new_dict['sci_data_set_name'] )
+    # Prune mast_results of unwanted information
+    mast_results = mast_results[7:-2]
+    mast_start_times = [item.strip().split('|')[0] for item in mast_results]
+    mast_rootnames = [item.lower().strip().split('|')[1] for item in mast_results]
 
-    start_times_MJD = np.array( map(translate_date_string, new_dict['sci_start_time'] ) )
+    obs_names = np.array(mast_rootnames)
+    start_times_MJD = np.array(map(translate_date_string, mast_start_times))
+    index = np.where((start_times_MJD > start) & (start_times_MJD < end))[0]
 
-    index = np.where( (start_times_MJD > start) & (start_times_MJD < end) )[0]
-
-    if not len( index ):
+    if not len(index):
         print "WARNING: didn't find any datasets, skipping"
         return []
 
@@ -517,17 +585,13 @@ def get_new_obs(file_type, start, end):
 
 #-----------------------------------------------------------------------
 
-def collect_new(observations_to_get):
+def collect_new(observations_to_get, settings):
     '''
     Function to find and retrieve new datasets for given proposal.
-    Uses modules created by B. York: DADSAll.py and SybaseInterface.py.
     '''
 
-    xml = createXmlFile(ftp_dir=retrieve_directory,
-                        set=observations_to_get,
-                        file_type='RAW')
-
-    response = submitXmlFile(xml, 'dmsops1.stsci.edu')
+    xml = build_xml_request(observations_to_get, settings)
+    response = submitXmlFile(xml, settings)
     if ('SUCCESS' in response):
         return True
     else:
@@ -738,7 +802,7 @@ def separate_obs(base_dir, month_begin, month_end, all_files=None):
 
 #-----------------------------------------------------------------------
 
-def move_obs(new_obs, base_output_dir):
+def move_obs(new_obs, base_output_dir, retrieve_directory):
     print 'Files not yet delivered.'
     delivered_set = set( [ os.path.split(item)[-1][:9].upper() for
                            item in glob.glob( os.path.join(retrieve_directory, '*raw*.fits') ) ] )
@@ -830,16 +894,16 @@ def run(config_file='config.yaml'):
     with open(config_file, 'r') as f:
         data = yaml.load(f)
 
-
     for location in [data['products_directory'], data['retrieve_directory']]:
         if not os.path.isdir(location):
             os.makedirs(location)
 
     pop_db.main()
 
-    all_folders = get_new_periods(data['products_directory'])
+    all_folders = get_new_periods(data['products_directory'], data)
 
-    #for folder in all_folders:
-    #    make_ref_files(folder, clean=args.redo_all)
+    for folder in all_folders:
+        make_pipeline_reffiles(folder)
+        check_all(folder)
 
 #-----------------------------------------------------------------------

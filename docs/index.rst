@@ -11,6 +11,12 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+  basedark
+  basejoint
+  refbias
+  weekbias
+  weekdark
+  pipeline
 
 
 Indices and tables

@@ -883,13 +883,9 @@ def refaver(reffiles, combined_name):
     Arithmetic for the combination is done using msarith
 
     """
-
     from pyraf import iraf
     from iraf import stsdas
     from iraf import mstools
-
-    if not combined_name.endswith('.fits'):
-        combined_name = combined_name + '.fits'
 
     print('#-----------------------#')
     print('combining datasets')
@@ -898,18 +894,37 @@ def refaver(reffiles, combined_name):
     print(combined_name)
     print('#-----------------------#')
 
+    all_paths = {os.path.split(item)[0] for item in reffiles}
+    assert len(all_paths) == 1, "More than one path found"
+
+    initial_dir = os.getcwd()
+    os.chdir(list(all_paths)[0])
+    iraf.chdir(list(all_paths)[0])
+
     all_subfiles = []
     for subfile in reffiles:
+        subfile = os.path.split(subfile)[-1]
         outfile = subfile.replace('.fits', '_aver.fits')
+        print("Running msarith / 2 on {}".format(subfile))
         iraf.msarith(subfile, '/', 2, outfile, verbose=1)
         all_subfiles.append(outfile)
 
     assert len(all_subfiles) == 2, 'Length of subfiles doesnt equal 2: {}'.format(all_subfiles)
 
+    if not combined_name.endswith('.fits'):
+        combined_name = combined_name + '.fits'
+
+    #-- remove path from output name
+    combined_name = os.path.split(combined_name)[-1]
+
     iraf.msarith(all_subfiles[0], '+', all_subfiles[1], combined_name, verbose=1)
 
     for filename in all_subfiles:
         os.remove(filename)
+
+    #-- move back to beginning location
+    os.chdir(initial_dir)
+    iraf.chdir(initial_dir)
 
 #------------------------------------------------------------------------
 
@@ -982,6 +997,9 @@ def bias_subtract_data(filename, biasfile):
     name, ext = os.path.splitext(name)
     trailerfile = os.path.join(path, name + '_bias_subtract_log.txt')
 
+    #biasfile = make_path_safe(biasfile)
+    biasfile = os.path.relpath(biasfile)
+
     pyfits.setval(filename, 'BIASFILE', value=biasfile)
     status = basic2d(filename,
                      dqicorr='perform',
@@ -1006,6 +1024,20 @@ def bias_subtract_data(filename, biasfile):
             raise Exception('BASIC2D failed to properly reduce {}'.format(filename))
 
     filename = filename.replace('raw', 'flt')
+
     return filename
 
-#------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+def make_path_safe(filename):
+    if len(filename) < 67:
+        return filename
+
+    path, filename = os.path.split(filename)
+
+    os.environ['refdir'] = path
+    filename = 'refdir$'+filename
+
+    return filename
+
+#-------------------------------------------------------------------------------

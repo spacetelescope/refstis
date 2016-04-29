@@ -15,6 +15,7 @@ import shutil
 import sys
 from datetime import date
 
+from crds import certify
 import stistools
 from stistools.calstis import calstis
 
@@ -391,21 +392,43 @@ def remove_products():
 
 #----------------------------------------------------------------
 
-def run_cdbs_checks():
-    print('Round one')
-    os.system('python %slength_descrip_CDBS.py' % (monitor_dir))
-    print('\n\nRound two')
-    os.system('python %slength_descrip_CDBS.py' % (monitor_dir))
+def move(folder):
+    destination = os.path.join('/grp/hst/stis/darks_biases', folder)
+    if not os.path.exists(destination):
+        os.mkdir(destination)
 
-    for command in ['certify *.fits', 'fitsverify_delivery *.fits']:
-        os.system(command)
+    for root, dirs, files in os.walk(folder):
+        for filename in files:
+            if not filename.endswith('.fits'):
+                continue
+            full_path = os.path.join(root, filename)
+            if 'biases/4-1x1/' in full_path and 'weekbias_' in filename:
+                shutil.copy(full_path, destination)
+                print full_path
+            if 'biases/1-1x1/' in full_path and 'weekbias_' in filename and not 'grp' in filename:
+                shutil.copy(full_path, destination)
+                print full_path
+            if 'darks' in full_path and 'weekdark_' in filename:
+                shutil.copy(full_path, destination)
+                print full_path
+
+#----------------------------------------------------------------
+
+def run_crds_checks(folder):
+    datasets = ' '.join(glob.glob(os.path.join(folder, '*.fits')))
+    errors = certify.CertifyScript("crds.certify {}".format(datasets))()
+
+    print(errors)
 
 #----------------------------------------------------------------
 
 def check_all(folder):
-    plot_obset(folder)
+    move(folder)
+    folder = os.path.join('/grp/hst/stis/darks_biases', folder)
     send_forms(folder)
     regress(folder)
+    plot_obset(folder)
+    run_crds_checks()
 
     print('#-------------------------------------------#')
     print('Darks and Bias Monitor complete.  ')

@@ -20,6 +20,7 @@ setup(
                    'Topic :: Software Development :: Libraries :: Python Modules'],
     scripts = glob.glob('scripts/*'),
     install_requires = ['setuptools',
+                        'pyyaml',
                         'numpy',
                         'astropy>=1.0.1',
                         'stistools>=1.0.2'],

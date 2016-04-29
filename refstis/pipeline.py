@@ -36,9 +36,11 @@ import shutil
 import re
 import numpy as np
 import yaml
+import getpass
 
+from .delivery import check_all
 from .functions import figure_number_of_periods, translate_date_string, mjd_to_greg
-from .retrieval import submit_xml_request, build_xml_request
+from .retrieval import submit_xml_request, build_xml_request, everything_retrieved
 from . import pop_db
 from . import basedark
 from . import weekdark
@@ -103,6 +105,10 @@ def get_new_periods(products_directory, settings):
         products_folder = os.path.join(products_directory,
                                        '%d_%s' % (proposal, visit))
 
+        #-- maybe put this somewhere else?
+        #-- to only process datasets if new data has been retrieved?
+        dirs_to_process.append(products_folder)
+
         if not os.path.exists(products_folder):
             os.makedirs(products_folder)
 
@@ -124,10 +130,9 @@ def get_new_periods(products_directory, settings):
             print('Found new observations for this period')
             print(obs_to_get, '\n\n')
 
-        #response = collect_new(obs_to_get, settings)
-        #dirs_to_process.append(products_folder)
-        #move_obs(obs_to_get, products_folder, settings['retrieve_directory'])
-        #separate_obs(products_folder, ref_begin, ref_end)
+        ###response = collect_new(obs_to_get, settings)
+        ###move_obs(obs_to_get, products_folder, settings['retrieve_directory'])
+        ###separate_obs(products_folder, ref_begin, ref_end)
 
     return dirs_to_process
 
@@ -588,11 +593,26 @@ def collect_new(observations_to_get, settings):
     '''
 
     xml = build_xml_request(observations_to_get, settings)
-    response = submitXmlFile(xml, settings)
-    if ('SUCCESS' in response):
-        return True
-    else:
+    response = submit_xml_request(xml, settings)
+
+    username = getpass.getuser()
+    tracking_id = re.search("("+username+"[0-9]{5})", response).group()
+
+    if not 'SUCCESS' in response:
         return False
+
+    done = False
+    killed = False
+
+    while not done:
+        print("waiting for files to be delivered")
+        time.sleep(60)
+        done, killed = everything_retrieved(tracking_id)
+
+        if killed:
+            return False
+
+    return True
 
 #-----------------------------------------------------------------------
 
@@ -710,13 +730,12 @@ def separate_period(base_dir):
 #-----------------------------------------------------------------------
 
 
-def separate_obs(base_dir, month_begin, month_end, all_files=None):
-    if not all_files:
-        all_files = glob.glob(os.path.join(retrieve_directory, '*raw.fits'))
-
+def separate_obs(base_dir, month_begin, month_end):
     print('Separating', base_dir)
     print()
     print('Period runs from', month_begin, ' to ',  month_end)
+
+    all_files = glob.glob(os.path.join(base_dir, '*raw.fits'))
 
     mjd_times = np.array([fits.getval(item, 'EXPSTART', ext=1)
                           for item in all_files])
@@ -800,29 +819,18 @@ def separate_obs(base_dir, month_begin, month_end, all_files=None):
 #-----------------------------------------------------------------------
 
 def move_obs(new_obs, base_output_dir, retrieve_directory):
-    print('Files not yet delivered.')
-    delivered_set = set( [ os.path.split(item)[-1][:9].upper() for
-                           item in glob.glob( os.path.join(retrieve_directory, '*raw*.fits') ) ] )
-    new_set = set(new_obs)
-
-    while not new_set.issubset(delivered_set):
-        wait_minutes = 2
-        time.sleep(wait_minutes * 60) #sleep for 2 min
-        delivered_set = set([ os.path.split(item)[-1][:9].upper() for
-                              item in glob.glob( os.path.join(retrieve_directory, '*raw*.fits') ) ])
-
     assert len(new_obs) > 0, 'Empty list of new observations to move.'
 
-    if not os.path.exists( base_output_dir):
-        os.makedirs( base_output_dir )
+    if not os.path.exists(base_output_dir):
+        os.makedirs(base_output_dir)
 
-    list_to_move = [ os.path.join( retrieve_directory, item.lower()+'_raw.fits') for item in new_obs ]
+    list_to_move = [os.path.join(retrieve_directory, item.lower()+'_raw.fits') for item in new_obs]
 
     for item in list_to_move:
         print('Moving ', item,  ' to:', base_output_dir)
         shutil.move( item, base_output_dir )
 
-    list_to_remove = glob.glob( os.path.join(retrieve_directory, '*.fits') )
+    list_to_remove = glob.glob(os.path.join(retrieve_directory, '*.fits'))
     for item in list_to_remove:
         os.remove(item)
 

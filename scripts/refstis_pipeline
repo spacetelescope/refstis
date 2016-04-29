@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 from refstis import pipeline
+import os
 
 if __name__ == "__main__":
-    pipeline.run()
+    default_config = os.path.join(os.environ['HOME'], 'config.yaml')
+    pipeline.run(default_config)

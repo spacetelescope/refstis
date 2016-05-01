@@ -1,26 +1,25 @@
-"""
-Script to produce a monthly base bias for STIS CCD
+"""Procedure to make a monthyl bias for the STIS CCD.
 
- Description:
-        Python translation of a python translation
-  of an original IRAF cl script to create superbias
-  reference file from a list of bias frames.
+Description:
+    Python translation of a python translation
+of an original IRAF cl script to create superbias
+reference file from a list of bias frames.
 
-  METHOD:
-   The input image (with multiple extensions) is overscan-subtracted and
-   cosmic-ray-rejected using the CALSTIS algorithms within STSDAS. The
-   cosmic-ray-rejected image is divided by the number of imsets present
-   in the input image (since ocrreject adds up the individual imsets).
-   After that, the superbias is median filtered using a window of 15 x 1
-   pixels. The median-filtered is subtracted from the superbias to produce a
-   "residual" image containing hot columns and such. This "residual" image
-   is averaged along rows and replicated back to the original image size, so
-   that hot columns clearly show up. After that, the image values in
-   hot columns and pixels of the original superbias image (defined as those
-   pixels having values greater than (mean + 5 sigma of Poisson noise) are
-   replaced by those in the median-filtered bias image.
-   Plots are made of the row- and column-averaged superbias, with plotting
-   scales appropriate to the gain and binning settings of the superbias.
+METHOD:
+The input image (with multiple extensions) is overscan-subtracted and
+cosmic-ray-rejected using the CALSTIS algorithms within STSDAS. The
+cosmic-ray-rejected image is divided by the number of imsets present
+in the input image (since ocrreject adds up the individual imsets).
+After that, the superbias is median filtered using a window of 15 x 1
+pixels. The median-filtered is subtracted from the superbias to produce a
+"residual" image containing hot columns and such. This "residual" image
+is averaged along rows and replicated back to the original image size, so
+that hot columns clearly show up. After that, the image values in
+hot columns and pixels of the original superbias image (defined as those
+pixels having values greater than (mean + 5 sigma of Poisson noise) are
+replaced by those in the median-filtered bias image.
+Plots are made of the row- and column-averaged superbias, with plotting
+scales appropriate to the gain and binning settings of the superbias.
 
 
 """

@@ -1,4 +1,17 @@
 """Functions to create a BaseDark for the STIS instrument
+
+#. If not already done, perform bias subtraction
+#. If after switch to side-2 electronics, perform temperature scaling
+#. Join all imsets from input list into single file
+#. combine and cr-reject
+#. normalize to e/s by dividing by (exptime/gain)
+#. update DQ array with hot pixel information
+
+.. note::
+
+  * Side 1 operations ended on May 16, 2001.
+  * Side 2 operations started on July 10, 2001.
+  * The dark correction will only be applied to datasets after July 1, 2001 (MJD 52091.0).
 """
 
 
@@ -80,19 +93,6 @@ def find_hotpix(filename):
 
 def make_basedark(input_list, refdark_name='basedark.fits', bias_file=None):
     """Make a monthly baseline dark from the input list.
-
-    #. If not already done, perform bias subtraction
-    #. If after switch to side-2 electronics, perform temperature scaling
-    #. Join all imsets from input list into single file
-    #. combine and cr-reject
-    #. normalize to e/s by dividing by (exptime/gain)
-    #. update DQ array with hot pixel information
-
-    .. note::
-
-      * Side 1 operations ended on May 16, 2001.
-      * Side 2 operations started on July 10, 2001.
-      * The dark correction will only be applied to datasets after July 1, 2001 (MJD 52091.0).
 
     Parameters:
     -----------

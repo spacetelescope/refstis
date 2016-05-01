@@ -1,4 +1,12 @@
-"""Produce a superbias using the "refbias" method.
+"""Procedure to create a suberbias using the 'refbias' method.
+
+Basic premise for making a refbias.
+
+1. join imsets from each datset together into one large file
+2. combine, cosmic ray screen, and normalize to number of imsets
+3. set header keywords
+4. clean up intermediate files
+
 """
 
 from astropy.io import fits
@@ -57,13 +65,6 @@ def flag_hot_pixels(refbias_name):
 
 def make_refbias(input_list, refbias_name='refbias.fits'):
     """Create a refbias FITS file
-
-    Basic premise for making a refbias.
-
-    1. join imsets from each datset together into one large file
-    2. combine, cosmic ray screen, and normalize to number of imsets
-    3. set header keywords
-    4. clean up intermediate files
 
     Parameters:
     -----------

@@ -130,9 +130,9 @@ def get_new_periods(products_directory, settings):
             print('Found new observations for this period')
             print(obs_to_get, '\n\n')
 
-        ###response = collect_new(obs_to_get, settings)
-        ###move_obs(obs_to_get, products_folder, settings['retrieve_directory'])
-        ###separate_obs(products_folder, ref_begin, ref_end)
+        response = collect_new(obs_to_get, settings)
+        move_obs(obs_to_get, products_folder, settings['retrieve_directory'])
+        separate_obs(products_folder, ref_begin, ref_end)
 
     return dirs_to_process
 
@@ -161,7 +161,7 @@ def split_files(all_files):
     all_files = [line[1] for line in all_info]
 
     super_list = [all_files[0::2],
-                   all_files[1::2]]
+                  all_files[1::2]]
 
     return super_list
 
@@ -812,7 +812,9 @@ def separate_obs(base_dir, month_begin, month_end):
                                                                  item.split('/')[-1]), 0):
                     ###Dynamic at some point
                     fits.setval(os.path.join(output_path, item.split('/')[-1]),
-                                'IMPHTTAB', ext = 0, value = 'oref$x9r1607mo_imp.fits')
+                                'IMPHTTAB',
+                                ext=0,
+                                value='oref$x9r1607mo_imp.fits')
                 obs_list.remove(item)
                 all_files.remove(item)
 
@@ -899,9 +901,12 @@ def run(config_file='config.yaml'):
     with open(config_file, 'r') as f:
         data = yaml.load(f)
 
-    for location in [data['products_directory'], data['retrieve_directory']]:
+    for location in [data['products_directory'], data['retrieve_directory'], data['delivery_directory']]:
         if not os.path.isdir(location):
             os.makedirs(location)
+
+    if not 'oref' in os.environ:
+        raise KeyError("oref environment must be set to run the pipeline.")
 
     pop_db.main()
 
@@ -909,6 +914,8 @@ def run(config_file='config.yaml'):
 
     for folder in all_folders:
         make_pipeline_reffiles(folder)
-        check_all(folder)
+        tail = os.path.split(folder)[-1]
+        destination = os.path.join(data['delivery_directory'], tail)
+        check_all(folder, destination)
 
 #-----------------------------------------------------------------------

@@ -289,8 +289,7 @@ def send_forms(folder):
     today = str(today_obj.month) + '/' + \
         str(today_obj.day) + '/' + str(today_obj.year)
     message = '1-Name of deliverer: Justin Ely\n'
-    message += ' (other e-mail addresses) proffitt@stsci.edu,aloisi@stsci.edu,debes@stsci.edu,\n'
-    message += 'osten@stsci.edu,bohlin@stsci.edu\n'
+    message += ' (other e-mail addresses) debes@stsci.edu,\n'
     message += '\n'
     message += ' 2-Date of delivery: ' + today + '\n'
     message += '\n'
@@ -318,7 +317,7 @@ def send_forms(folder):
     message += '\n'
     message += ' 9-Files run through CALXXX or SYNPHOT in the IRAF version of STSDAS and the IRAF* \n'
     message += '   version used by the Archive pipeline? (yes/no): yes \n'
-    message += '   List the versions used:  calstis v {} \n'.format( stistools.calstis.__version__ )
+    message += '   List the versions used:  calstis v {} \n'.format(stistools.calstis.__version__ )
     message += '\n'
     message += ' 10-Does it replace an old reference file? (yes/no): no\n'
     message += '\n'
@@ -335,7 +334,7 @@ def send_forms(folder):
     message += ' 12-Please indicate which modes (e.g. all the STIS, FUVMAMA, E140L modes) are affected by\n'
     message += '     the changes in the file.  All CCD modes are affected \n'
     message += '\n'
-    message += ' 13-Description of how the files were "tested" for correctness: Used calstis v 2.36 \n'
+    message += ' 13-Description of how the files were "tested" for correctness: Used calstis v {} \n'.format(stistools.calstis.__version__ )
     message += ' to reduce a test suite of CCD data and reduced a test suite of dark images as if \n'
     message += ' they were science images. The reduced darks were significantly lower in median and \n'
     message += ' mean values. The CCD images were reduced to either flt, crj, x1d, x2d, sx1, and sx2 \n'
@@ -392,12 +391,11 @@ def remove_products():
 
 #----------------------------------------------------------------
 
-def move(folder):
-    destination = os.path.join('/grp/hst/stis/darks_biases', folder)
+def move(source, destination):
     if not os.path.exists(destination):
         os.mkdir(destination)
 
-    for root, dirs, files in os.walk(folder):
+    for root, dirs, files in os.walk(source):
         for filename in files:
             if not filename.endswith('.fits'):
                 continue
@@ -418,17 +416,16 @@ def run_crds_checks(folder):
     datasets = ' '.join(glob.glob(os.path.join(folder, '*.fits')))
     errors = certify.CertifyScript("crds.certify {}".format(datasets))()
 
-    print(errors)
+    assert not errors, "{} error found running crds checks.".format(errors)
 
 #----------------------------------------------------------------
 
-def check_all(folder):
-    move(folder)
-    folder = os.path.join('/grp/hst/stis/darks_biases', folder)
-    send_forms(folder)
-    regress(folder)
-    plot_obset(folder)
-    run_crds_checks()
+def check_all(folder, delivery_dir):
+    move(folder, delivery_dir)
+    send_forms(delivery_dir)
+    regress(delivery_dir)
+    plot_obset(delivery_dir)
+    run_crds_checks(delivery_dir)
 
     print('#-------------------------------------------#')
     print('Darks and Bias Monitor complete.  ')

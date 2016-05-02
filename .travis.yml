@@ -1,0 +1,16 @@
+language: python
+
+python: 
+  - "2.7"
+  - "3.3"
+  - "3.4"
+
+install:
+  - sudo pip install conda
+  - sudo conda init
+  - deps='pip numpy scipy astropy matplolib stistools'
+  - conda create -p $HOME/py --yes $deps "python=$TRAVIS_PYTHON_VERSION"
+  - export PATH=$HOME/py/bin:$PATH
+  - python setup.py build_ext --inplace
+
+script: nosetests

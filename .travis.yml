@@ -93,6 +93,9 @@ install:
     - conda create -c astropy-ci-extras --yes -n test python=$TRAVIS_PYTHON_VERSION
     - source activate test
 
+    # ADD STSCI ASTROCONDA CHANNEL
+    - conda config --add channels http://ssb.stsci.edu/astroconda
+
     # CORE DEPENDENCIES
     - $CONDA_INSTALL -n test  numpy=$NUMPY_VERSION stistools crds
 

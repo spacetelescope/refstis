@@ -182,7 +182,7 @@ def regress(folder):
     test_suite = os.path.join(monitor_dir, 'test_suite')
     test_dark = os.path.join(monitor_dir, 'test_dark')
 
-    print(glob.glob(os.path.join(folder, '*bia.fits')))
+    print((glob.glob(os.path.join(folder, '*bia.fits'))))
     reference_files = glob.glob(os.path.join(folder, '*bia.fits')) + \
                     glob.glob(os.path.join(folder, '*drk.fits'))
     print(reference_files)
@@ -192,11 +192,11 @@ def regress(folder):
     for testing_dir in [test_suite, test_dark]:
         for oldfile in glob.glob(os.path.join(testing_dir, '*_drk.fits')) + \
                 glob.glob(os.path.join(testing_dir, '*_bia.fits')):
-            print('removing', oldfile)
+            print(('removing', oldfile))
             os.remove(os.path.join(testing_dir, oldfile))
 
         for newfile in reference_files:
-            print('moving', newfile, '-->', testing_dir)
+            print(('moving', newfile, '-->', testing_dir))
             shutil.copy(newfile, testing_dir)
 
 
@@ -206,7 +206,7 @@ def regress(folder):
 
 
     os.chdir(test_suite)
-    print(os.getcwd())
+    print((os.getcwd()))
 
     bias_biwk_refs = glob.glob('*bias*_bi*.fits')
     bias_biwk_refs.sort()
@@ -223,7 +223,7 @@ def regress(folder):
         remove_products()
 
         print('#-------------------------------------------#')
-        print('Running CalSTIS with %s %s ' % (dark, bias))
+        print(('Running CalSTIS with %s %s ' % (dark, bias)))
         print('#-------------------------------------------#')
 
         for rawfile in raws:
@@ -249,7 +249,7 @@ def regress(folder):
     ######################################
 
     os.chdir(test_dark)
-    print(os.getcwd())
+    print((os.getcwd()))
 
     raws = glob.glob('*raw.fits')
 
@@ -262,7 +262,7 @@ def regress(folder):
         remove_products()
 
         print('#------------------------------------------#')
-        print('Running CalSTIS with %s' % (bias))
+        print(('Running CalSTIS with %s' % (bias)))
         print('#------------------------------------------#')
 
         for rawfile in raws:
@@ -385,7 +385,7 @@ def remove_products():
     for ext in ext_list:
         file_list = glob.glob(ext)
         if file_list != []:
-            print('removing {} files'.format( ext ))
+            print(('removing {} files'.format( ext )))
             for file in file_list:
                 os.remove(file)
 
@@ -402,13 +402,13 @@ def move(source, destination):
             full_path = os.path.join(root, filename)
             if 'biases/4-1x1/' in full_path and 'weekbias_' in filename:
                 shutil.copy(full_path, destination)
-                print full_path
+                print(full_path)
             if 'biases/1-1x1/' in full_path and 'weekbias_' in filename and not 'grp' in filename:
                 shutil.copy(full_path, destination)
-                print full_path
+                print(full_path)
             if 'darks' in full_path and 'weekdark_' in filename:
                 shutil.copy(full_path, destination)
-                print full_path
+                print(full_path)
 
 #----------------------------------------------------------------
 

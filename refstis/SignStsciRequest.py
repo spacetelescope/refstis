@@ -42,11 +42,13 @@ try:
 except ImportError:
   usexml=False
 try:
-    from urllib.request import urlopen, Request
+    from urllib.request import Request
     from urllib.parse import urlencode
 except ImportError:
-    from urllib import urlopen, urlencode
+    from urllib import urlencode
     from urllib2 import Request
+
+from six.moves.urllib.request import urlopen
 import warnings
 import re
 

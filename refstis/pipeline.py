@@ -914,7 +914,7 @@ def run(config_file='config.yaml'):
 
     for folder in all_folders:
         make_pipeline_reffiles(folder)
-        tail = os.path.split(folder)[-1]
+        tail = folder.rstrip(os.sep).split(os.sep)[-1]
         destination = os.path.join(data['delivery_directory'], tail)
         check_all(folder, destination)
 

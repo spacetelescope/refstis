@@ -29,9 +29,9 @@ def send_email(subject=None,message=None,from_addr=None,to_addr=None):
     users_email=getpass.getuser()+'@stsci.edu'
 
     if not subject:
-	subject='Message from %s'%(__file__)
+        subject='Message from %s'%(__file__)
     if not message:
-	message='You forgot to put a message into me'
+        message='You forgot to put a message into me'
     if not from_addr:
         from_addr=users_email
     if not to_addr:

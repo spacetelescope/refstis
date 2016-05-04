@@ -523,7 +523,7 @@ def move(folder):
             else:
                 continue
 
-            print(full_path, '-->', full_destination))
+            print(full_path, '-->', full_destination)
             if os.path.exists(full_destination):
                 os.remove(full_destination)
             shutil.copy(full_path, full_destination)

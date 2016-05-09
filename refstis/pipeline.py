@@ -503,33 +503,6 @@ def reset(folder):
 
 #-------------------------------------------------------------------------------
 
-def move(folder):
-    destination = os.path.join('/grp/hst/stis/darks_biases', folder)
-    if not os.path.exists(destination):
-        os.mkdir(destination)
-
-    for root, dirs, files in os.walk(folder):
-        for filename in files:
-            if not filename.endswith('.fits'):
-                continue
-            full_path = os.path.join(root, filename)
-
-            if 'biases/4-1x1/' in full_path and 'weekbias_' in filename:
-                full_destination = os.path.join(destination, filename)
-            elif 'biases/1-1x1/' in full_path and 'weekbias_' in filename and not 'grp' in filename:
-                full_destination = os.path.join(destination, filename)
-            elif 'darks' in full_path and 'weekdark_' in filename:
-                full_destination = os.path.join(destination, filename)
-            else:
-                continue
-
-            print(full_path, '-->', full_destination)
-            if os.path.exists(full_destination):
-                os.remove(full_destination)
-            shutil.copy(full_path, full_destination)
-
-#-------------------------------------------------------------------------------
-
 def get_new_obs(file_type, start, end, settings):
 
     if file_type == 'DARK':

@@ -400,16 +400,23 @@ def move(source, destination):
         for filename in files:
             if not filename.endswith('.fits'):
                 continue
+
             full_path = os.path.join(root, filename)
+
             if 'biases/4-1x1/' in full_path and 'weekbias_' in filename:
-                shutil.copy(full_path, destination)
-                print(full_path)
-            if 'biases/1-1x1/' in full_path and 'weekbias_' in filename and not 'grp' in filename:
-                shutil.copy(full_path, destination)
-                print(full_path)
-            if 'darks' in full_path and 'weekdark_' in filename:
-                shutil.copy(full_path, destination)
-                print(full_path)
+                full_destination = os.path.join(destination, filename)
+            elif 'biases/1-1x1/' in full_path and 'weekbias_' in filename and not 'grp' in filename:
+                full_destination = os.path.join(destination, filename)
+            elif 'darks' in full_path and 'weekdark_' in filename:
+                full_destination = os.path.join(destination, filename)
+            else:
+                continue
+
+            print(full_path, '-->', full_destination)
+            if os.path.exists(full_destination):
+                os.remove(full_destination)
+            shutil.copy(full_path, full_destination)
+
 
 #----------------------------------------------------------------
 

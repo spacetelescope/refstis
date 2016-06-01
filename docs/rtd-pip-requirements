@@ -1,8 +1,8 @@
 numpy==1.11.0
 matplotlib
-astropy
+astropy>=1.0
 scipy==0.17.0
-crds
+crds>=6.0.0
 stistools==1.0.2
 stsci.convolve==2.2.0
 stsci.distutils==0.3.7

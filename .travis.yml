@@ -62,7 +62,7 @@ install:
     - conda config --add channels http://ssb.stsci.edu/astroconda
 
     # CORE DEPENDENCIES
-    - $CONDA_INSTALL -n test  numpy=$NUMPY_VERSION stistools crds
+    - $CONDA_INSTALL -n test  numpy=$NUMPY_VERSION stistools crds=6.0
 
     # ASTROPY
     - $PIP_INSTALL git+http://github.com/astropy/astropy.git#egg=astropy

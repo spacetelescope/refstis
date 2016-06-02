@@ -1,6 +1,6 @@
 name: refstis
 channels:
-  - astroconda
+  - http://ssb.stsci.edu/astroconda
 dependencies:
   - numpy==1.11.0
   - matplotlib

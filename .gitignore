@@ -8,3 +8,7 @@ dist
 refstis.egg-info/
 refstis/anneal_info.db
 pipeline_data/config.yaml
+
+docs/_build/
+
+.DS_Store

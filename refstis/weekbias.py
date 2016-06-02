@@ -30,7 +30,7 @@ def make_weekbias(input_list, refbias_name, basebias):
       Update ERR extension of new superbias by assigning the ERR values of the
       baseline superbias except for the new hot pixels that are updated from
       the weekly superbias, for which the error extension of the weekly
-      ssuperbias is taken. Put the result in temporary ERR image.
+      superbias is taken. Put the result in temporary ERR image.
 
     Parameters:
     -----------

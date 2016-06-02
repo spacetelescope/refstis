@@ -7,8 +7,8 @@ dependencies:
   - astropy>=1.0
   - scipy==0.17.0
   - crds>=6.0.0
-  - stistools==1.0.2
-  - stsci.convolve==2.2.0
-  - stsci.distutils==0.3.7
-  - stsci.tools==3.4
+  - stistools
+  - stsci.convolve
+  - stsci.distutils
+  - stsci.tools
   - stsci.ndimage

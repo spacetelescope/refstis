@@ -1,7 +1,7 @@
 Usage
 =====
 
-comming soon to documentation near you!
+Coming soon to documentation near you!
 
 Command-line
 ------------

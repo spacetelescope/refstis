@@ -29,13 +29,11 @@ from . import functions
 def update_sci(filename):
     """Create the science extension of the baseline dark
 
-    THIS APPEARS
-
     .. note:: The input file will be updated in-place.
 
     Parameters
     ----------
-    filename, str
+    filename: str
         name of the file to be updated
 
     """
@@ -71,9 +69,10 @@ def find_hotpix(filename):
 
     .. note:: The input file will be updated in-place.
 
-    Parameters:
-    -----------
-    filename, str
+    Parameters
+    ----------
+    
+    filename: str
         filename of the input biasfile
 
     """
@@ -94,15 +93,15 @@ def find_hotpix(filename):
 def make_basedark(input_list, refdark_name='basedark.fits', bias_file=None):
     """Make a monthly baseline dark from the input list.
 
-    Parameters:
-    -----------
-    input_list : list
+    Parameters
+    ----------
+    input_list: list
         list of input dark files
 
-    refdark_name : str
+    refdark_name: str
         name of the output reference file
 
-    bias_file : str
+    bias_file: str
         bias file to be used in calibration
 
     """

@@ -32,8 +32,8 @@ def make_weekbias(input_list, refbias_name, basebias):
       the weekly superbias, for which the error extension of the weekly
       superbias is taken. Put the result in temporary ERR image.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     input_list : list
         list of STIS bias files
     refbias_name : str

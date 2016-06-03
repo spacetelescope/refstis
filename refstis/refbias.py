@@ -66,8 +66,8 @@ def flag_hot_pixels(refbias_name):
 def make_refbias(input_list, refbias_name='refbias.fits'):
     """Create a refbias FITS file
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     input_list : list
         list of input bias files
     refbias_name : str

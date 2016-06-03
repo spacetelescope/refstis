@@ -7,9 +7,9 @@ Biases
 1.  Retrieve new datasets from the archive
 2.  Separate darks and biases anneal "weeks"
 3.  Run refbias
-3a. If fewer than threshold frames, run weekbias
-4.  Create new baseline bias file
-5.  Update headers.
+4. If fewer than threshold frames, run weekbias
+5.  Create new baseline bias file
+6.  Update headers.
 
 Darks
 -----
@@ -21,8 +21,6 @@ Darks
 Test reference files and deliver.
 
 """
-
-
 
 import sqlite3
 import glob
@@ -451,7 +449,7 @@ def clean_directory(root_path):
 
     .. warning::
 
-      This WILL remove ANY files that do not match *_raw.fits.  This includes
+      This WILL remove ANY files that do not match \*_raw.fits.  This includes
       any plots, txt files, other fits files, anything.
 
     """

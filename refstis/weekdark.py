@@ -20,8 +20,8 @@ def create_superdark(crj_filename, basedark):
 
     .. note:: input file will be updated in-place.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     crj_filename : str
         filename of the cosmic-ray rejected file
     basedark : str
@@ -86,8 +86,8 @@ def make_weekdark(input_list, refdark_name, thebasedark, thebiasfile=None):
     # basedark except for the new hot pixels that are updated from the weekly
     # superdark, for which the error extension of the weekly superdark is taken.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     input_list : list
         list of input STIS dark files
     refdark_name : str

@@ -37,8 +37,7 @@ Usage
 .. toctree::
    :maxdepth: 2
 
-   command_line
-   scripting
+   usage
 
 Api
 ---

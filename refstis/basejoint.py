@@ -1,11 +1,15 @@
 """Procedure to make a monthyl bias for the STIS CCD.
 
-Description:
-    Python translation of a python translation
+Description
+-----------
+
+Python translation of a python translation
 of an original IRAF cl script to create superbias
 reference file from a list of bias frames.
 
-METHOD:
+METHOD
+------
+
 The input image (with multiple extensions) is overscan-subtracted and
 cosmic-ray-rejected using the CALSTIS algorithms within STSDAS. The
 cosmic-ray-rejected image is divided by the number of imsets present
@@ -41,13 +45,13 @@ def average_biases(bias_list):
 
     First make sure all individual input files have been ocrrejected.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     bias_list : list
         list of the input biases
 
-    Returns:
-    --------
+    Returns
+    -------
     mean_file : str
         name of the averaged filename
     totalweight : float
@@ -223,8 +227,8 @@ def replace_hot_pix(mean_bias, median_image):
 
     mean_bias will be updated in place.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     mean_bias : str
         name of the mean bias bias
     median_image : np.ndarray
@@ -256,12 +260,12 @@ def make_basebias(input_list, refbias_name='basebias.fits'):
     3- Replace pixels and colums with median values
     4- Set header keywords
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     input_list : list
-        list of input bias files
+        list of input bias files.
     refbias_name : str
-        name of the output reference file
+        name of the output reference file.
 
     """
 

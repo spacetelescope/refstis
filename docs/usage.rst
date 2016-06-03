@@ -19,7 +19,7 @@ The pipeline functionality of the refstis package needs to know some things
 about you and where to put stuff.  This is accomplished by parsing a config
 file that is assumed to live at ~/config.yaml.
 
-The necessary contents of the file are shown below, though the actuall content
+The necessary contents of the file are shown below, though the actual content
 has been omitted.
 
 .. code-block:: yaml

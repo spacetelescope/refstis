@@ -94,8 +94,7 @@ def build_xml_request(datasets, settings):
 
     xml_request = string.Template(request_string)
     xml_request = xml_request.template
-    print(xml_request)
-
+    
     return xml_request
 
 #-------------------------------------------------------------------------------

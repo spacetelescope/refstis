@@ -3,5 +3,5 @@ from refstis import pipeline
 import os
 
 if __name__ == "__main__":
-    default_config = os.path.join(os.environ['HOME'], 'config.yaml')
+    default_config = os.path.join(os.environ['HOME'], 'refstis_config.yaml')
     pipeline.run(default_config)

@@ -1,14 +1,8 @@
 """Procedure to make a monthyl bias for the STIS CCD.
 
-Description
------------
-
 Python translation of a python translation
 of an original IRAF cl script to create superbias
 reference file from a list of bias frames.
-
-METHOD
-------
 
 The input image (with multiple extensions) is overscan-subtracted and
 cosmic-ray-rejected using the CALSTIS algorithms within STSDAS. The

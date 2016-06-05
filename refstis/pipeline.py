@@ -1,24 +1,4 @@
-#!/usr/bin/env python
-
 """Create STIS Superdarks and Superbiases for the CCD detector.
-
-Biases
-------
-1.  Retrieve new datasets from the archive
-2.  Separate darks and biases anneal "weeks"
-3.  Run refbias
-4. If fewer than threshold frames, run weekbias
-5.  Create new baseline bias file
-6.  Update headers.
-
-Darks
------
-1.  Retrieve new datasets from the archive
-2.  Create basedark
-3.  Create weekly dark using basedark from previous month
-4.  Update headers.
-
-Test reference files and deliver.
 
 """
 
@@ -877,7 +857,7 @@ def run(config_file='config.yaml'):
             raise KeyError("oref environment must be set to run the pipeline.")
         else:
             os.environ['oref'] = data['oref']
-            
+
     pop_db.main()
 
     all_folders = get_new_periods(data['products_directory'], data)

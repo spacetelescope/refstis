@@ -16,7 +16,7 @@ Install via Anaconda
 .. note::
   If you do not have Anaconda, please follow the `instructions here
   <https://www.continuum.io/downloads>`_ to install it, or scroll down for
-  manual installation of SpecViz.
+  manual installation of refstis.
 
 After you have anaconda setup, then you can install refstis by
 specifying the channel in your install command::

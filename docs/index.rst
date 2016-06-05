@@ -3,9 +3,9 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-
+############################################
 Refstis: Superdarks and Superbiases for STIS
-============================================
+############################################
 
 Refstis is a collection of tasks and pipeline processes to create the superdark
 and superbias reference files for the Space Telescope Imaging Spectrograph (STIS)

@@ -35,22 +35,23 @@ REQUEST_TEMPLATE = string.Template('\
 # ------------------------------------------------------------------------------
 
 def everything_retrieved(tracking_id):
-    '''
-    Check every 15 minutes to see if all submitted datasets have been
-    retrieved. Based on code from J. Ely.
-    Parameters:
-        tracking_id : string
-            A submission ID string..
-    Returns:
-        done : bool
-            Boolean specifying is data is retrieved or not.
-        killed : bool
-            Boolean specifying is request was killed.
+    '''Check request status page to see if retreival is done.
+
+    Parameters
+    ----------
+    tracking_id : string
+        A submission ID string.
+
+    Returns
+    -------
+    done : bool
+        Boolean specifying is data is retrieved or not.
+    killed : bool
+        Boolean specifying is request was killed.
     '''
 
     done = False
     killed = False
-#    print tracking_id
     status_url = "http://archive.stsci.edu/cgi-bin/reqstat?reqnum=={0}".format(tracking_id)
     for line in urlopen(status_url).readlines():
 
@@ -94,7 +95,7 @@ def build_xml_request(datasets, settings):
 
     xml_request = string.Template(request_string)
     xml_request = xml_request.template
-    
+
     return xml_request
 
 #-------------------------------------------------------------------------------

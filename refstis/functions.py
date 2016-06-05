@@ -15,7 +15,7 @@ from stistools.ocrreject import ocrreject
 from stistools.basic2d import basic2d
 #--------------------------------------------------------------------------------
 
-def send_email(subject=None,message=None,from_addr=None,to_addr=None):
+def send_email(subject=None, message=None, from_addr=None, to_addr=None):
     '''
     Send am email via SMTP server.
     This will not prompt for login if you are alread on the internal network.
@@ -863,12 +863,16 @@ def bd_calstis(joinedfile, thebiasfile=None):
 #------------------------------------------------------------------------
 
 def RemoveIfThere(item):
-    """Remove a file if it exists
+    """Remove a file only if it already exists
 
-    Parameter
-    ---------
+    Parameters
+    ----------
     item : str
         file to be removed
+
+    Examples
+    --------
+    >>> RemoveIfThere('/path/to/file.txt')
 
     """
 
@@ -878,9 +882,16 @@ def RemoveIfThere(item):
 #------------------------------------------------------------------------
 
 def refaver(reffiles, combined_name):
-    """ Average two reference files toghether
+    """Average two reference files together using msarith.
 
-    Arithmetic for the combination is done using msarith
+    .. warning:: This task requires IRAF/PyRAF to be installed.
+
+    Parameters
+    ----------
+    reffiles : list
+        List of reference files to be averaged together
+    combined_name : str
+        Output name of the combined file
 
     """
     from pyraf import iraf
@@ -1029,6 +1040,34 @@ def bias_subtract_data(filename, biasfile):
 #-------------------------------------------------------------------------------
 
 def make_path_safe(filename):
+    """Make a full path to file safe for use in FITS headers.
+
+    For full paths that are less than 67 characters, the filename is simply
+    returned.  When the full path is equal to or greater than 67, then the path
+    is inserted into the environment as 'refdir' and the filename is returned as
+    'refdir$filename'.  This will prevent the filename from being split accross
+    multiple FITS keywords, and is a convention understood by many
+    tasks/pipelines.
+
+    Parameters
+    ----------
+    filename : str
+        Full path + name to the file.
+
+    Returns
+    -------
+    filename : str
+        Safe filename that can fit in a single FITS keyword.
+
+    Examples
+    --------
+    >>> make_path_safe('/short/path/reference_file.fits')
+    /short/path/reference_file.fits
+
+    >>> make_path_safe('/really/really/really/really/really/really/really/really/reference_file.fits')
+    refdir$reference_file.fits
+
+    """
     if len(filename) < 67:
         return filename
 

@@ -997,10 +997,9 @@ def bias_subtract_data(filename, biasfile):
     name, ext = os.path.splitext(name)
     trailerfile = os.path.join(path, name + '_bias_subtract_log.txt')
 
-    #biasfile = make_path_safe(biasfile)
-    biasfile = os.path.relpath(biasfile)
+    biasfile = make_path_safe(biasfile)
 
-    pyfits.setval(filename, 'BIASFILE', value=biasfile)
+    pyfits.setval(filename, 'BIASFILE', ext=0, value=biasfile)
     status = basic2d(filename,
                      dqicorr='perform',
                      blevcorr='perform',
@@ -1034,8 +1033,12 @@ def make_path_safe(filename):
         return filename
 
     path, filename = os.path.split(filename)
+    #-- Calstis wants the '/' at the end
+    if not path.endswith('/'):
+        path += '/'
 
     os.environ['refdir'] = path
+
     filename = 'refdir$'+filename
 
     return filename

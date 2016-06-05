@@ -877,10 +877,7 @@ def run(config_file='config.yaml'):
             raise KeyError("oref environment must be set to run the pipeline.")
         else:
             os.environ['oref'] = data['oref']
-
-    # -- used when files are too long for calstis to process
-    os.environ[data['tmp_env']] = data['tmp_path']
-
+            
     pop_db.main()
 
     all_folders = get_new_periods(data['products_directory'], data)

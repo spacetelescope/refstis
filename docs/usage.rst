@@ -8,7 +8,7 @@ Many individual tasks have been pulled out into individual modules which
 are copied into your path when the package install is run. This allows
 a particular procedure to be run on a collection of data without going
 through the entire pipeline, and without the limitations that it imposes
-(darks/biases from specific proposals, specificly split months/weeks, etc).
+(darks/biases from specific proposals, specifically split months/weeks, etc).
 
 Basejoint
 ~~~~~~~~~

@@ -59,6 +59,7 @@ install:
     - source activate test
 
     # ADD STSCI ASTROCONDA CHANNEL
+    - conda config --add channels defaults
     - conda config --add channels http://ssb.stsci.edu/astroconda
 
     # CORE DEPENDENCIES

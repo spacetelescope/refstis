@@ -129,7 +129,7 @@ dummy and will need to be configured for you specifically.
    - 13001
    - 14243
 
-  bias_propsoals:
+  bias_proposals:
    - 12001
    - 13005
    - 14244

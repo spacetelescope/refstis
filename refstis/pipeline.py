@@ -935,7 +935,7 @@ def run(config_file='config.yaml'):
 
 
         filestoprocess = []
-        print('products_directory:  {}'.format(products_directory)
+        print('products_directory:  {}'.format(products_directory))
         for all_anneals in glob.glob(''.join([products_directory, '?????_??/darks/'])):
             for root, directories, files_all in os.walk(all_anneals):
                 print(directories)

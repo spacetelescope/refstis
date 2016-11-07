@@ -707,7 +707,8 @@ def figure_days_in_period(N_periods, N_days, add_remainder=False):
     assert (sum(period_lengths)) == N_days, 'ERROR: extra days not spread around correctly'
 
     if add_remainder:
-        period_lenghts[-1] += remainder
+        #period_lenghts[-1] += remainder
+        period_lengths[-1] += remainder
 
     return period_lengths
 
@@ -905,12 +906,17 @@ def refaver(reffiles, combined_name):
     print(combined_name)
     print('#-----------------------#')
 
+
     all_paths = {os.path.split(item)[0] for item in reffiles}
     assert len(all_paths) == 1, "More than one path found"
 
     initial_dir = os.getcwd()
     os.chdir(list(all_paths)[0])
-    iraf.chdir(list(all_paths)[0])
+    try:
+        iraf.chdir(list(all_paths)[0])
+    except:
+        iraf.chdir(''.join(['/grp/hst/stis/darks_biases/refstis_new/',
+        list(all_paths)[0]]))
 
     all_subfiles = []
     for subfile in reffiles:

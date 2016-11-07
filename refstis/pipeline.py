@@ -296,6 +296,7 @@ def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
     print(' make the basebias ')
     print('###################')
     raw_files = []
+
     for root, dirs, files in os.walk(os.path.join(root_folder, 'biases')):
         if not '1-1x1' in root:
             continue
@@ -341,6 +342,7 @@ def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
             continue
 
         #make weekbias if too few imsets
+
         if n_imsets < bias_threshold[(gain, xbin, ybin)]:
             weekbias.make_weekbias(raw_files, weekbias_name, basebias_name)
         else:
@@ -354,6 +356,7 @@ def make_pipeline_reffiles(root_folder, last_basedark=None, last_basebias=None):
                     refbias.make_refbias(sub_list, subname)
                     all_subnames.append(subname)
                 functions.refaver(all_subnames, weekbias_name)
+
             else:
                 refbias.make_refbias(raw_files, weekbias_name)
 
@@ -831,6 +834,14 @@ Procedure
                         dest="user_information",
                         default=None,
                         help="info string needed to request data")
+    parser.add_argument("-m",
+                        "--reprocess_month",
+                        action='store',
+                        nargs=2,
+                        type=str,
+                        help="Which dates during which you'd like to process",
+                        default=None,
+                        dest = "reprocess_month")
 
     return parser.parse_args()
 
@@ -841,12 +852,16 @@ def run(config_file='config.yaml'):
 
     args = parse_args()
 
+    print(args)
+
     #-- start pipeline configuration
+    print(os.path.abspath(config_file))
     if not os.path.exists(config_file):
         raise IOError("Can't open configure file: {}".format(config_file))
 
     with open(config_file, 'r') as f:
         data = yaml.load(f)
+        products_directory = data['products_directory'] #AER 23 August 2016
 
     for location in [data['products_directory'], data['retrieve_directory'], data['delivery_directory']]:
         if not os.path.isdir(location):
@@ -862,10 +877,57 @@ def run(config_file='config.yaml'):
 
     all_folders = get_new_periods(data['products_directory'], data)
 
-    for folder in all_folders:
-        make_pipeline_reffiles(folder)
-        tail = folder.rstrip(os.sep).split(os.sep)[-1]
-        destination = os.path.join(data['delivery_directory'], tail)
-        check_all(folder, destination)
 
+    if args.redo_all: # AER 11 Aug 2016: in an attempt to use the commandline args.
+        print("----------------------------------")
+        print("Processing all past anneal months")
+        print("----------------------------------")
+        print('all_folders: {}'.format(all_folders))
+        for folder in all_folders:
+            make_pipeline_reffiles(folder)
+            tail = folder.rstrip(os.sep).split(os.sep)[-1]
+            destination = os.path.join(data['delivery_directory'], tail)
+            check_all(folder, destination)
+
+    # AER 11 Aug 2016
+    if not args.redo_all and not args.reprocess_month:
+        print("-----------------------------------")
+        print("Processing most recent anneal month")
+        print("-----------------------------------")
+        make_pipeline_reffiles(all_folders[0])
+        tail = all_folders[0].rstrip(os.sep).split(os.sep)[-1]
+        destination = os.path.join(data['delivery_directory'], tail)
+        check_all(all_folders[0], destination)
+
+    # AER 12 Aug 2016
+    if args.reprocess_month:
+        print("------------------------------------------------")
+        print("Processing files between {} and {}".format(args.reprocess_month[0], args.reprocess_month[1]))
+        print("------------------------------------------------")
+
+
+        filestoprocess = []
+        print('products_directory:  {}'.format(products_directory))
+        for all_anneals in glob.glob(''.join([products_directory, '?????_??/darks/'])):
+            for root, directories, files_all in os.walk(all_anneals):
+                print(directories)
+                if not directories:
+                    fltfiles = glob.glob(''.join([root, '/*_flt.fits']))
+                    if len(fltfiles) != 0:
+                        onefile = np.sort(fltfiles)[0]
+                        obsdate = fits.getval(onefile, 'TDATEOBS', ext = 0)
+                        if (obsdate <= args.reprocess_month[1] and obsdate >= args.reprocess_month[0]):
+                            filestoprocess.append(root)
+        print('filestoprocess:  {}'.format(filestoprocess))
+        folders1 = []
+        for f in filestoprocess:
+            print('/'.join(f.split('/')[:7]))
+            folders1.append('/'.join(f.split('/')[:7]))
+        all_folders = set(folders1)
+
+        for folder in all_folders:
+            make_pipeline_reffiles(folder)
+            tail = folder.rstrip(os.sep).split(os.sep)[-1]
+            destination = os.path.join(data['delivery_directory'], tail)
+            check_all(folder, destination)
 #-----------------------------------------------------------------------

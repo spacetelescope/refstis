@@ -7,6 +7,8 @@ to CDBS
 '''
 
 from astropy.io import fits as pyfits
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -289,7 +291,7 @@ def send_forms(folder):
     today_obj = date.today()
     today = str(today_obj.month) + '/' + \
         str(today_obj.day) + '/' + str(today_obj.year)
-    message = '1-Name of deliverer: Justin Ely\n'
+    message = '1-Name of deliverer: Allyssa Riley\n'
     message += ' (other e-mail addresses) debes@stsci.edu,\n'
     message += '\n'
     message += ' 2-Date of delivery: ' + today + '\n'
@@ -430,15 +432,15 @@ def run_crds_checks(folder):
 
 def check_all(folder, delivery_dir):
     move(folder, delivery_dir)
-    send_forms(delivery_dir)
     regress(delivery_dir)
     plot_obset(delivery_dir)
     run_crds_checks(delivery_dir)
+    send_forms(delivery_dir) #AER 25 Aug 2016: Moved this here from before regress(delivery_dir)
 
     print('#-------------------------------------------#')
     print('Darks and Bias Monitor complete.  ')
     print('Please run certify and fitsverify')
-    print('Please send delievery form to cdbs@stsci.edu.')
+    print('Please send delivery form to redcat@stsci.edu.')
     print('#-------------------------------------------#')
 
 #----------------------------------------------------------------

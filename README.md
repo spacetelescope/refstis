@@ -1,5 +1,5 @@
-STIS superdark and superbiase reference file creation routines
---------------------------------------------------------------
+STIS superdark and superbias reference file creation routines
+-------------------------------------------------------------
 
 Contribute
 ----------

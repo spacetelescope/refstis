@@ -73,8 +73,8 @@ def create_superdark(crj_filename, basedark):
 def make_weekdark(input_list, refdark_name, thebasedark, thebiasfile=None):
     """ Create a weekly dark reference file
 
-    1. If not already done, run basic2d with blevcorr, biascorr, and dqicorr
-        set to perform
+    1. If not already done, run basic2d with blevcorr, biascorr, and dqicorr 
+       set to perform
     2. Apply temperature correction to the data
     3. split all raw images into their imsets
     4. join imsets together into a single file
@@ -82,9 +82,10 @@ def make_weekdark(input_list, refdark_name, thebasedark, thebiasfile=None):
     6. normalize to e/s by dividing by (exptime/gain)
     7. do hot pixel things
 
-    # Update ERR extension of new superdark by assigning the ERR values of the
-    # basedark except for the new hot pixels that are updated from the weekly
-    # superdark, for which the error extension of the weekly superdark is taken.
+    .. NOTE::
+       Update ERR extension of new superdark by assigning the ERR values of the
+       basedark except for the new hot pixels that are updated from the weekly
+       superdark, for which the error extension of the weekly superdark is taken.
 
     Parameters
     ----------

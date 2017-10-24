@@ -18,7 +18,7 @@ from stistools.basic2d import basic2d
 def send_email(subject=None, message=None, from_addr=None, to_addr=None):
     '''
     Send am email via SMTP server.
-    This will not prompt for login if you are alread on the internal network.
+    This will not prompt for login if you are already on the internal network.
     '''
     import os
     import getpass
@@ -172,7 +172,7 @@ def update_header_from_input(filename, input_list):
 
     if targname == 'BIAS':
         hdu_out[0].header.add_history('The data were split into sub-lists of less than 30 ')
-        hdu_out[0].header.add_history('imsets each. The pyraf script "refbias" was run on the')
+        hdu_out[0].header.add_history('imsets each. The script "refbias" was run on the')
         hdu_out[0].header.add_history('individual sub-lists and then averaged using the script')
         hdu_out[0].header.add_history('"refaver". The "refbias" procedure works as follows.')
         hdu_out[0].header.add_history('After joining the files together into a multi-imset')
@@ -473,7 +473,7 @@ def count_imsets(file_list):
 
     Returns
     -------
-    total : ine
+    total : int
         number of imsets
 
     """
@@ -883,9 +883,7 @@ def RemoveIfThere(item):
 #------------------------------------------------------------------------
 
 def refaver(reffiles, combined_name):
-    """Average two reference files together using msarith.
-
-    .. warning:: This task requires IRAF/PyRAF to be installed.
+    """Average two reference files together using itools msarith.
 
     Parameters
     ----------
@@ -895,9 +893,7 @@ def refaver(reffiles, combined_name):
         Output name of the combined file
 
     """
-    from pyraf import iraf
-    from iraf import stsdas
-    from iraf import mstools
+    from ._msarith_ import msarith
 
     print('#-----------------------#')
     print('combining datasets')
@@ -912,18 +908,13 @@ def refaver(reffiles, combined_name):
 
     initial_dir = os.getcwd()
     os.chdir(list(all_paths)[0])
-    try:
-        iraf.chdir(list(all_paths)[0])
-    except:
-        iraf.chdir(''.join(['/grp/hst/stis/darks_biases/refstis_new/',
-        list(all_paths)[0]]))
 
     all_subfiles = []
     for subfile in reffiles:
         subfile = os.path.split(subfile)[-1]
         outfile = subfile.replace('.fits', '_aver.fits')
-        print("Running msarith / 2 on {}".format(subfile))
-        iraf.msarith(subfile, '/', 2, outfile, verbose=1)
+        print("Running (itools) msarith / 2 on {}".format(subfile))
+        msarith(subfile, '/', 2, outfile, verbose=True)
         all_subfiles.append(outfile)
 
     assert len(all_subfiles) == 2, 'Length of subfiles doesnt equal 2: {}'.format(all_subfiles)
@@ -934,14 +925,13 @@ def refaver(reffiles, combined_name):
     #-- remove path from output name
     combined_name = os.path.split(combined_name)[-1]
 
-    iraf.msarith(all_subfiles[0], '+', all_subfiles[1], combined_name, verbose=1)
+    msarith(all_subfiles[0], '+', all_subfiles[1], combined_name, verbose=True)
 
     for filename in all_subfiles:
         os.remove(filename)
 
     #-- move back to beginning location
     os.chdir(initial_dir)
-    iraf.chdir(initial_dir)
 
 #------------------------------------------------------------------------
 

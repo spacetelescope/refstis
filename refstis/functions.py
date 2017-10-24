@@ -893,7 +893,7 @@ def refaver(reffiles, combined_name):
         Output name of the combined file
 
     """
-    from ._msarith_ import msarith
+    from .msarith import msarith
 
     print('#-----------------------#')
     print('combining datasets')

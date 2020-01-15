@@ -41,7 +41,7 @@ def update_sci(filename):
     with fits.open(filename, mode='update') as hdu:
         im_mean, im_median, im_std = sigma_clipped_stats(hdu[('sci', 1)].data,
                                                          sigma=5,
-                                                         iters=50)
+                                                         maxiters=50)
         fivesig = im_mean + 5.0 * im_std
         only_hotpix = np.where(hdu[('sci', 1)].data >= fivesig,
                                hdu[('sci', 1)].data - im_mean,
@@ -80,7 +80,7 @@ def find_hotpix(filename):
     with fits.open(filename, mode='update') as hdu:
         im_mean, im_median, im_std = sigma_clipped_stats(hdu[('sci', 1)].data,
                                                          sigma=3,
-                                                         iters=40)
+                                                         maxiters=40)
 
         five_sigma = im_median + 5 * im_std
         index = np.where((hdu[('SCI', 1)].data > five_sigma) &

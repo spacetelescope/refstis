@@ -43,8 +43,8 @@ def flag_hot_pixels(refbias_name):
     with fits.open(refbias_name, mode='update') as refbias_hdu:
         smooth_bias = medfilt(refbias_hdu[('sci', 1)].data, (3, 15))
 
-        smooth_bias_mean, smooth_bias_med, smooth_bias_std = sigma_clipped_stats(smooth_bias, sigma=3, iters=30)
-        bias_mean, bias_median, bias_std = sigma_clipped_stats(refbias_hdu[('sci', 1)].data, sigma=3, iters=30)
+        smooth_bias_mean, smooth_bias_med, smooth_bias_std = sigma_clipped_stats(smooth_bias, sigma=3, maxiters=30)
+        bias_mean, bias_median, bias_std = sigma_clipped_stats(refbias_hdu[('sci', 1)].data, sigma=3, maxiters=30)
 
 
         smooth_bias += (bias_mean - smooth_bias_mean)
@@ -53,7 +53,7 @@ def flag_hot_pixels(refbias_name):
 
         resid_mean, resid_median, resid_std = sigma_clipped_stats(bias_residual,
                                                                sigma=3,
-                                                               iters=30)
+                                                               maxiters=30)
         r_five_sigma = resid_mean + 5.0 * resid_std
 
         print('Updating DQ values of hot pixels above a level of ', r_five_sigma)

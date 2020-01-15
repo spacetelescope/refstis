@@ -164,7 +164,7 @@ def set_descrip(folder):
             descrip += '-'
 
         hdu[0].header['DESCRIP'] = descrip
-        hdu.writeto(item, clobber=True)
+        hdu.writeto(item, overwrite=True)
 
 #----------------------------------------------------------------
 

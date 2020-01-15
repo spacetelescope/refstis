@@ -242,7 +242,7 @@ def update_header_from_input(filename, input_list):
         hdu_out[3].header['PCOUNT'] = 0
         hdu_out[3].header['GROUNT'] = 1
 
-    hdu_out.writeto(filename, clobber=True, output_verify='exception')
+    hdu_out.writeto(filename, overwrite=True, output_verify='exception')
 
 #------------------------------------------------------------------------
 
@@ -293,8 +293,8 @@ def make_residual(mean_bias, kern=(3, 15)):
 
     median_image = median_filter(mean_image, kern)
 
-    medi_mean = sigma_clipped_stats(median_image, sigma=3, iters=40)[0]
-    mean_mean = sigma_clipped_stats(mean_image, sigma=3, iters=40)[0]
+    medi_mean = sigma_clipped_stats(median_image, sigma=3, maxiters=40)[0]
+    mean_mean = sigma_clipped_stats(mean_image, sigma=3, maxiters=40)[0]
     diffmean = mean_mean - medi_mean
 
     median_image += diffmean
@@ -339,7 +339,7 @@ def msjoin(imset_list, out_name='joined_out.fits'):
             ext_count += 1
 
     hdu[0].header['NEXTEND'] = len( hdu ) - 1
-    hdu.writeto(out_name, output_verify='exception', clobber=True)
+    hdu.writeto(out_name, output_verify='exception', overwrite=True)
 
     if not os.path.exists(out_name):
         raise IOError('Error in refstis:functions:msjoin() -- output file not written!')
@@ -451,7 +451,7 @@ def crreject(input_file, workdir=None):
     hdu = pyfits.open(output_crj)
     hdu[('sci', 1)].data /= ncombine
     hdu[('err', 1)].data /= ncombine
-    hdu.writeto(out_div, output_verify='exception', clobber=True)
+    hdu.writeto(out_div, output_verify='exception', overwrite=True)
 
     os.remove(output_blev)
     os.remove(output_crj)

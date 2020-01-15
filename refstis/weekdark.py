@@ -34,7 +34,7 @@ def create_superdark(crj_filename, basedark):
         ## Perform iterative statistics on this normalized superdark
         data_mean, data_median, data_std = sigma_clipped_stats(crj_hdu[('sci', 1)].data,
                                                                sigma=5,
-                                                               iters=40)
+                                                               maxiters=40)
 
         p_five_sigma = data_median + (5*data_std)
         print('hot pixels are defined as above: ', p_five_sigma)
@@ -42,7 +42,7 @@ def create_superdark(crj_filename, basedark):
 
         base_mean, base_median, base_std = sigma_clipped_stats(basedark_hdu[('sci', 1)].data,
                                                             sigma=5,
-                                                            iters=40)
+                                                            maxiters=40)
 
         fivesig = base_median + 5.0 * base_std
         zerodark = crj_hdu[('sci', 1)].data - base_median

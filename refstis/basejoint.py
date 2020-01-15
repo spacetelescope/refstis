@@ -200,7 +200,7 @@ def replace_hot_cols(mean_bias, median_image, residual_image, yfrac=1):
     residual_columns_2d = functions.make_resicols_image(residual_image,
                                                         yfrac=yfrac)
 
-    resi_cols_mean, resi_cols_median, resi_cols_std = sigma_clipped_stats(residual_columns_2d[0], sigma=3, iters=40)
+    resi_cols_mean, resi_cols_median, resi_cols_std = sigma_clipped_stats(residual_columns_2d[0], sigma=3, maxiters=40)
 
     print('thresh mean,sigma = {} {}'.format(resi_cols_mean, resi_cols_std))
     replval = resi_cols_mean + 3.0 * resi_cols_std
@@ -234,7 +234,7 @@ def replace_hot_pix(mean_bias, median_image):
     residual_image = fits.getdata(mean_bias, ext=('sci', 1)) - median_image
     resi_mean, resi_median, resi_std = sigma_clipped_stats(residual_image,
                                                            sigma=5,
-                                                           iters=40)
+                                                           maxiters=40)
 
     fivesig = resi_mean + (5.0 * resi_std)
     print("  hot is > {}".format(fivesig))

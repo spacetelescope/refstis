@@ -3,6 +3,9 @@ language: python
 # Setting sudo to false opts in to Travis-CI container-based builds.
 sudo: false
 
+services:
+    - xvfb
+
 # The apt packages below are needed for sphinx builds, which can no longer
 # be installed with sudo apt-get.
 addons:
@@ -15,12 +18,9 @@ addons:
 os:
     - linux
 
-
 python:
-
-    - 2.7
-    - 3.4
-    - 3.5
+    - 3.7
+    - 3.8
 
 env:
     global:
@@ -31,7 +31,7 @@ env:
         - PIP_INSTALL='pip install'
         - INSTALL_OPTIONAL=true
         - SETUP_CMD='test'
-        - NUMPY_VERSION=1.10
+        - NUMPY_VERSION=1.17
 
 before_install:
 
@@ -50,7 +50,6 @@ before_install:
 
     #CHECK INTERACTIVE MATPLOTLIB BACKENDS
     - export DISPLAY=:99.0
-    - sh -e /etc/init.d/xvfb start
 
 
 

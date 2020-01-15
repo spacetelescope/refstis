@@ -22,6 +22,6 @@ setup(
     scripts = glob.glob('scripts/*'),
     install_requires = ['pyyaml',
                         'numpy',
-                        'astropy',
+                        'astropy>=3.1',
                         'stistools'],
     )

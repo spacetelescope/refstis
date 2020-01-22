@@ -6,7 +6,7 @@ import glob
 
 setup(
     name = 'refstis',
-    version = '0.7.0a1',
+    version = '0.7.0a2',
     description = 'Pipeline to create STIS CCD superdarks and superbiases',
     author = 'Allyssa Riley, Sean Lockwood, Justin Ely',
     author_email = 'https://hsthelp.stsci.edu',

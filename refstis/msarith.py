@@ -6,7 +6,7 @@ import math
 import os
 import numpy as np
 import astropy.io.fits as fits
-import iutil
+from . import iutil
 
 
 def msarith(operand1, op, operand2, result, divzero=0., verbose=True):

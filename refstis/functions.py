@@ -1006,7 +1006,7 @@ def bias_subtract_data(filename, biasfile):
 
     biasfile = make_path_safe(biasfile)
 
-    pyfits.setval(filename, 'BIASFILE', ext=0, value=biasfile)
+    pyfits.setval(filename, 'BIASFILE', ext=0, value=biasfile, comment='')
     status = basic2d(filename,
                      dqicorr='perform',
                      blevcorr='perform',

@@ -101,8 +101,8 @@ def make_basedark(input_list, refdark_name='basedark.fits', bias_file=None):
     refdark_name: str
         name of the output reference file
 
-    bias_file: str
-        bias file to be used in calibration
+    bias_file: str or None
+        bias file to be used in calibration (optional)
 
     """
 
@@ -113,7 +113,10 @@ def make_basedark(input_list, refdark_name='basedark.fits', bias_file=None):
     print('with biasfile %s' % bias_file)
 
     #-- bias subtract data if not already done
-    flt_list = [functions.bias_subtract_data(item, bias_file) for item in input_list]
+    if bias_file:
+        flt_list = [functions.bias_subtract_data(item, bias_file) for item in input_list]
+    else:
+        flt_list = input_list
 
     for filename in flt_list:
         texpstrt = fits.getval(filename, 'texpstrt', 0)

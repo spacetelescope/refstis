@@ -907,7 +907,8 @@ def refaver(reffiles, combined_name):
     assert len(all_paths) == 1, "More than one path found"
 
     initial_dir = os.getcwd()
-    os.chdir(list(all_paths)[0])
+    if list(all_paths)[0] != '':
+        os.chdir(list(all_paths)[0])
 
     all_subfiles = []
     for subfile in reffiles:

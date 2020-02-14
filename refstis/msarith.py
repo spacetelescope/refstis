@@ -334,7 +334,7 @@ def oneFileArith(input1, op1_const, op, input2, op2_const, output, divzero):
                 out_fd.append(fd2[("TIME",extver)])
             hdu_appended = True
 
-    out_fd.writeto(output)
+    out_fd.writeto(output, overwrite=True)
     out_fd.close()
     if fd1 is not None:
         fd1.close()

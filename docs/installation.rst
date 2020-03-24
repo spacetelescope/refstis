@@ -1,8 +1,8 @@
 Installation Instructions
 =========================
 
-.. Install via Anaconda
-   --------------------
+Install via Anaconda
+--------------------
 
 TBD.
 

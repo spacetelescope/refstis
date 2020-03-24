@@ -169,7 +169,7 @@ def set_descrip(folder):
 #----------------------------------------------------------------
 
 def regress(folder):
-    """ Run *drk and *bia files in folder through CalSTIS to check
+    """ Run `*drk` and `*bia` files in folder through CalSTIS to check
     for errors in processing
 
     """

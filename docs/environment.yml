@@ -2,10 +2,11 @@ name: refstis
 channels:
   - http://ssb.stsci.edu/astroconda
 dependencies:
-  - numpy==1.10.0
+  - pyyaml
+  - numpy
   - matplotlib
-  - astropy>=1.0
-  - scipy==0.17.0
+  - astropy>=3.1
+  - scipy>=0.17.0
   - crds>=6.0.0
   - stistools
   - stsci.convolve

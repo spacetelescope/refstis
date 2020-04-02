@@ -70,6 +70,11 @@ by basedark, to create a dark appriate to a particular week's worth of data.:
 The Pipeline
 ------------
 
+.. warning::
+
+  This section is deprecated.  A new set of scripts to automatically derive pipeline 
+  reference files is being developed and will be integrated here soon.
+
 The pipeline can be run from any directory, with input/output directories
 determined from the config file outlined in the section below.  Simply
 executing the pipeline command from the terminal will kick everything off:

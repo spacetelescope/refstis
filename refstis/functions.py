@@ -18,7 +18,7 @@ from stistools.basic2d import basic2d
 def send_email(subject=None, message=None, from_addr=None, to_addr=None):
     '''
     Send am email via SMTP server.
-    This will not prompt for login if you are alread on the internal network.
+    This will not prompt for login if you are already on the internal network.
     '''
     import os
     import getpass
@@ -172,7 +172,7 @@ def update_header_from_input(filename, input_list):
 
     if targname == 'BIAS':
         hdu_out[0].header.add_history('The data were split into sub-lists of less than 30 ')
-        hdu_out[0].header.add_history('imsets each. The pyraf script "refbias" was run on the')
+        hdu_out[0].header.add_history('imsets each. The script "refbias" was run on the')
         hdu_out[0].header.add_history('individual sub-lists and then averaged using the script')
         hdu_out[0].header.add_history('"refaver". The "refbias" procedure works as follows.')
         hdu_out[0].header.add_history('After joining the files together into a multi-imset')
@@ -242,7 +242,7 @@ def update_header_from_input(filename, input_list):
         hdu_out[3].header['PCOUNT'] = 0
         hdu_out[3].header['GROUNT'] = 1
 
-    hdu_out.writeto(filename, clobber=True, output_verify='exception')
+    hdu_out.writeto(filename, overwrite=True, output_verify='exception')
 
 #------------------------------------------------------------------------
 
@@ -293,8 +293,8 @@ def make_residual(mean_bias, kern=(3, 15)):
 
     median_image = median_filter(mean_image, kern)
 
-    medi_mean = sigma_clipped_stats(median_image, sigma=3, iters=40)[0]
-    mean_mean = sigma_clipped_stats(mean_image, sigma=3, iters=40)[0]
+    medi_mean = sigma_clipped_stats(median_image, sigma=3, maxiters=40)[0]
+    mean_mean = sigma_clipped_stats(mean_image, sigma=3, maxiters=40)[0]
     diffmean = mean_mean - medi_mean
 
     median_image += diffmean
@@ -339,7 +339,7 @@ def msjoin(imset_list, out_name='joined_out.fits'):
             ext_count += 1
 
     hdu[0].header['NEXTEND'] = len( hdu ) - 1
-    hdu.writeto(out_name, output_verify='exception', clobber=True)
+    hdu.writeto(out_name, output_verify='exception', overwrite=True)
 
     if not os.path.exists(out_name):
         raise IOError('Error in refstis:functions:msjoin() -- output file not written!')
@@ -451,7 +451,7 @@ def crreject(input_file, workdir=None):
     hdu = pyfits.open(output_crj)
     hdu[('sci', 1)].data /= ncombine
     hdu[('err', 1)].data /= ncombine
-    hdu.writeto(out_div, output_verify='exception', clobber=True)
+    hdu.writeto(out_div, output_verify='exception', overwrite=True)
 
     os.remove(output_blev)
     os.remove(output_crj)
@@ -473,7 +473,7 @@ def count_imsets(file_list):
 
     Returns
     -------
-    total : ine
+    total : int
         number of imsets
 
     """
@@ -883,9 +883,7 @@ def RemoveIfThere(item):
 #------------------------------------------------------------------------
 
 def refaver(reffiles, combined_name):
-    """Average two reference files together using msarith.
-
-    .. warning:: This task requires IRAF/PyRAF to be installed.
+    """Average two reference files together using itools msarith.
 
     Parameters
     ----------
@@ -895,9 +893,7 @@ def refaver(reffiles, combined_name):
         Output name of the combined file
 
     """
-    from pyraf import iraf
-    from iraf import stsdas
-    from iraf import mstools
+    from .msarith import msarith
 
     print('#-----------------------#')
     print('combining datasets')
@@ -911,19 +907,15 @@ def refaver(reffiles, combined_name):
     assert len(all_paths) == 1, "More than one path found"
 
     initial_dir = os.getcwd()
-    os.chdir(list(all_paths)[0])
-    try:
-        iraf.chdir(list(all_paths)[0])
-    except:
-        iraf.chdir(''.join(['/grp/hst/stis/darks_biases/refstis_new/',
-        list(all_paths)[0]]))
+    if list(all_paths)[0] != '':
+        os.chdir(list(all_paths)[0])
 
     all_subfiles = []
     for subfile in reffiles:
         subfile = os.path.split(subfile)[-1]
         outfile = subfile.replace('.fits', '_aver.fits')
-        print("Running msarith / 2 on {}".format(subfile))
-        iraf.msarith(subfile, '/', 2, outfile, verbose=1)
+        print("Running (itools) msarith / 2 on {}".format(subfile))
+        msarith(subfile, '/', 2, outfile, verbose=True)
         all_subfiles.append(outfile)
 
     assert len(all_subfiles) == 2, 'Length of subfiles doesnt equal 2: {}'.format(all_subfiles)
@@ -934,14 +926,13 @@ def refaver(reffiles, combined_name):
     #-- remove path from output name
     combined_name = os.path.split(combined_name)[-1]
 
-    iraf.msarith(all_subfiles[0], '+', all_subfiles[1], combined_name, verbose=1)
+    msarith(all_subfiles[0], '+', all_subfiles[1], combined_name, verbose=True)
 
     for filename in all_subfiles:
         os.remove(filename)
 
     #-- move back to beginning location
     os.chdir(initial_dir)
-    iraf.chdir(initial_dir)
 
 #------------------------------------------------------------------------
 
@@ -1016,7 +1007,7 @@ def bias_subtract_data(filename, biasfile):
 
     biasfile = make_path_safe(biasfile)
 
-    pyfits.setval(filename, 'BIASFILE', ext=0, value=biasfile)
+    pyfits.setval(filename, 'BIASFILE', ext=0, value=biasfile, comment='')
     status = basic2d(filename,
                      dqicorr='perform',
                      blevcorr='perform',

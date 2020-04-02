@@ -59,7 +59,7 @@ def make_weekbias(input_list, refbias_name, basebias):
 
     resi_mean, resi_median, resi_std = sigma_clipped_stats(resi_columns_2d[0],
                                                            sigma=3,
-                                                           iters=20)
+                                                           maxiters=20)
     replval = resi_mean + 5.0 * resi_std
     only_hotcols = np.where(resi_columns_2d >= replval, residual_image, 0)
 

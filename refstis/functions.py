@@ -254,7 +254,7 @@ def get_start_and_endtimes(input_list):
     times.sort()
     start_mjd = times[0]
     end_mjd = times[-1]
-    times = Time(times, format = 'mjd', scale = 'utc', out_subfmt = 'date').iso
+    times = np.array([x.split()[0] for x in Time(times, format = 'mjd', scale = 'utc').iso])
 
     start_list = times[0].split('-')
     end_list = times[-1].split('-')

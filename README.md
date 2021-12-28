@@ -15,8 +15,6 @@ For code, please *fork* the repo, make your changes, and issue a pull request.
 Build Status and things
 -----------------------
 
-Travis-ci: [![Build Status](https://travis-ci.org/spacetelescope/refstis.svg?branch=master)](https://travis-ci.org/spacetelescope/refstis)
-
 Documentation: [![Documentation Status](https://readthedocs.org/projects/refstis/badge/?version=latest)](http://refstis.readthedocs.io/en/latest/?badge=latest)
 
 Conda install: [![Anaconda-Server Badge](https://anaconda.org/justincely/refstis/badges/installer/conda.svg)](https://conda.anaconda.org/justincely)

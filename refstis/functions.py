@@ -1015,6 +1015,14 @@ def bias_subtract_data(filename, biasfile, outdir=''):
     if os.access(output_filename, os.F_OK | os.W_OK):
         os.remove(output_filename)
 
+    # Check to see if input directory allows write access.  Copy data to output directory if not.
+    if (not os.access(filename, os.W_OK)) and (os.path.dirname(filename) != os.path.dirname(output_filename)):
+        shutil.copy(filename, os.path.dirname(output_filename))
+        filename = os.path.join(os.path.dirname(output_filename), os.path.basename(filename))
+    elif not os.access(filename, os.W_OK):
+        raise IOError('Directory with input data does not allow write access. ' + \
+                      f'Please specify an explicit outdir.  {filename}')
+
     pyfits.setval(filename, 'BIASFILE', ext=0, value=biasfile, comment='')
     status = basic2d(filename,
                      output=output_filename,

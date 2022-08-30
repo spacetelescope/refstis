@@ -2,6 +2,7 @@ from astropy.io import fits as pyfits
 from astropy.stats import sigma_clipped_stats
 import numpy as np
 import os
+import stat
 import shutil
 from scipy.signal import medfilt
 from scipy.ndimage.filters import median_filter
@@ -1019,6 +1020,9 @@ def bias_subtract_data(filename, biasfile, outdir=''):
     if (not os.access(filename, os.W_OK)) and (os.path.dirname(filename) != os.path.dirname(output_filename)):
         shutil.copy(filename, os.path.dirname(output_filename))
         filename = os.path.join(os.path.dirname(output_filename), os.path.basename(filename))
+        # Inherit destination directory read/write permissions (not execute) + user write:
+        all_read_write = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH
+        os.chmod(filename, (os.stat(os.path.dirname(filename)).st_mode | stat.S_IWUSR) & all_read_write)
     elif not os.access(filename, os.W_OK):
         raise IOError('Directory with input data does not allow write access. ' + \
                       f'Please specify an explicit outdir.  {filename}')

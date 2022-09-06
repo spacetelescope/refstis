@@ -1011,7 +1011,7 @@ def bias_subtract_data(filename, biasfile, outdir=''):
 
     biasfile = make_path_safe(biasfile)
 
-    output_filename = name.replace('_raw', '_flc' if cte_corrected else '_flt') + '.fits'
+    output_filename = name.rsplit('_raw', 1)[0] + ('_flc' if cte_corrected else '_flt') + '.fits'
     output_filename = os.path.join(path, output_filename)
     if os.access(output_filename, os.F_OK | os.W_OK):
         os.remove(output_filename)

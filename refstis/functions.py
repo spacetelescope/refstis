@@ -2,6 +2,7 @@ from astropy.io import fits as pyfits
 from astropy.stats import sigma_clipped_stats
 import numpy as np
 import os
+import stat
 import shutil
 from scipy.signal import medfilt
 from scipy.ndimage.filters import median_filter
@@ -971,7 +972,7 @@ def apply_dark_correction(filename, expstart):
 
 #-------------------------------------------------------------------------------
 
-def bias_subtract_data(filename, biasfile):
+def bias_subtract_data(filename, biasfile, outdir=''):
     """Perform bias subtraction on input dataset
 
     basic2d from calstis will be run on the input dataset with the
@@ -983,6 +984,8 @@ def bias_subtract_data(filename, biasfile):
         full path to input FITS file
     biasfile : str
         full path to the bias FITS file to be subtracted
+    outdir : str, optional
+        if specified, the directory to send the bias-subtracted output file
 
     Returns
     -------
@@ -996,19 +999,37 @@ def bias_subtract_data(filename, biasfile):
             print("BIAS correction already done for {}".format(filename))
             return filename
 
-    if os.path.exists(filename.replace('raw', 'flc')):
-        os.remove(filename.replace('raw', 'flc'))
-    elif os.path.exists(filename.replace('raw', 'flt')):
-        os.remove(filename.replace('raw', 'flt'))
+        # Did we run the pixel-based CTE correction on the input file?
+        # If so, this changes the extension of the output file.
+        cte_corrected = hdu[0].header.get('PCTECORR', 'OMIT').strip() == 'COMPLETE'
 
     path, name = os.path.split(filename)
     name, ext = os.path.splitext(name)
+    if outdir:
+        path = outdir
     trailerfile = os.path.join(path, name + '_bias_subtract_log.txt')
 
     biasfile = make_path_safe(biasfile)
 
+    output_filename = name.rsplit('_raw', 1)[0] + ('_flc' if cte_corrected else '_flt') + '.fits'
+    output_filename = os.path.join(path, output_filename)
+    if os.access(output_filename, os.F_OK | os.W_OK):
+        os.remove(output_filename)
+
+    # Check to see if input directory allows write access.  Copy data to output directory if not.
+    if (not os.access(filename, os.W_OK)) and (os.path.dirname(filename) != os.path.dirname(output_filename)):
+        shutil.copy(filename, os.path.dirname(output_filename))
+        filename = os.path.join(os.path.dirname(output_filename), os.path.basename(filename))
+        # Inherit destination directory read/write permissions (not execute) + user write:
+        all_read_write = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH
+        os.chmod(filename, (os.stat(os.path.dirname(filename)).st_mode | stat.S_IWUSR) & all_read_write)
+    elif not os.access(filename, os.W_OK):
+        raise IOError('Directory with input data does not allow write access. ' + \
+                      f'Please specify an explicit outdir.  {filename}')
+
     pyfits.setval(filename, 'BIASFILE', ext=0, value=biasfile, comment='')
     status = basic2d(filename,
+                     output=output_filename,
                      dqicorr='perform',
                      blevcorr='perform',
                      biascorr='perform',
@@ -1028,11 +1049,9 @@ def bias_subtract_data(filename, biasfile):
                 for line in tr.readlines():
                     print('    {}'.format(line.strip()))
         finally:
-            raise Exception('BASIC2D failed to properly reduce {}'.format(filename))
+            raise Exception(f'BASIC2D failed to properly reduce {filename}')
 
-    filename = filename.replace('raw', 'flt')
-
-    return filename
+    return output_filename
 
 #-------------------------------------------------------------------------------
 

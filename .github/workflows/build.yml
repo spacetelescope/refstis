@@ -32,7 +32,7 @@ jobs:
 
       - name: install dependencies
         run: |
-          pip install numpy astropy crds matplotlib scipy stistools
+          pip install pytest numpy astropy crds matplotlib scipy stistools
 
       - name: run build
         run: |

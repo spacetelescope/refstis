@@ -50,7 +50,7 @@ def create_superdark(crj_filename, basedark):
                                zerodark,
                                0.0)
 
-        basedark_med = medfilt(basedark_hdu[('sci', 1)].data, (5, 5))
+        basedark_med = medfilt(np.array(basedark_hdu[('sci', 1)].data, dtype=np.float32), (5, 5))
         only_dark = np.where(basedark_hdu[('sci', 1)].data >= p_five_sigma,
                              basedark_med,
                              basedark_hdu[('sci', 1)].data)

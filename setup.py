@@ -4,12 +4,16 @@ from setuptools import setup, find_packages
 import os
 import glob
 
+here = os.path.abspath(os.path.dirname(__file__))
+with open(os.path.join(here, 'README.md')) as f:
+    long_description = f.read()
+
 setup(
     name = 'refstis',
     version = '0.8.3',
     description = 'Pipeline to create STIS CCD superdarks and superbiases',
+    long_description = long_description,
     author = 'Allyssa Riley, Sean Lockwood, Justin Ely',
-    author_email = 'https://hsthelp.stsci.edu',
     url = 'https://refstis.readthedocs.io',
     packages = find_packages(),
     keywords = ['astronomy'],

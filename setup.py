@@ -10,7 +10,7 @@ with open(os.path.join(here, 'README.md')) as f:
 
 setup(
     name = 'refstis',
-    version = '0.8.3',
+    version = '0.8.4',
     description = 'Pipeline to create STIS CCD superdarks and superbiases',
     long_description = long_description,
     author = 'Allyssa Riley, Sean Lockwood, Justin Ely',

@@ -5,7 +5,7 @@ import os
 import stat
 import shutil
 from scipy.signal import medfilt
-from scipy.ndimage.filters import median_filter
+from scipy.ndimage import median_filter
 from astropy.time import Time
 import math
 import sqlite3

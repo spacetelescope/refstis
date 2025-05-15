@@ -19,7 +19,7 @@
 from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
 import numpy as np
-from scipy.ndimage.filters import median_filter
+from scipy.ndimage import median_filter
 import shutil
 
 from . import functions

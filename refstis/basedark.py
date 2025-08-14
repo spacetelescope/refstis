@@ -47,7 +47,6 @@ def update_sci(filename):
                                hdu[('sci', 1)].data - im_mean,
                                0)
 
-
         #-- I don't see this being used
         med_im = median_filter(hdu[('sci', 1)].data, (3, 3))
         only_baseline = np.where(hdu[('sci', 1)].data >= fivesig,
@@ -55,38 +54,39 @@ def update_sci(filename):
                                  hdu[('sci', 1)].data)
 
 
-        hdu[('dq', 1)].data = np.where(only_hotpix >= .1,
-                                       16,
-                                       hdu[('dq', 1)].data)
+        # MD 2025, Removing dq=16 assignment since the basedark DQ array isn't used and we don't deliver
+        # hdu[('dq', 1)].data = np.where(only_hotpix >= .1,
+        #                                16,
+        #                                hdu[('dq', 1)].data)
 
 #-------------------------------------------------------------------------------
+# MD 2025, Commenting out since it would have overwritten the basedark DQ array assigned in update_sci()
+# def find_hotpix(filename):
+#     """Find hotpixels and update DQ array
 
-def find_hotpix(filename):
-    """Find hotpixels and update DQ array
+#     Pixels hotter that median + 5*sigma will be updated to have a
+#     DQ value of 16.
 
-    Pixels hotter that median + 5*sigma will be updated to have a
-    DQ value of 16.
+#     .. note:: The input file will be updated in-place.
 
-    .. note:: The input file will be updated in-place.
-
-    Parameters
-    ----------
+#     Parameters
+#     ----------
     
-    filename: str
-        filename of the input biasfile
+#     filename: str
+#         filename of the input biasfile
 
-    """
+#     """
 
-    with fits.open(filename, mode='update') as hdu:
-        im_mean, im_median, im_std = sigma_clipped_stats(hdu[('sci', 1)].data,
-                                                         sigma=3,
-                                                         maxiters=40)
+#     with fits.open(filename, mode='update') as hdu:
+#         im_mean, im_median, im_std = sigma_clipped_stats(hdu[('sci', 1)].data,
+#                                                          sigma=3,
+#                                                          maxiters=40)
 
-        five_sigma = im_median + 5 * im_std
-        index = np.where((hdu[('SCI', 1)].data > five_sigma) &
-                         (hdu[('SCI', 1)].data > im_mean + 0.1))
+#         five_sigma = im_median + 5 * im_std
+#         index = np.where((hdu[('SCI', 1)].data > five_sigma) &
+#                          (hdu[('SCI', 1)].data > im_mean + 0.1))
 
-        hdu[('DQ', 1)].data[index] = 16
+#         hdu[('DQ', 1)].data[index] = 16
 
 #-------------------------------------------------------------------------------
 
@@ -141,7 +141,7 @@ def make_basedark(input_list, refdark_name='basedark.fits', bias_file=None):
     shutil.copy(crj_filename, refdark_name)
 
     update_sci(refdark_name)
-    find_hotpix(refdark_name)
+    # find_hotpix(refdark_name)
 
     functions.update_header_from_input(refdark_name, input_list)
     fits.setval(refdark_name, 'TASKNAME', ext=0, value='BASEDARK')

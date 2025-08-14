@@ -59,6 +59,8 @@ def create_superdark(crj_filename, basedark):
         crj_hdu[('sci', 1)].data = only_dark + only_hotpix
 
         #- update DQ extension
+        crj_hdu[('dq', 1)].data &= ~2**4  # MD 2025 Remove any existing DQ=16 flags that were assigned by cr-combine step since those are already present in the bias ref file 
+        
         crj_hdu[('dq', 1)].data = np.where(only_hotpix >= p_five_sigma,
                                            16,
                                            crj_hdu[('dq', 1)].data)

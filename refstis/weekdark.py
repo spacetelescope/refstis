@@ -56,20 +56,28 @@ def create_superdark(crj_filename, basedark):
                              basedark_hdu[('sci', 1)].data)
 
 
+        #- Update Sci 
         crj_hdu[('sci', 1)].data = only_dark + only_hotpix
-
-        #- update DQ extension
-        crj_hdu[('dq', 1)].data &= ~2**4  # MD 2025 Remove any existing DQ=16 flags that were assigned by cr-combine step since those are already present in the bias ref file 
-        
-        crj_hdu[('dq', 1)].data = np.where(only_hotpix >= p_five_sigma,
-                                           16,
-                                           crj_hdu[('dq', 1)].data)
 
         #- Update Error
         crj_hdu[('err', 1)].data = np.where(only_hotpix == 0,
                                             basedark_hdu[('err', 1)].data,
                                             crj_hdu[('err', 1)].data)
 
+        #- update DQ 
+        crj_hdu[('dq', 1)].data &= ~2**4  # MD 2025 Remove any existing DQ=16 flags that were assigned by cr-combine step since those are already present in the bias ref file 
+
+        # remove old flagging technique
+        # crj_hdu[('dq', 1)].data = np.where(only_hotpix >= p_five_sigma,
+        #                                    16,
+        #                                    crj_hdu[('dq', 1)].data)
+
+        # flag hot pixels that are contributing so much noise that we can't be sure if the subtraction is correct
+        median_weekdark = np.median(crj_hdu[('sci', 1)].data) # threshold for noise TO BE CHANGED LATER: THIS PENALIZES EARLIER WEEKDARKS WHERE THE MEDIAN WAS LOWER
+        crj_hdu[('dq',1)].data = np.where(crj_hdu[('err',1)].data>median_weekdark, 16, crj_hdu[('dq',1)].data)
+
+        # flag pixels whose dark current is unstable throughout the week or anneal period
+        
 #-------------------------------------------------------------------------------
 
 def make_weekdark(input_list, refdark_name, thebasedark, thebiasfile=None):

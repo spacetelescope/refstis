@@ -30,6 +30,7 @@ jobs:
           auto-update-conda: true
           python-version: ${{ matrix.python-version }}
           channels: conda-forge
+          conda-remove-defaults: "true"
 
       - name: install hstcal
         run: |

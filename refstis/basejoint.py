@@ -28,6 +28,7 @@ import numpy as np
 import os
 import shutil
 import sys
+import argparse
 import stistools
 
 from . import functions
@@ -297,3 +298,21 @@ def make_basebias(input_list, refbias_name='basebias.fits'):
     print('basejoint done for {}'.format(refbias_name))
 
 #-------------------------------------------------------------------------------
+
+def call_make_basebias():
+    '''Parse command line arguments and call ``make_basejoint``.
+    '''
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('files',
+                        nargs='*',
+                        help='input files to turn into reference file')
+
+    parser.add_argument('-o',
+                        dest='outname',
+                        type=str,
+                        default='basebias.fits',
+                        help='output name for the reference file')
+
+    args = parser.parse_args()
+    make_basebias(args.files, args.outname)

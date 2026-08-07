@@ -6,6 +6,7 @@ from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
 import numpy as np
 import shutil
+import argparse
 
 from . import functions
 from .basejoint import replace_hot_cols
@@ -88,3 +89,27 @@ def make_weekbias(input_list, refbias_name, basebias):
     print('weekbias done for {}'.format(refbias_name))
 
 #-------------------------------------------------------------------------------
+
+def call_make_weekbias():
+    '''Parse command line arguments and call ``make_weekbias``.
+    '''
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('files',
+                        nargs='*',
+                        help='input files to turn into reference file')
+
+    parser.add_argument('-o',
+                        dest='outname',
+                        type=str,
+                        default='weekbias.fits',
+                        help='output name for the reference file')
+
+    parser.add_argument('-b',
+                        dest='basebias',
+                        type=str,
+                        default='basebias.fits',
+                        help='filename for the basebias used in final reference file')
+
+    args = parser.parse_args()
+    make_weekbias(args.files, args.outname, args.basebias)

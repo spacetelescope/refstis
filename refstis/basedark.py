@@ -21,6 +21,7 @@ from astropy.stats import sigma_clipped_stats
 import numpy as np
 from scipy.ndimage import median_filter
 import shutil
+import argparse
 
 from . import functions
 
@@ -154,3 +155,27 @@ def make_basedark(input_list, refdark_name='basedark.fits', bias_file=None):
     print('basedark done for {}'.format(refdark_name))
 
 #-------------------------------------------------------------------------------
+
+def call_make_basedark():
+    '''Parse command line arguments and call ``make_basedark``.
+    '''
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('files',
+                        nargs='*',
+                        help='input files to turn into reference file')
+
+    parser.add_argument('-o',
+                        dest='outname',
+                        type=str,
+                        default='basebias.fits',
+                        help='output name for the reference file')
+
+    parser.add_argument('-b',
+                        dest='biasname',
+                        type=str,
+                        default=None,
+                        help='Bias file for calibration')
+
+    args = parser.parse_args()
+    make_basedark(args.files, args.outname, args.biasname)

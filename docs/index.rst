@@ -7,7 +7,7 @@
 Refstis: Superdarks and Superbiases for STIS
 ############################################
 
-Refstis is a collection of tasks and pipeline processes to create the superdark
+Refstis is a collection of tasks to create the superdark
 and superbias reference files for the Space Telescope Imaging Spectrograph (STIS)
 on board the Hubble Space Telescope (HST).
 
@@ -18,7 +18,7 @@ on board the Hubble Space Telescope (HST).
 
 .. note::
 
-  These routines, and particularly the pipeline, are designed to regularly create
+  These routines are designed to regularly create
   and deliver the reference files that are applied in the MAST archive.  As such,
   everything is geared particularly to the needs of the STIS instrument team at
   STScI.

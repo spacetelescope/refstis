@@ -1,16 +1,18 @@
 Installation Instructions
 =========================
 
-Install via Anaconda
---------------------
+Install via PyPI
+----------------
 
-TBD.
+`Refstis` can be installed from PyPI using `pip`::
+
+    pip install refstis
 
 Install from source
 -------------------
 
 `Refstis` can be installed manually using the source code::
 
-    $ git clone https://github.com/spacetelescope/refstis.git
-    $ cd refstis
-    $ python setup.py install
+    git clone https://github.com/spacetelescope/refstis.git
+    cd refstis
+    pip install .

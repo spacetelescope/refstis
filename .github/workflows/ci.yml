@@ -1,4 +1,4 @@
-name: build
+name: CI
 
 on:
   push:
@@ -15,28 +15,30 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
+        python-version: ["3.13"]
     defaults:
       run:
         shell: bash -l {0}
 
     steps:
       - name: checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v7
 
       - name: install conda
-        uses: conda-incubator/setup-miniconda@v2
+        uses: conda-incubator/setup-miniconda@v4
         with:
           auto-update-conda: true
-          python-version: '3.11'
+          python-version: ${{ matrix.python-version }}
           channels: conda-forge
+          conda-remove-defaults: "true"
 
-      - name: install dependencies
+      - name: install hstcal
         run: |
-          pip install pytest numpy astropy crds matplotlib scipy stistools
+          conda install -y -c conda-forge hstcal
 
-      - name: run build
+      - name: install build
         run: |
-          pip install .
+          pip install .[test]
 
       - name: run tests
         run: |

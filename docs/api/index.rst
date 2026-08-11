@@ -9,8 +9,4 @@ Api
   weekbias
   refbias
   basejoint
-  pipeline
   functions
-  delivery
-  pop_db
-  retrieval

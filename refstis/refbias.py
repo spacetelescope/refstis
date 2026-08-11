@@ -14,6 +14,7 @@ from astropy.stats import sigma_clipped_stats
 import numpy as np
 from scipy.signal import medfilt
 import shutil
+import argparse
 
 from . import functions
 
@@ -99,3 +100,21 @@ def make_refbias(input_list, refbias_name='refbias.fits'):
     print('refbias done for {}'.format(refbias_name))
 
 #-------------------------------------------------------------------------------
+
+def call_make_refbias():
+    '''Parse command line arguments and call ``make_refbias``.
+    '''
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('files',
+                        nargs='*',
+                        help='input files to turn into reference file')
+
+    parser.add_argument('-o',
+                        dest='outname',
+                        type=str,
+                        default='refbias.fits',
+                        help='output name for the reference file')
+
+    args = parser.parse_args()
+    make_refbias(args.files, args.outname)

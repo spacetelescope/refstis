@@ -5,6 +5,7 @@
 *.fits
 build
 dist
+refstis/_version.py
 refstis.egg-info/
 refstis/anneal_info.db
 pipeline_data/config.yaml

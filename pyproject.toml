@@ -80,3 +80,6 @@ filterwarnings = [
     "ignore:.*GFIT is deprecated.*",
     "ignore:.*NMPFIT is deprecated.*",
 ]
+
+[tool.pytest_env]
+oref = "tests/oref/"

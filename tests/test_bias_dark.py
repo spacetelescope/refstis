@@ -65,9 +65,9 @@ def test_weekdark(rawdark_list, tmp_path, basebias, basedark):
     '''
     outfile = str(tmp_path / 'weekdark.fits')
     make_weekdark(input_list=rawdark_list,
-        refdark_name=outfile,
-        thebasedark=basedark,
-        thebiasfile=basebias)
+                  refdark_name=outfile,
+                  thebasedark=basedark,
+                  thebiasfile=basebias)
 
     fits.info(outfile)
 

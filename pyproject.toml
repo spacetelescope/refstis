@@ -81,5 +81,7 @@ filterwarnings = [
     "ignore:.*NMPFIT is deprecated.*",
 ]
 
-[tool.pytest_env]
-oref = "tests/oref/"
+[pytest]
+env = [
+    "oref = tests/oref/",
+]

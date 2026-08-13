@@ -76,3 +76,7 @@ testpaths = ["tests"]
 addopts = [
     "-ra",
 ]
+filterwarnings = [
+    "ignore:.*GFIT is deprecated.*",
+    "ignore:.*NMPFIT is deprecated.*",
+]

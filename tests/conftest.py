@@ -6,6 +6,12 @@ import numpy as np
 from astropy.io import fits
 
 
+@pytest.fixture(autouse=True)
+def set_oref(monkeypatch):
+    oref = str(Path(__file__).parent / 'oref') + '/'
+    monkeypatch.setenv("oref", oref)
+
+
 @pytest.fixture
 def basebias():
     return str(Path(__file__).parent / 'data' / 'basebias.fits')

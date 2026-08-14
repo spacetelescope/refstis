@@ -42,10 +42,8 @@ jobs:
 
       - name: coverage configuration
         run: |
-          pwd
-          python -c "import refstis; print(refstis.__file__)"
-          python -m pytest --collect-only -q
+          python -m coverage debug sys
 
       - name: run tests
         run: |
-          pytest -v
+          python -m pytest --cov=refstis --cov-report=term-missing -v

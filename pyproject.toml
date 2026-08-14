@@ -78,9 +78,3 @@ filterwarnings = [
     "ignore:.*GFIT is deprecated.*",
     "ignore:.*NMPFIT is deprecated.*",
 ]
-
-[tool.coverage.run]
-omit = [
-    "refstis/legacy_code/*",
-    "refstis/_version.py",
-]

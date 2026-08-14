@@ -8,6 +8,7 @@ import os
 # This file contains utility functions for Python modules to replace IRAF
 # tasks.
 
+
 def splitOnComma(images):
     """Split an input string on commas, ignoring commas within brackets.
 

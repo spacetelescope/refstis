@@ -1,5 +1,4 @@
 """Functions to create weekly superdarks for the STIS instrument.
-
 """
 
 from astropy.io import fits
@@ -11,10 +10,9 @@ import argparse
 
 from . import functions
 
-#-------------------------------------------------------------------------------
 
 def create_superdark(crj_filename, basedark):
-    """ Create a superdark from the crj and basedark
+    """Create a superdark from the crj and basedark
 
     Create the science portion of the forthcoming reference dark by adding the
     'only baseline dark current' image to the 'only hot pixels' image.
@@ -27,23 +25,21 @@ def create_superdark(crj_filename, basedark):
         filename of the cosmic-ray rejected file
     basedark : str
         basedark name
-
     """
-
     with fits.open(crj_filename, mode='update') as crj_hdu:
 
-        ## Perform iterative statistics on this normalized superdark
+        # Perform iterative statistics on this normalized superdark
         data_mean, data_median, data_std = sigma_clipped_stats(crj_hdu[('sci', 1)].data,
                                                                sigma=5,
                                                                maxiters=40)
 
-        p_five_sigma = data_median + (5*data_std)
+        p_five_sigma = data_median + (5 * data_std)
         print('hot pixels are defined as above: ', p_five_sigma)
         basedark_hdu = fits.open(basedark)
 
         base_mean, base_median, base_std = sigma_clipped_stats(basedark_hdu[('sci', 1)].data,
-                                                            sigma=5,
-                                                            maxiters=40)
+                                                               sigma=5,
+                                                               maxiters=40)
 
         fivesig = base_median + 5.0 * base_std
         zerodark = crj_hdu[('sci', 1)].data - base_median
@@ -56,25 +52,23 @@ def create_superdark(crj_filename, basedark):
                              basedark_med,
                              basedark_hdu[('sci', 1)].data)
 
-
         crj_hdu[('sci', 1)].data = only_dark + only_hotpix
 
-        #- update DQ extension
+        # update DQ extension
         crj_hdu[('dq', 1)].data = np.where(only_hotpix >= p_five_sigma,
                                            16,
                                            crj_hdu[('dq', 1)].data)
 
-        #- Update Error
+        # Update Error
         crj_hdu[('err', 1)].data = np.where(only_hotpix == 0,
                                             basedark_hdu[('err', 1)].data,
                                             crj_hdu[('err', 1)].data)
 
-#-------------------------------------------------------------------------------
 
 def make_weekdark(input_list, refdark_name, thebasedark, thebiasfile=None):
-    """ Create a weekly dark reference file
+    """Create a weekly dark reference file
 
-    1. If not already done, run basic2d with blevcorr, biascorr, and dqicorr 
+    1. If not already done, run basic2d with blevcorr, biascorr, and dqicorr
        set to perform
     2. Apply temperature correction to the data
     3. split all raw images into their imsets
@@ -98,31 +92,29 @@ def make_weekdark(input_list, refdark_name, thebasedark, thebiasfile=None):
         Monthly basedark
     thebiasfile : str, bool, optional
         biasfile to use for calibration
-
     """
-
     print('#-------------------------------#')
     print('#        Running weekdark       #')
     print('#-------------------------------#')
     if not thebiasfile:
         thebiasfile = fits.getval(input_list[0], 'biasfile', 0)
 
-    print('Making weekdark %s' % (refdark_name))
-    print('With : %s' % (thebiasfile))
-    print('     : %s' % (thebasedark))
+    print(f'Making weekdark {refdark_name}')
+    print(f'With : {thebiasfile}')
+    print(f'     : {thebasedark}')
 
     flt_list = [functions.bias_subtract_data(item, thebiasfile) for item in input_list]
 
     for filename in flt_list:
         texpstrt = fits.getval(filename, 'texpstrt', 0)
-        #Side 1 operations ended on May 16, 2001.
-        #Side 2 operations started on July 10, 2001,
-        #52091.0 corresponds to July 1, 2001
+        # Side 1 operations ended on May 16, 2001.
+        # Side 2 operations started on July 10, 2001,
+        # 52091.0 corresponds to July 1, 2001
         if texpstrt > 52091.0:
             functions.apply_dark_correction(filename, texpstrt)
 
     joined_out = refdark_name.replace('.fits', '_joined.fits')
-    print('Joining images to %s' % joined_out)
+    print(f'Joining images to {joined_out}')
     functions.msjoin(flt_list, joined_out)
 
     crdone = functions.bd_crreject(joined_out)
@@ -142,15 +134,14 @@ def make_weekdark(input_list, refdark_name, thebasedark, thebiasfile=None):
     print('Cleaning up...')
     functions.RemoveIfThere(crj_filename)
     functions.RemoveIfThere(joined_out)
-    #map(functions.RemoveIfThere, flt_list)
+    # map(functions.RemoveIfThere, flt_list)
 
     print('Weekdark done for {}'.format(refdark_name))
 
-#-------------------------------------------------------------------------------
 
 def call_make_weekdark():
-    '''Parse command line arguments and call ``weekdark``.
-    '''
+    """Parse command line arguments and call ``weekdark``.
+    """
     parser = argparse.ArgumentParser()
 
     parser.add_argument('files',
@@ -180,4 +171,3 @@ def call_make_weekdark():
                   args.outname,
                   args.darkname,
                   thebiasfile=args.biasname)
-

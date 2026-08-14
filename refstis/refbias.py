@@ -18,7 +18,6 @@ import argparse
 
 from . import functions
 
-#-------------------------------------------------------------------------------
 
 def flag_hot_pixels(refbias_name):
     """Flag hotpixels in the DQ array
@@ -38,23 +37,20 @@ def flag_hot_pixels(refbias_name):
     ----------
     refbias_name : str
         name of the reference file to flag
-
     """
-
     with fits.open(refbias_name, mode='update') as refbias_hdu:
         smooth_bias = medfilt(np.array(refbias_hdu[('sci', 1)].data, dtype=np.float32), (3, 15))
 
         smooth_bias_mean, smooth_bias_med, smooth_bias_std = sigma_clipped_stats(smooth_bias, sigma=3, maxiters=30)
         bias_mean, bias_median, bias_std = sigma_clipped_stats(refbias_hdu[('sci', 1)].data, sigma=3, maxiters=30)
 
-
         smooth_bias += (bias_mean - smooth_bias_mean)
 
         bias_residual = refbias_hdu[('sci', 1)].data - smooth_bias
 
         resid_mean, resid_median, resid_std = sigma_clipped_stats(bias_residual,
-                                                               sigma=3,
-                                                               maxiters=30)
+                                                                  sigma=3,
+                                                                  maxiters=30)
         r_five_sigma = resid_mean + 5.0 * resid_std
 
         print('Updating DQ values of hot pixels above a level of ', r_five_sigma)
@@ -62,7 +58,6 @@ def flag_hot_pixels(refbias_name):
                                                16,
                                                refbias_hdu[('dq', 1)].data)
 
-#-------------------------------------------------------------------------------
 
 def make_refbias(input_list, refbias_name='refbias.fits'):
     """Create a refbias FITS file
@@ -73,16 +68,14 @@ def make_refbias(input_list, refbias_name='refbias.fits'):
         list of input bias files
     refbias_name : str
         name of the output bias reference file
-
     """
-
     print('#-------------------------------#')
     print('#        Running refbias        #')
     print('#-------------------------------#')
-    print('Making refbias %s' % (refbias_name))
+    print(f'Making refbias {refbias_name}')
     joined_out = refbias_name.replace('.fits', '_joined.fits')
 
-    print('Joining images to %s' % joined_out)
+    print(f'Joining images to {joined_out}')
     functions.msjoin(input_list, joined_out)
 
     print('Checking for cosmic ray rejection')
@@ -99,11 +92,10 @@ def make_refbias(input_list, refbias_name='refbias.fits'):
 
     print('refbias done for {}'.format(refbias_name))
 
-#-------------------------------------------------------------------------------
 
 def call_make_refbias():
-    '''Parse command line arguments and call ``make_refbias``.
-    '''
+    """Parse command line arguments and call ``make_refbias``.
+    """
     parser = argparse.ArgumentParser()
 
     parser.add_argument('files',

@@ -40,10 +40,6 @@ jobs:
         run: |
           pip install .[test]
 
-      - name: coverage configuration
-        run: |
-          python -m coverage debug sys
-
       - name: run tests
         run: |
-          python -m pytest --cov=refstis --cov-report=term-missing -v
+          python -m pytest --cov=refstis --cov-report=term

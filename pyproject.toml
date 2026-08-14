@@ -72,7 +72,7 @@ include-package-data = true
 version_file = "refstis/_version.py"
 
 [tool.pytest.ini_options]
-addopts = "--cov=refstis --cov-report=term --cov-fail-under=70 -ra"
+addopts = "--cov=refstis --cov-report=term -v --cov-fail-under=70 -ra"
 testpaths = ["tests"]
 filterwarnings = [
     "ignore:.*GFIT is deprecated.*",
@@ -80,7 +80,6 @@ filterwarnings = [
 ]
 
 [tool.coverage.run]
-source = ["refstis",]
 omit = [
     "refstis/legacy_code/*",
     "refstis/_version.py",

@@ -11,10 +11,9 @@ import argparse
 from . import functions
 from .basejoint import replace_hot_cols
 
-#-------------------------------------------------------------------------------
 
 def make_weekbias(input_list, refbias_name, basebias):
-    """ Make 'weekly' bias from list of input bias files
+    """Make 'weekly' bias from list of input bias files
 
     1. join imsets from each datset together into one large file
     2. combine and cosmic ray screen joined imset
@@ -41,14 +40,12 @@ def make_weekbias(input_list, refbias_name, basebias):
         filename of the output reference file
     basebias : str
         filename of the monthly basebias
-
     """
-
     print('#-------------------------------#')
     print('#        Running weekbias       #')
     print('#-------------------------------#')
-    print('Output to %s' % (refbias_name))
-    print('using {}'.format(basebias))
+    print(f'Output to {refbias_name}')
+    print(f'using {basebias}')
 
     joined_out = refbias_name.replace('.fits', '_joined.fits')
     functions.msjoin(input_list, joined_out)
@@ -65,15 +62,15 @@ def make_weekbias(input_list, refbias_name, basebias):
     only_hotcols = np.where(resi_columns_2d >= replval, residual_image, 0)
 
     with fits.open(crj_filename, mode='update') as hdu:
-        #-- update science extension
+        # update science extension
         baseline_sci = fits.getdata(basebias, ext=('sci', 1))
         hdu[('sci', 1)].data = baseline_sci + only_hotcols
 
-        #-- update DQ extension
+        # update DQ extension
         hot_index = np.where(only_hotcols > 0)
         hdu[('dq', 1)].data[hot_index] = 16
 
-        #- update ERR
+        # update ERR extension
         baseline_err = fits.getdata(basebias, ext=('err', 1))
         no_hot_index = np.where(only_hotcols == 0)
         hdu[('err', 1)].data[no_hot_index] = baseline_err[no_hot_index]
@@ -88,11 +85,10 @@ def make_weekbias(input_list, refbias_name, basebias):
 
     print('weekbias done for {}'.format(refbias_name))
 
-#-------------------------------------------------------------------------------
 
 def call_make_weekbias():
-    '''Parse command line arguments and call ``make_weekbias``.
-    '''
+    """Parse command line arguments and call ``make_weekbias``.
+    """
     parser = argparse.ArgumentParser()
 
     parser.add_argument('files',

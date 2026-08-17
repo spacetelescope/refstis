@@ -18,8 +18,6 @@ pixels having values greater than (mean + 5 sigma of Poisson noise) are
 replaced by those in the median-filtered bias image.
 Plots are made of the row- and column-averaged superbias, with plotting
 scales appropriate to the gain and binning settings of the superbias.
-
-
 """
 
 from astropy.io import fits
@@ -33,7 +31,6 @@ import stistools
 
 from . import functions
 
-#-------------------------------------------------------------------------------
 
 def average_biases(bias_list):
     """Create a weighted sum of the individual input files.
@@ -51,9 +48,7 @@ def average_biases(bias_list):
         name of the averaged filename
     totalweight : float
         sum of the NCOMBINE header keywords from the data
-
     """
-
     assert len(bias_list), 'Bias list is empty'
 
     file_path, file_name = os.path.split(bias_list[0])
@@ -66,14 +61,14 @@ def average_biases(bias_list):
             nimset = hdr0['nextend'] // 3
             ncombine = hdr1['ncombine']
 
-            #-- If input files have more than one imset or
-            #-- have not been cr-rejected, exit
+            # If input files have more than one imset or
+            # have not been cr-rejected, exit
             if (nimset > 1) | (ncombine <= 1):
                 print('Input files have to be single imset files and have been CR-rejected')
-                print('NIMSET: %d  NCOMBINE: %d' % (nimset, ncombine))
+                print(f'NIMSET: {nimset}  NCOMBINE: {ncombine}')
                 sys.exit(3)
 
-            #Otherwise, add image to running sum
+            # Otherwise, add image to running sum
             if (iteration == 0):
                 sum_arr = hdu[1].data
                 err_arr = (hdu[2].data) ** 2
@@ -90,7 +85,7 @@ def average_biases(bias_list):
     # Then divide by the sum of the weighting factors.
     mean_arr = sum_arr / float(totalweight)
     mean_err_arr = np.sqrt(err_arr / (totalweight ** 2))
-    #Update exptime and number of orbits
+    # Update exptime and number of orbits
 
     hdr0['texptime'] = totaltime
     hdr1['ncombine'] = totalweight
@@ -106,17 +101,14 @@ def average_biases(bias_list):
 
     return mean_file, totalweight
 
-#-------------------------------------------------------------------------------
 
 def calibrate(input_file):
-    """ calibrate input file
-
+    """calibrate input file
     """
-
-    if not 'oref' in os.environ:
+    if 'oref' not in os.environ:
         os.environ['oref'] = '/grp/hst/cdbs/oref/'
 
-    print('Calibrating %s' % (input_file))
+    print(f'Calibrating {input_file}')
     output_blev = input_file.replace('.fits', '_blev.fits')
     functions.RemoveIfThere(output_blev)
     output_crj = input_file.replace('.fits', '_crj.fits')
@@ -145,7 +137,6 @@ def calibrate(input_file):
             hdu[0].header['APER_FOV'] = '50x50'
 
             if (blevcorr != 'COMPLETE'):
-                #print('Performing BLEVCORR')
                 hdu[0].header['BLEVCORR'] = 'PERFORM'
                 stistools.basic2d.basic2d(input=input_file,
                                           output=output_blev,
@@ -166,10 +157,8 @@ def calibrate(input_file):
                                           verbose=False,
                                           trailer="/dev/null")
             else:
-                #print('Blevcorr alread Performed')
                 shutil.copy(input_file, output_blev)
 
-            #print('Performing OCRREJECT')
             stistools.ocrreject.ocrreject(input=output_blev,
                                           output=output_crj,
                                           verbose=False,
@@ -185,18 +174,15 @@ def calibrate(input_file):
 
     return output_crj
 
-#-------------------------------------------------------------------------------
 
 def replace_hot_cols(mean_bias, median_image, residual_image, yfrac=1):
-    """ Replace hot columns in the mean_bias as identified from the
+    """Replace hot columns in the mean_bias as identified from the
     residual image with values from the bias_median
 
     'hot' is 3* sigma
 
     mean_bias will be updated in place
-
     """
-
     print('Replacing hot column')
     residual_columns_2d = functions.make_resicols_image(residual_image,
                                                         yfrac=yfrac)
@@ -210,10 +196,9 @@ def replace_hot_cols(mean_bias, median_image, residual_image, yfrac=1):
     with fits.open(mean_bias, mode='update') as hdu:
         hdu[('sci', 1)].data[index] = median_image[index]
 
-#-------------------------------------------------------------------------------
 
 def replace_hot_pix(mean_bias, median_image):
-    """ Replace image values in residual single hot pixels
+    """Replace image values in residual single hot pixels
 
     defined as those having
     values greater than (mean + 5 sigma of Poisson noise) by those in
@@ -228,9 +213,7 @@ def replace_hot_pix(mean_bias, median_image):
         name of the mean bias bias
     median_image : np.ndarray
         2d median image of the bias
-
     """
-
     print('Replacing hot pixels')
     residual_image = fits.getdata(mean_bias, ext=('sci', 1)) - median_image
     resi_mean, resi_median, resi_std = sigma_clipped_stats(residual_image,
@@ -244,11 +227,9 @@ def replace_hot_pix(mean_bias, median_image):
     with fits.open(mean_bias, mode='update') as hdu:
         hdu[('sci', 1)].data[index] = median_image[index]
 
-#-------------------------------------------------------------------------------
 
 def make_basebias(input_list, refbias_name='basebias.fits'):
-    """ Make the basebias for an anneal month
-
+    """Make the basebias for an anneal month
 
     1- Calbrate each bias in the list
     2- Average together the biases
@@ -261,17 +242,15 @@ def make_basebias(input_list, refbias_name='basebias.fits'):
         list of input bias files.
     refbias_name : str
         name of the output reference file.
-
     """
-
     print('#-------------------------------#')
     print('#        Running basejoint      #')
     print('#-------------------------------#')
-    print('Output to %s' % refbias_name)
+    print(f'Output to {refbias_name}')
 
     print('Processing individual files')
     crj_list = [calibrate(item) for item in input_list]
-    crj_list = [item for item in crj_list if item != None]
+    crj_list = [item for item in crj_list if item is not None]
 
     mean_bias, totalweight = average_biases(crj_list)
 
@@ -279,7 +258,7 @@ def make_basebias(input_list, refbias_name='basebias.fits'):
     residual_image, median_image = functions.make_residual(mean_bias)
 
     replace_hot_cols(mean_bias, median_image, residual_image)
-    #-- then again, but only using the lower 20% of rows
+    # then again, but only using the lower 20% of rows
     replace_hot_cols(mean_bias, median_image, residual_image, yfrac=.2)
 
     replace_hot_pix(mean_bias, median_image)
@@ -297,11 +276,10 @@ def make_basebias(input_list, refbias_name='basebias.fits'):
 
     print('basejoint done for {}'.format(refbias_name))
 
-#-------------------------------------------------------------------------------
 
 def call_make_basebias():
-    '''Parse command line arguments and call ``make_basejoint``.
-    '''
+    """Parse command line arguments and call ``make_basejoint``.
+    """
     parser = argparse.ArgumentParser()
 
     parser.add_argument('files',

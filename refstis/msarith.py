@@ -1,6 +1,6 @@
-''' Copied from Phil Hodge's itools, 2017 Oct 23.
-    Designed to emulate the PyRAF msarith function.
-'''
+"""Copied from Phil Hodge's itools, 2017 Oct 23.
+Designed to emulate the PyRAF msarith function.
+"""
 
 import math
 import os
@@ -53,7 +53,6 @@ def msarith(operand1, op, operand2, result, divzero=0., verbose=True):
         computed value and its error estimate will be returned as a
         tuple.  If either operand is a file name, None will be returned.
     """
-
     op = op.strip()
 
     # Check for numerical constant.
@@ -114,11 +113,12 @@ def msarith(operand1, op, operand2, result, divzero=0., verbose=True):
         if verbose:
             if value is None:
                 if result_dict["status"] == 0:
-                    print("%s, %s --> %s" % (str(input1), str(input2), output))
+                    print(f"{input1}, {input2} --> {output}")
             else:
-                print("%.15g, %.15g)" % (value[0], value[1]))
+                print(f"{value[0]:.15g}, {value[1]:.15g})")
 
     return value
+
 
 def isNumConst(operand):
     """Check for a numerical constant.
@@ -171,6 +171,7 @@ def isNumConst(operand):
 
     return (input, flag)
 
+
 def oneFileArith(input1, op1_const, op, input2, op2_const, output, divzero):
     """Do image arithmetic on one set of input/output files.
 
@@ -213,7 +214,6 @@ def oneFileArith(input1, op1_const, op, input2, op2_const, output, divzero):
         result_dict["status"] will be 1 if the files could not be
         processed; 0 is OK.
     """
-
     status = 0                  # initialize to "OK"
 
     samp1 = None                # not supported yet
@@ -258,12 +258,10 @@ def oneFileArith(input1, op1_const, op, input2, op2_const, output, divzero):
         nextend1 = len(fd1) - 1
         nimsets1 = nextend1 // ext_per_imset
         if nextend1 == 0:
-            print("%s has no extensions, must be a multiple of %d ..." %
-                  (input1, ext_per_imset))
+            print(f"{input1} has no extensions, must be a multiple of {ext_per_imset} ...")
             bad = True
         elif nimsets1 * ext_per_imset != nextend1:
-            print("%s has %d extensions, must be divisible by %d ..." %
-                  (input1, nextend1, ext_per_imset))
+            print(f"{input1} has {nextend1} extensions, must be divisible by {ext_per_imset} ...")
             bad = True
     if op2_const:
         nimsets2 = 1
@@ -271,12 +269,10 @@ def oneFileArith(input1, op1_const, op, input2, op2_const, output, divzero):
         nextend2 = len(fd2) - 1
         nimsets2 = nextend2 // ext_per_imset
         if nextend2 == 0:
-            print("%s has no extensions, must be a multiple of %d ..." %
-                  (input2, ext_per_imset))
+            print(f"{input2} has no extensions, must be a multiple of {ext_per_imset} ...")
             bad = True
         elif nimsets2 * ext_per_imset != nextend2:
-            print("%s has %d extensions, must be divisible by %d ..." %
-                  (input2, nextend2, ext_per_imset))
+            print(f"{input2} has {nextend2} extensions, must be divisible by {ext_per_imset} ...")
             bad = True
     if bad:
         print(" ... skipping")
@@ -290,11 +286,11 @@ def oneFileArith(input1, op1_const, op, input2, op2_const, output, divzero):
     for i in range(max(nimsets1, nimsets2)):
         extver = i + 1
         if not op1_const:
-            value1 = fd1[("SCI",extver)].data
+            value1 = fd1[("SCI", extver)].data
             err1 = getFloatData(fd1, ("ERR", extver))
             dq1 = getShortData(fd1, ("DQ", extver))
         if not op2_const:
-            value2 = fd2[("SCI",extver)].data
+            value2 = fd2[("SCI", extver)].data
             err2 = getFloatData(fd2, ("ERR", extver))
             dq2 = getShortData(fd2, ("DQ", extver))
         (value, err, dq) = imageArith(value1, err1, dq1, op,
@@ -309,29 +305,29 @@ def oneFileArith(input1, op1_const, op, input2, op2_const, output, divzero):
         # a file; otherwise, use headers from the second operand.
         hdu_appended = False
         if not op1_const:
-            hdr = fd1[("SCI",extver)].header
+            hdr = fd1[("SCI", extver)].header
             out_fd.append(fits.ImageHDU(data=value, header=hdr, name="SCI"))
-            hdr = fd1[("ERR",extver)].header
+            hdr = fd1[("ERR", extver)].header
             out_fd.append(fits.ImageHDU(data=err, header=hdr, name="ERR"))
-            hdr = fd1[("DQ",extver)].header
+            hdr = fd1[("DQ", extver)].header
             out_fd.append(fits.ImageHDU(data=dq, header=hdr, name="DQ"))
             if ext_per_imset > 3:
                 # just copy without change; this needs to be fixed xxx
-                out_fd.append(fd1[("SAMP",extver)])
-                out_fd.append(fd1[("TIME",extver)])
+                out_fd.append(fd1[("SAMP", extver)])
+                out_fd.append(fd1[("TIME", extver)])
             hdu_appended = True
 
         if not op2_const and not hdu_appended:
-            hdr = fd2[("SCI",extver)].header
+            hdr = fd2[("SCI", extver)].header
             out_fd.append(fits.ImageHDU(data=value, header=hdr, name="SCI"))
-            hdr = fd2[("ERR",extver)].header
+            hdr = fd2[("ERR", extver)].header
             out_fd.append(fits.ImageHDU(data=err, header=hdr, name="ERR"))
-            hdr = fd2[("DQ",extver)].header
+            hdr = fd2[("DQ", extver)].header
             out_fd.append(fits.ImageHDU(data=dq, header=hdr, name="DQ"))
             if ext_per_imset > 3:
                 # just copy without change; this needs to be fixed xxx
-                out_fd.append(fd2[("SAMP",extver)])
-                out_fd.append(fd2[("TIME",extver)])
+                out_fd.append(fd2[("SAMP", extver)])
+                out_fd.append(fd2[("TIME", extver)])
             hdu_appended = True
 
     out_fd.writeto(output, overwrite=True)
@@ -342,6 +338,7 @@ def oneFileArith(input1, op1_const, op, input2, op2_const, output, divzero):
         fd2.close()
 
     return {"value": None, "status": status}
+
 
 def getImsetType(phdr):
     """Find out how many extensions there are per image set.
@@ -361,7 +358,6 @@ def getImsetType(phdr):
     ext_per_imset: int
         The number of extensions (3 or 5) per image set.
     """
-
     instrume = phdr.get("instrume", "missing")
     detector = phdr.get("detector", "missing")
     if instrume == "NICMOS":
@@ -372,6 +368,7 @@ def getImsetType(phdr):
         ext_per_imset = 3
 
     return ext_per_imset
+
 
 def getFloatData(fd, extn):
     """Get the data, or return the PIXVALUE.
@@ -392,16 +389,16 @@ def getFloatData(fd, extn):
         will be returned.  Otherwise, a one-element numpy array of type
         numpy.float32 with the value of keyword PIXVALUE will be returned.
     """
-
     if fd[extn].data is None:
         npix1 = fd[extn].header.get("npix1", 1)
         npix2 = fd[extn].header.get("npix2", 1)
-        value = np.zeros((npix2,npix1), dtype=np.float32)
-        value[:,:] = fd[extn].header.get("pixvalue", 0.)
+        value = np.zeros((npix2, npix1), dtype=np.float32)
+        value[:, :] = fd[extn].header.get("pixvalue", 0.)
     else:
         value = fd[extn].data
 
     return value
+
 
 def getShortData(fd, extn):
     """Get the data, or return the PIXVALUE.
@@ -422,20 +419,20 @@ def getShortData(fd, extn):
         will be returned.  Otherwise, a one-element numpy array of type
         numpy.int16 with the value of keyword PIXVALUE will be returned.
     """
-
     if fd[extn].data is None:
         npix1 = fd[extn].header.get("npix1", 1)
         npix2 = fd[extn].header.get("npix2", 1)
-        value = np.zeros((npix2,npix1), dtype=np.int16)
-        value[:,:] = fd[extn].header.get("pixvalue", 0)
+        value = np.zeros((npix2, npix1), dtype=np.int16)
+        value[:, :] = fd[extn].header.get("pixvalue", 0)
     else:
         value = fd[extn].data
 
     return value
 
-def constArith(input1, op, input2, divzero):
-    """Arithmetic for two constants."""
 
+def constArith(input1, op, input2, divzero):
+    """Arithmetic for two constants.
+    """
     val1 = input1[0]            # value of the first constant
     err1 = input1[1]            # error estimate for the first constant
     val2 = input2[0]
@@ -465,9 +462,10 @@ def constArith(input1, op, input2, divzero):
 
     return (value, err)
 
-def imageArith(value1, err1, dq1, op, value2, err2, dq2, divzero):
-    """Arithmetic between two images, or an image and a constant."""
 
+def imageArith(value1, err1, dq1, op, value2, err2, dq2, divzero):
+    """Arithmetic between two images, or an image and a constant.
+    """
     if op == "+":
         value = value1 + value2
         err = np.sqrt(err1**2 + err2**2)
@@ -481,9 +479,9 @@ def imageArith(value1, err1, dq1, op, value2, err2, dq2, divzero):
         err = np.sqrt((value1 * err2)**2 + (value2 * err1)**2)
 
     elif op == "/":
-        if isinstance (value2, np.ndarray):
+        if isinstance(value2, np.ndarray):
             zero_locn = np.where(value2 == 0.)
-            value2[zero_locn] = 1.      # protect against dividing by zero
+            value2[zero_locn] = 1.  # protect against dividing by zero
             value = value1 / value2
             a_expr = err1 / value2
             b_expr = err2 * value1 / value2**2

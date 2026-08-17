@@ -15,7 +15,6 @@
 """
 
 
-
 from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
 import numpy as np
@@ -25,7 +24,6 @@ import argparse
 
 from . import functions
 
-#-------------------------------------------------------------------------------
 
 def update_sci(filename):
     """Create the science extension of the baseline dark
@@ -36,9 +34,7 @@ def update_sci(filename):
     ----------
     filename: str
         name of the file to be updated
-
     """
-
     with fits.open(filename, mode='update') as hdu:
         im_mean, im_median, im_std = sigma_clipped_stats(hdu[('sci', 1)].data,
                                                          sigma=5,
@@ -48,19 +44,16 @@ def update_sci(filename):
                                hdu[('sci', 1)].data - im_mean,
                                0)
 
-
-        #-- I don't see this being used
+        # I don't see this being used
         med_im = median_filter(hdu[('sci', 1)].data, (3, 3))
         only_baseline = np.where(hdu[('sci', 1)].data >= fivesig,
                                  med_im,
                                  hdu[('sci', 1)].data)
 
-
         hdu[('dq', 1)].data = np.where(only_hotpix >= .1,
                                        16,
                                        hdu[('dq', 1)].data)
 
-#-------------------------------------------------------------------------------
 
 def find_hotpix(filename):
     """Find hotpixels and update DQ array
@@ -72,12 +65,10 @@ def find_hotpix(filename):
 
     Parameters
     ----------
-    
+
     filename: str
         filename of the input biasfile
-
     """
-
     with fits.open(filename, mode='update') as hdu:
         im_mean, im_median, im_std = sigma_clipped_stats(hdu[('sci', 1)].data,
                                                          sigma=3,
@@ -89,7 +80,6 @@ def find_hotpix(filename):
 
         hdu[('DQ', 1)].data[index] = 16
 
-#-------------------------------------------------------------------------------
 
 def make_basedark(input_list, refdark_name='basedark.fits', bias_file=None):
     """Make a monthly baseline dark from the input list.
@@ -104,16 +94,14 @@ def make_basedark(input_list, refdark_name='basedark.fits', bias_file=None):
 
     bias_file: str or None
         bias file to be used in calibration (optional)
-
     """
-
     print('#-------------------------------#')
     print('#        Running basedark       #')
     print('#-------------------------------#')
-    print('output to: %s' % refdark_name)
-    print('with biasfile %s' % bias_file)
+    print(f'output to: {refdark_name}')
+    print(f'with biasfile {bias_file}')
 
-    #-- bias subtract data if not already done
+    # bias subtract data if not already done
     if bias_file:
         flt_list = [functions.bias_subtract_data(item, bias_file) for item in input_list]
     else:
@@ -127,8 +115,8 @@ def make_basedark(input_list, refdark_name='basedark.fits', bias_file=None):
     joined_filename = refdark_name.replace('.fits', '_joined.fits')
     crj_filename = joined_filename.replace('.fits', '_crj.fits')
 
-    #if not bias_file:
-    #    raise IOError('No biasfile specified, this task needs one to run')
+    # if not bias_file:
+    #     raise IOError('No biasfile specified, this task needs one to run')
 
     print('Joining images')
     functions.msjoin(flt_list, joined_filename)
@@ -150,15 +138,14 @@ def make_basedark(input_list, refdark_name='basedark.fits', bias_file=None):
     print('Cleaning...')
     functions.RemoveIfThere(crj_filename)
     functions.RemoveIfThere(joined_filename)
-    #map(functions.RemoveIfThere, flt_list)
+    # map(functions.RemoveIfThere, flt_list)
 
     print('basedark done for {}'.format(refdark_name))
 
-#-------------------------------------------------------------------------------
 
 def call_make_basedark():
-    '''Parse command line arguments and call ``make_basedark``.
-    '''
+    """Parse command line arguments and call ``make_basedark``.
+    """
     parser = argparse.ArgumentParser()
 
     parser.add_argument('files',

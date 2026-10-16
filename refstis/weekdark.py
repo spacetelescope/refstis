@@ -9,6 +9,7 @@ import shutil
 import argparse
 
 from . import functions
+from .functions import SIDE2_MJD_START
 
 
 def create_superdark(crj_filename, basedark):
@@ -65,7 +66,8 @@ def create_superdark(crj_filename, basedark):
                                             crj_hdu[('err', 1)].data)
 
 
-def make_weekdark(input_list, refdark_name, thebasedark, thebiasfile=None):
+def make_weekdark(input_list, refdark_name, thebasedark, thebiasfile=None,
+                  dark_v_temp=0.07, s2ref_temp=18.):
     """Create a weekly dark reference file
 
     1. If not already done, run basic2d with blevcorr, biascorr, and dqicorr
@@ -92,6 +94,10 @@ def make_weekdark(input_list, refdark_name, thebasedark, thebiasfile=None):
         Monthly basedark
     thebiasfile : str, bool, optional
         biasfile to use for calibration
+    dark_v_temp : float, default=0.07
+        slope of temperature correction for side-2 (1/°C)
+    s2ref_temp : float, default=18.
+        reference temperature for side-2 (°C)
     """
     print('#-------------------------------#')
     print('#        Running weekdark       #')
@@ -110,8 +116,9 @@ def make_weekdark(input_list, refdark_name, thebasedark, thebiasfile=None):
         # Side 1 operations ended on May 16, 2001.
         # Side 2 operations started on July 10, 2001,
         # 52091.0 corresponds to July 1, 2001
-        if texpstrt > 52091.0:
-            functions.apply_dark_correction(filename, texpstrt)
+        if texpstrt >= SIDE2_MJD_START:
+            functions.apply_dark_correction(filename, texpstrt,
+                                            dark_v_temp=dark_v_temp, s2ref_temp=s2ref_temp)
 
     joined_out = refdark_name.replace('.fits', '_joined.fits')
     print(f'Joining images to {joined_out}')
@@ -128,7 +135,8 @@ def make_weekdark(input_list, refdark_name, thebasedark, thebiasfile=None):
 
     create_superdark(refdark_name, thebasedark)
 
-    functions.update_header_from_input(refdark_name, input_list)
+    functions.update_header_from_input(refdark_name, input_list,
+                                       dark_v_temp=dark_v_temp, s2ref_temp=s2ref_temp)
     fits.setval(refdark_name, 'TASKNAME', ext=0, value='WEEKDARK')
 
     print('Cleaning up...')
@@ -144,30 +152,43 @@ def call_make_weekdark():
     """
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('files',
+    parser.add_argument('input_list',
+                        metavar='FILE',
                         nargs='*',
                         help='input files to turn into reference file')
 
     parser.add_argument('-o',
-                        dest='outname',
+                        dest='refdark_name',
+                        metavar='OUTNAME',
                         type=str,
                         default='basebias.fits',
-                        help='output name for the reference file')
-
-    parser.add_argument('-b',
-                        dest='biasname',
-                        type=str,
-                        default=None,
-                        help='Bias file for calibration.')
+                        help='output name for the reference file; default="basebias.fits"')
 
     parser.add_argument('-d',
-                        dest='darkname',
+                        dest='thebasedark',
+                        metavar='DARKNAME',
                         type=str,
-                        default='',
-                        help='base dark file for calibration.')
+                        required=True,
+                        help='basedark file for calibration')
 
-    args = parser.parse_args()
-    make_weekdark(args.files,
-                  args.outname,
-                  args.darkname,
-                  thebiasfile=args.biasname)
+    parser.add_argument('-b',
+                        dest='thebiasfile',
+                        metavar='BIASNAME',
+                        type=str,
+                        default=None,
+                        help='bias file for calibration; default=None')
+
+    parser.add_argument('-s',
+                        dest='dark_v_temp',
+                        type=float,
+                        default=0.07,
+                        help='slope of temperature correction for side-2; default=0.07 / °C')
+
+    parser.add_argument('-r',
+                        dest='s2ref_temp',
+                        type=float,
+                        default=18.,
+                        help='reference temperature for side-2; default=18 °C')
+
+    kwargs = vars(parser.parse_args())
+    make_weekdark(**kwargs)

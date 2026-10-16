@@ -98,15 +98,17 @@ def call_make_refbias():
     """
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('files',
+    parser.add_argument(dest='input_list',
+                        metavar='FILE',
                         nargs='*',
                         help='input files to turn into reference file')
 
     parser.add_argument('-o',
-                        dest='outname',
+                        dest='refbias_name',
+                        metavar='OUTNAME',
                         type=str,
                         default='refbias.fits',
-                        help='output name for the reference file')
+                        help='output name for the reference file; default="refbias.fits"')
 
-    args = parser.parse_args()
-    make_refbias(args.files, args.outname)
+    kwargs = vars(parser.parse_args())
+    make_refbias(**kwargs)

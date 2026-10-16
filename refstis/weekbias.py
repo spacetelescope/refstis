@@ -91,21 +91,24 @@ def call_make_weekbias():
     """
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('files',
+    parser.add_argument(dest='input_list',
+                        metavar='FILE',
                         nargs='*',
                         help='input files to turn into reference file')
 
     parser.add_argument('-o',
-                        dest='outname',
+                        dest='refbias_name',
+                        metavar='OUTNAME',
                         type=str,
                         default='weekbias.fits',
-                        help='output name for the reference file')
+                        help='output name for the reference file; default="weekbias.fits"')
 
     parser.add_argument('-b',
                         dest='basebias',
+                        metavar='BASEBIAS',
                         type=str,
-                        default='basebias.fits',
+                        required=True,
                         help='filename for the basebias used in final reference file')
 
-    args = parser.parse_args()
-    make_weekbias(args.files, args.outname, args.basebias)
+    kwargs = parser.parse_args()
+    make_weekbias(**kwargs)

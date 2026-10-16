@@ -609,6 +609,10 @@ def apply_dark_correction(filename, expstart, dark_v_temp=0.07, s2ref_temp=18.):
         full path to input FITS file
     expstart : str
         start time in MJD of the dataset
+    dark_v_temp : float, default=0.07
+        slope of temperature correction for side-2 (1/°C)
+    s2ref_temp : float, default=18.
+        reference temperature for side-2 (°C)
     """
     with pyfits.open(filename, mode='update') as ofile:
         if 'tempcorr' not in ofile[0].header:

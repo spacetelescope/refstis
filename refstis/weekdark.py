@@ -116,7 +116,7 @@ def make_weekdark(input_list, refdark_name, thebasedark, thebiasfile=None,
         # Side 1 operations ended on May 16, 2001.
         # Side 2 operations started on July 10, 2001,
         # 52091.0 corresponds to July 1, 2001
-        if texpstrt > SIDE2_MJD_START:
+        if texpstrt >= SIDE2_MJD_START:
             functions.apply_dark_correction(filename, texpstrt,
                                             dark_v_temp=dark_v_temp, s2ref_temp=s2ref_temp)
 

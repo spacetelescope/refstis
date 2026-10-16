@@ -117,7 +117,7 @@ def make_basedark(input_list, refdark_name='basedark.fits', bias_file=None,
 
     for filename in flt_list:
         texpstrt = fits.getval(filename, 'texpstrt', 0)
-        if texpstrt > SIDE2_MJD_START:
+        if texpstrt >= SIDE2_MJD_START:
             functions.apply_dark_correction(filename, texpstrt,
                                             dark_v_temp=dark_v_temp, s2ref_temp=s2ref_temp)
 

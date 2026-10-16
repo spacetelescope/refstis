@@ -108,7 +108,7 @@ def call_make_weekbias():
                         metavar='BASEBIAS',
                         type=str,
                         required=True,
-                        help='filename for the basebias used in final reference file; default="basebias.fits"')
+                        help='filename for the basebias used in final reference file')
 
     kwargs = parser.parse_args()
     make_weekbias(**kwargs)

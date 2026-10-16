@@ -13,11 +13,16 @@ from stistools.ocrreject import ocrreject
 from stistools.basic2d import basic2d
 
 
-def update_header_from_input(filename, input_list):
+SIDE2_MJD_START = 52091.  # July 1, 2001
+
+
+def update_header_from_input(filename, input_list, dark_v_temp=0.07, s2ref_temp=18.):
     """Updates header of output file using keywords from the input data
 
     If a header keyword is not consistent in this step, an error will be
     raised.
+
+    Note that `dark_v_temp` and `s2ref_temp` are only used for dark files.
     """
     targname = get_keyword(input_list, 'TARGNAME', 0)
     if targname == 'BIAS':
@@ -131,17 +136,22 @@ def update_header_from_input(filename, input_list):
         hdu_out[0].header.add_history('extension of the output reference bias file.')
 
     elif targname == 'DARK':
-        hdu_out[0].header['REF_TEMP'] = 18
-        hdu_out[0].header['DRK_VS_T'] = 0.07
+        if data_start_mjd >= SIDE2_MJD_START:
+            hdu_out[0].header['REF_TEMP'] = s2ref_temp
+            hdu_out[0].header['DRK_VS_T'] = dark_v_temp
+        else:
+            hdu_out[0].header['REF_TEMP'] = (None, 'side-1 electronics')
+            hdu_out[0].header['DRK_VS_T'] = (None, 'side-1 electronics')
 
         hdu_out[0].header.add_history('This superdark image is a combination of 2 images.')
         hdu_out[0].header.add_history('The first is a "baseline dark" image which is a  ')
         hdu_out[0].header.add_history('(typically) monthly average of (cosmic-ray-rejected)')
         hdu_out[0].header.add_history('dark files. The second image is made locally within the')
         hdu_out[0].header.add_history('"weekdark" script.')
-        hdu_out[0].header.add_history('These gain {} darks are first'.format(hdu_out[0].header['CCDGAIN']))
-        hdu_out[0].header.add_history('corrected for temperature (C) using the factor')
-        hdu_out[0].header.add_history('1.0 / (1.0 + DRK_V_TMP * (OCCDHTAV - S2_REF_TEMP)) and then ')
+        hdu_out[0].header.add_history('These gain {} darks are'.format(hdu_out[0].header['CCDGAIN']))
+        if data_start_mjd >= SIDE2_MJD_START:
+            hdu_out[0].header.add_history('first corrected for temperature (C) using the factor')
+            hdu_out[0].header.add_history('1.0 / (1.0 + DRK_V_TMP * (OCCDHTAV - S2_REF_TEMP)) and then')
         hdu_out[0].header.add_history('combined together (cosmic rays are rejected in the')
         hdu_out[0].header.add_history('combination) using calstis,')
         hdu_out[0].header.add_history('and normalized to a dark time of 1 second. After that,')
@@ -587,11 +597,11 @@ def refaver(reffiles, combined_name):
     os.chdir(initial_dir)
 
 
-def apply_dark_correction(filename, expstart):
+def apply_dark_correction(filename, expstart, dark_v_temp=0.07, s2ref_temp=18.):
     """Perform temperature scaling to input dark file
 
     All science extensions in the input filename will be scaled to the reference
-    temperatue of 18.0 c.
+    temperatue of s2ref_temp °C.
 
     Parameters
     ----------
@@ -600,8 +610,6 @@ def apply_dark_correction(filename, expstart):
     expstart : str
         start time in MJD of the dataset
     """
-    dark_v_temp = 0.07
-    s2ref_temp = 18.0
     with pyfits.open(filename, mode='update') as ofile:
         if 'tempcorr' not in ofile[0].header:
             nextend = ofile[0].header['nextend']

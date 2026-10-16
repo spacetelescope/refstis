@@ -106,7 +106,7 @@ def call_make_refbias():
                         dest='outname',
                         type=str,
                         default='refbias.fits',
-                        help='output name for the reference file')
+                        help='output name for the reference file; default="refbias.fits"')
 
     args = parser.parse_args()
     make_refbias(args.files, args.outname)

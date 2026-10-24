@@ -12,4 +12,6 @@ pipeline_data/config.yaml
 
 docs/_build/
 
+*.coverage
+
 .DS_Store

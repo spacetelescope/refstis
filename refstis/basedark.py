@@ -23,6 +23,7 @@ import shutil
 import argparse
 
 from . import functions
+from .functions import SIDE2_MJD_START
 
 
 def update_sci(filename):
@@ -81,7 +82,8 @@ def find_hotpix(filename):
         hdu[('DQ', 1)].data[index] = 16
 
 
-def make_basedark(input_list, refdark_name='basedark.fits', bias_file=None):
+def make_basedark(input_list, refdark_name='basedark.fits', bias_file=None,
+                  dark_v_temp=0.07, s2ref_temp=18.):
     """Make a monthly baseline dark from the input list.
 
     Parameters
@@ -94,6 +96,12 @@ def make_basedark(input_list, refdark_name='basedark.fits', bias_file=None):
 
     bias_file: str or None
         bias file to be used in calibration (optional)
+
+    dark_v_temp : float, default=0.07
+        slope of temperature correction for side-2 (1/°C)
+
+    s2ref_temp : float, default=18.
+        reference temperature for side-2 (°C)
     """
     print('#-------------------------------#')
     print('#        Running basedark       #')
@@ -109,8 +117,9 @@ def make_basedark(input_list, refdark_name='basedark.fits', bias_file=None):
 
     for filename in flt_list:
         texpstrt = fits.getval(filename, 'texpstrt', 0)
-        if texpstrt > 52091.0:
-            functions.apply_dark_correction(filename, texpstrt)
+        if texpstrt >= SIDE2_MJD_START:
+            functions.apply_dark_correction(filename, texpstrt,
+                                            dark_v_temp=dark_v_temp, s2ref_temp=s2ref_temp)
 
     joined_filename = refdark_name.replace('.fits', '_joined.fits')
     crj_filename = joined_filename.replace('.fits', '_crj.fits')
@@ -132,7 +141,8 @@ def make_basedark(input_list, refdark_name='basedark.fits', bias_file=None):
     update_sci(refdark_name)
     find_hotpix(refdark_name)
 
-    functions.update_header_from_input(refdark_name, input_list)
+    functions.update_header_from_input(refdark_name, input_list,
+                                       dark_v_temp=dark_v_temp, s2ref_temp=s2ref_temp)
     fits.setval(refdark_name, 'TASKNAME', ext=0, value='BASEDARK')
 
     print('Cleaning...')
@@ -148,21 +158,36 @@ def call_make_basedark():
     """
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('files',
+    parser.add_argument('input_list',
+                        metavar='FILE',
                         nargs='*',
                         help='input files to turn into reference file')
 
     parser.add_argument('-o',
-                        dest='outname',
+                        dest='refdark_name',
+                        metavar='OUTNAME',
                         type=str,
                         default='basebias.fits',
-                        help='output name for the reference file')
+                        help='output name for the reference file; default="basebias.fits"')
 
     parser.add_argument('-b',
-                        dest='biasname',
+                        dest='bias_file',
+                        metavar='BIASNAME',
                         type=str,
                         default=None,
-                        help='Bias file for calibration')
+                        help='bias file for calibration; default=None')
 
-    args = parser.parse_args()
-    make_basedark(args.files, args.outname, args.biasname)
+    parser.add_argument('-s',
+                        dest='dark_v_temp',
+                        type=float,
+                        default=0.07,
+                        help='slope of temperature correction for side-2; default=0.07 / °C')
+
+    parser.add_argument('-r',
+                        dest='s2ref_temp',
+                        type=float,
+                        default=18.,
+                        help='reference temperature for side-2; default=18 °C')
+
+    kwargs = vars(parser.parse_args())
+    make_basedark(**kwargs)
